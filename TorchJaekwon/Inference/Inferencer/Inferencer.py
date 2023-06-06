@@ -7,8 +7,8 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from HParams import HParams
-from TorchJAEKWON.GetModule import GetModule
-from TorchJAEKWON.DataProcess.Util.UtilData import UtilData
+from TorchJaekwon.GetModule import GetModule
+from TorchJaekwon.DataProcess.Util.UtilData import UtilData
 
 class Inferencer():
     def __init__(self) -> None:

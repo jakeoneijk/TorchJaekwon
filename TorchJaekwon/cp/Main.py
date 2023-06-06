@@ -1,10 +1,11 @@
 from HParams import HParams
-from TorchJAEKWON.GetModule import GetModule
-from TorchJAEKWON.DataProcess.Preprocess.Preprocessor import Preprocessor
-from TorchJAEKWON.DataProcess.MakeMetaData.MakeMetaData import MakeMetaData
-from TorchJAEKWON.Train.Trainer.Trainer import Trainer
-from TorchJAEKWON.Inference.Inferencer.Inferencer import Inferencer
-from TorchJAEKWON.Evaluater.Evaluater import Evaluater
+HParams()
+from TorchJaekwon.GetModule import GetModule
+from TorchJaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
+from TorchJaekwon.DataProcess.MakeMetaData.MakeMetaData import MakeMetaData
+from TorchJaekwon.Train.Trainer.Trainer import Trainer
+from TorchJaekwon.Inference.Inferencer.Inferencer import Inferencer
+from TorchJaekwon.Evaluater.Evaluater import Evaluater
 
 
 class Controller():
@@ -48,10 +49,9 @@ class Controller():
     
     def make_meta_data(self) -> None:
         for mata_data_class_name in self.h_params.make_meta_data.process_dict:
-            meta_data_maker: MakeMetaData = self.get_module.get_module(module_type="make_meta_data", 
-                                                                    module_name=mata_data_class_name,
-                                                                    module_arg={"make_meta_data_config": self.h_params.make_meta_data.process_dict[mata_data_class_name]},
-                                                                    arg_unpack=True)
+            meta_data_maker: MakeMetaData = GetModule.get_module_class(root_path='./DataProcess/MakeMetaData',
+                                                                       module_name=mata_data_class_name
+                                                                       )(**self.h_params.make_meta_data.process_dict[mata_data_class_name])
             meta_data_maker.make_meta_data()
 
     def train(self) -> None:

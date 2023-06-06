@@ -1,4 +1,4 @@
-from TorchJAEKWON.GetModule import GetModule
+from TorchJaekwon.GetModule import GetModule
 from HParams import HParams
 import torch
 

@@ -1,3 +1,4 @@
+import sys,os
 import yaml
 import torch
 from dataclasses import dataclass
@@ -11,6 +12,9 @@ class Singleton(object):
 
 class HParams(Singleton):
     def __init__(self) -> None:
+        
+        self.torch_jaekwon_path = '../000000_TorchJAEKWON'
+        if os.path.abspath(self.torch_jaekwon_path) not in sys.path: sys.path.append(os.path.abspath(self.torch_jaekwon_path))
         self.mode = Mode()
         self.resource = Resource()
         self.data = Data()

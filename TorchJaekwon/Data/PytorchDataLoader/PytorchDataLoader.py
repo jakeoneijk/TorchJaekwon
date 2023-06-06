@@ -2,7 +2,7 @@ import os
 from torch.utils.data import DataLoader
 
 from HParams import HParams
-from TorchJAEKWON.GetModule import GetModule
+from TorchJaekwon.GetModule import GetModule
 
 class PytorchDataLoader:
     def __init__(self):

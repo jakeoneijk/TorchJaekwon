@@ -4,8 +4,10 @@ import os
 import time
 from datetime import datetime
 from datetime import timedelta
-
-import wandb
+try:
+    import wandb
+except:
+    print('Didnt import following packages: wandb')
 
 
 from HParams import HParams

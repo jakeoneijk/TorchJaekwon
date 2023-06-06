@@ -6,7 +6,7 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 
-from TorchJAEKWON.DataProcess.Util.UtilAudio import UtilAudio
+from TorchJaekwon.DataProcess.Util.UtilAudio import UtilAudio
 
 class UtilAudioSTFT(UtilAudio):
     def __init__(self,nfft:int, hop_size:int):

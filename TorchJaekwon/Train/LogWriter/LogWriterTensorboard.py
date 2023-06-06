@@ -1,7 +1,7 @@
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
-from TorchJAEKWON.Train.LogWriter.LogWriter import LogWriter
-from TorchJAEKWON.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
+from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
+from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
 
 class LogWriterTensorboard(LogWriter):
     def __init__(self) -> None:

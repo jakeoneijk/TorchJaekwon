@@ -1,4 +1,4 @@
-from TorchJAEKWON.Train.LogWriter.LogWriter import LogWriter
+from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
 
 class LogWriterWandb(LogWriter):
     def __init__(self,model) -> None:

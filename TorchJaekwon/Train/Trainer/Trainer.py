@@ -10,14 +10,14 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from HParams import HParams
-from TorchJAEKWON.GetModule import GetModule
-from TorchJAEKWON.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
-from TorchJAEKWON.Train.LogWriter.LogWriter import LogWriter
-from TorchJAEKWON.Train.LogWriter.LogWriterTensorboard import LogWriterTensorboard
-from TorchJAEKWON.Train.LogWriter.LogWriterWandb import LogWriterWandb
-from TorchJAEKWON.Train.Optimizer.OptimizerControl import OptimizerControl
-from TorchJAEKWON.Train.AverageMeter import AverageMeter
-from TorchJAEKWON.Train.Loss.LossControl.LossControl import LossControl
+from TorchJaekwon.GetModule import GetModule
+from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
+from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
+from TorchJaekwon.Train.LogWriter.LogWriterTensorboard import LogWriterTensorboard
+from TorchJaekwon.Train.LogWriter.LogWriterWandb import LogWriterWandb
+from TorchJaekwon.Train.Optimizer.OptimizerControl import OptimizerControl
+from TorchJaekwon.Train.AverageMeter import AverageMeter
+from TorchJaekwon.Train.Loss.LossControl.LossControl import LossControl
 
 
 @unique

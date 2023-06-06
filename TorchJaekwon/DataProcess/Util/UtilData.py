@@ -40,11 +40,11 @@ class UtilData:
         return data
     
     @staticmethod
-    def yaml_save(save_path:str, data:Union[dict,list]) -> None:
+    def yaml_save(save_path:str, data:Union[dict,list], sort_keys:bool = False) -> None:
         assert(os.path.splitext(save_path)[1] == ".yaml") , "file extension should be '.yaml'"
 
         with open(save_path, 'w') as file:
-            yaml.dump(data, file)
+            yaml.dump(data, file, sort_keys = sort_keys)
     
     @staticmethod
     def yaml_load(data_path:str) -> dict:

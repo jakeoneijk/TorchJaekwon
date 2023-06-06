@@ -1,3 +1,4 @@
+from typing import Union
 from numpy import ndarray
 from torch import Tensor
 
@@ -8,7 +9,7 @@ import librosa.display
 from librosa.filters import mel as librosa_mel_fn
 import matplotlib.pyplot as plt
 
-from TorchJAEKWON.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
+from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
 
 class UtilAudioMelSpec(UtilAudioSTFT):
     def __init__(self, nfft: int, hop_size: int, sample_rate:int,mel_size:int,frequency_min:float,frequency_max:float):
@@ -19,8 +20,12 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         self.frequency_min = frequency_min
         self.frequency_max = frequency_max
 
-        #self.mel_basis_np.shape == (self.mel_size, self.nfft//2 + 1)
-        self.mel_basis_np:ndarray = librosa_mel_fn(self.sample_rate, self.nfft, self.mel_size, self.frequency_min, self.frequency_max)
+        #[self.mel_size, self.nfft//2 + 1]
+        self.mel_basis_np:ndarray = librosa_mel_fn(sr = self.sample_rate,
+                                                   n_fft = self.nfft, 
+                                                   n_mels = self.mel_size,
+                                                   fmin = self.frequency_min, 
+                                                   fmax = self.frequency_max)
         self.mel_basis_tensor:Tensor = torch.from_numpy(self.mel_basis_np).float()
     
     def spec_to_mel_spec(self,stft_mag):
@@ -42,8 +47,11 @@ class UtilAudioMelSpec(UtilAudioSTFT):
             print("dynamic_range_compression type error")
             exit()
     
-    def get_hifigan_mel_spectrogram_from_audio(self,audio):
-        audio = torch.FloatTensor(audio)
+    def get_hifigan_mel_spectrogram_from_audio(self,
+                                               audio:Union[ndarray,Tensor], #[Batch,Time]
+                                               return_type:str=['ndarray','Tensor'][1]
+                                               ) -> Union[ndarray,Tensor]:
+        if isinstance(audio,ndarray): audio = torch.FloatTensor(audio)
 
         if torch.min(audio) < -1.:
             print('min value is ', torch.min(audio))
@@ -54,7 +62,10 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         mel_spec = self.spec_to_mel_spec(spectrogram)
         log_scale_mel = self.dynamic_range_compression(mel_spec)
 
-        return log_scale_mel
+        if return_type == 'ndarray':
+            return log_scale_mel.cpu().detach().numpy()
+        else:
+            return log_scale_mel
     
     def save_mel_spec_plot(self,save_path:str,mel_spec:ndarray):
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
