@@ -3,6 +3,8 @@ from typing import Optional
 import os
 import importlib
 
+from HParams import HParams
+
 class GetModule:
     def __init__(self) -> None:
         '''
@@ -19,15 +21,19 @@ class GetModule:
     @staticmethod
     def get_import_path_of_module(root_path:str, module_name:str ) -> Optional[str]:
         root_path_list:list = [root_path]
-        if os.path.isdir(root_path.replace("./","./TorchJAEKWON/")):
-            root_path_list.append(root_path.replace("./","./TorchJAEKWON/"))
+        torch_jaekwon_path = f'{HParams().torch_jaekwon_path}/TorchJaekwon/'
+        if os.path.isdir(root_path.replace("./",torch_jaekwon_path)):
+            root_path_list.append(root_path.replace("./",torch_jaekwon_path))
         
         for root_path in root_path_list:
             for root,dirs,files in os.walk(root_path):
                 if len(files) > 0:
                     for file in files:
                         if os.path.splitext(file)[0] == module_name:
-                            return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
+                            if torch_jaekwon_path in root:
+                                return f'{root}/{os.path.splitext(file)[0]}'.replace(HParams().torch_jaekwon_path+'/','').replace("/",".")
+                            else:
+                                return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
         return None
     @staticmethod
     def get_module(root_path:str,module_name:str,module_arg=None,arg_unpack=False) -> object:

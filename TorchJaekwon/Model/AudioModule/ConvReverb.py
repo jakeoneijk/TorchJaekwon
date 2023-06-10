@@ -33,7 +33,7 @@ class ConvReverb(nn.Module):
         input_signal:Tensor, #(batch,sampletime_length)
         input_ir:Tensor #(batch,sampletime_length)
         ) -> Tensor:
-        assert ((len(input_signal.shape) == 3) or (len(input_signal.shape) == 4)), "input shape is wrong"
+        assert ((len(input_signal.shape) == 2) or (len(input_signal.shape) == 3)), "input shape is wrong"
         if len(input_signal.shape) == 2:
             return self.conv_reverb_by_one_ir(input_signal,input_ir)
         else:

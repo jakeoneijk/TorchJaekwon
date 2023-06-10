@@ -53,10 +53,11 @@ class OptimizerControl:
     def set_lr_scheduler(self):
         scheduler_dict:dict= getattr(self.h_params.train,'scheduler',None)
         if scheduler_dict is not None:
-            self.scheduler_config = scheduler_dict['config']
-            self.scheduler_config['optimizer'] = self.optimizer
+            self.scheduler_config = scheduler_dict
+            scheduler_parameter_dict = scheduler_dict['config']
+            scheduler_parameter_dict['optimizer'] = self.optimizer
             scheduler_class = getattr(torch.optim.lr_scheduler,scheduler_dict['name'],None)
-            self.lr_scheduler = scheduler_class(**self.scheduler_config)
+            self.lr_scheduler = scheduler_class(**scheduler_parameter_dict)
 
     def lr_scheduler_step(self,interval_type="step",args = None):
         if self.lr_scheduler == None or (self.num_lr_scheduler_step % self.scheduler_config["frequency"]) != 0 or interval_type != self.scheduler_config["interval"]:

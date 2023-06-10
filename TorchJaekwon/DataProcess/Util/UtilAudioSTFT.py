@@ -76,9 +76,14 @@ class UtilAudioSTFT(UtilAudio):
             plt.savefig(save_path,dpi=dpi)
 
     @staticmethod
-    def spec_to_figure(spec, vmin=-6.0, vmax=1.5, transposed=False):
+    def spec_to_figure(spec,
+                       vmin:float = -6.0, 
+                       vmax:float = 1.5,
+                       fig_size:tuple = (12,6),
+                       dpi = 400,
+                       transposed=False):
         if isinstance(spec, torch.Tensor):
             spec = spec.cpu().numpy()
-        fig = plt.figure(figsize=(12, 6))
+        fig = plt.figure(figsize=fig_size, dpi = dpi)
         plt.pcolor(spec.T if transposed else spec, vmin=vmin, vmax=vmax)
         return fig
