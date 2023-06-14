@@ -8,7 +8,7 @@ class JupyterNotebookUtil():
         self.lower_is_better_symbol:str = "↓"
         self.higher_is_better_symbol:str = "↑"
 
-    def get_html_code_from_srcpath(self,type:str,path:str,width:int=None) -> str:
+    def get_html_from_src_path(self,type:str,path:str,width:int=200) -> str:
         if type == "audio":
             if width is not None:
                 return f"""<audio controls style='width:{width}px'><source src="{path}" type="audio/wav"></audio></td>"""
@@ -17,7 +17,7 @@ class JupyterNotebookUtil():
         elif type == "img":
             return f"""<img src="{path}">"""
     
-    def pandas_list_to_html(self,pandas_list: List[dict]) -> str:
+    def dict_list_to_html(self,pandas_list: List[dict]) -> str:
         '''
         panda_list = [
         {'name':'testaudio','audio':html_code}

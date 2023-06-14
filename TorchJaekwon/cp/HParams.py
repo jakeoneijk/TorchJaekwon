@@ -3,51 +3,6 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-class Singleton(object):
-  _instance = None
-  def __new__(class_, *args, **kwargs):
-    if not isinstance(class_._instance, class_):
-        class_._instance = object.__new__(class_, *args, **kwargs)
-    return class_._instance
-
-class HParams(Singleton):
-    def __init__(self) -> None:
-        
-        self.torch_jaekwon_path = '../000000_TorchJAEKWON'
-        if os.path.abspath(self.torch_jaekwon_path) not in sys.path: sys.path.append(os.path.abspath(self.torch_jaekwon_path))
-        self.mode = Mode()
-        self.resource = Resource()
-        self.data = Data()
-        self.preprocess = PreProcess()
-        self.make_meta_data = MakeMetaData()
-        self.pytorch_data = PytorchData()
-        self.model = Model()
-        self.train= Train()
-        self.log = Logging()
-        self.inference = Inference()
-        self.evaluate = Evaluate()
-        self.load_config()
-    
-    def load_config(self) -> None:
-        if self.mode.config_path is None:
-            return
-        with open(self.mode.config_path, 'r') as yaml_file:
-            config_dict:dict = yaml.safe_load(yaml_file)
-        self.set_h_params_from_dict(config_dict)
-    
-    def set_config(self,config_path:str) -> None:
-        self.mode.config_path = config_path
-        self.load_config()
-    
-    def set_h_params_from_dict(self, h_params_dict:dict) -> None:
-        for data_class_name in h_params_dict:
-            for var_name in h_params_dict[data_class_name]:
-                setattr(getattr(self,data_class_name),var_name,h_params_dict[data_class_name][var_name])
-
-##########################################################################################
-# Data class
-##########################################################################################
-
 @dataclass
 class Mode:
     config_name:str = "000000_template"
@@ -129,4 +84,46 @@ class Inference():
 class Evaluate():
     class_name:str = 'Evaluater'
     class_root_dir:str = "./Evaluater"
-    source_dir_name:str = ""
+    source_dir:str = ""
+
+class Singleton(object):
+  _instance = None
+  def __new__(class_, *args, **kwargs):
+    if not isinstance(class_._instance, class_):
+        class_._instance = object.__new__(class_, *args, **kwargs)
+    return class_._instance
+
+class HParams(Singleton):
+    def __init__(self) -> None:
+        
+        self.torch_jaekwon_path = '../000000_TorchJAEKWON'
+        if os.path.abspath(self.torch_jaekwon_path) not in sys.path: sys.path.append(os.path.abspath(self.torch_jaekwon_path))
+        self.mode = Mode()
+        self.resource = Resource()
+        self.data = Data()
+        self.preprocess = PreProcess()
+        self.make_meta_data = MakeMetaData()
+        self.pytorch_data = PytorchData()
+        self.model = Model()
+        self.train= Train()
+        self.log = Logging()
+        self.inference = Inference()
+        self.evaluate = Evaluate()
+        self.load_config()
+    
+    def load_config(self) -> None:
+        if self.mode.config_path is None:
+            return
+        with open(self.mode.config_path, 'r') as yaml_file:
+            config_dict:dict = yaml.safe_load(yaml_file)
+        self.set_h_params_from_dict(config_dict)
+    
+    def set_config(self,config_path:str) -> None:
+        self.mode.config_path = config_path
+        self.load_config()
+    
+    def set_h_params_from_dict(self, h_params_dict:dict) -> None:
+        for data_class_name in h_params_dict:
+            for var_name in h_params_dict[data_class_name]:
+                setattr(getattr(self,data_class_name),var_name,h_params_dict[data_class_name][var_name])
+

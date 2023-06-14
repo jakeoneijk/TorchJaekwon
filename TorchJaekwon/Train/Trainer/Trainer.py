@@ -40,7 +40,7 @@ class Trainer(ABC):
         self.seed:int = (int)(torch.cuda.initial_seed() / (2**32)) if self.h_params.train.seed is None else self.h_params.train.seed
         self.set_seeds(self.h_params.train.seed_strict)
 
-        self.current_epoch:int = 0
+        self.current_epoch:int = 1
         self.total_epoch:int = self.h_params.train.epoch
         self.global_step:int = 0
         self.local_step:int = 0

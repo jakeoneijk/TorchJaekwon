@@ -14,7 +14,7 @@ from pathlib import Path
 class UtilData:
 
     @staticmethod
-    def get_file_name_from_path(path:str,with_ext:bool = False)->str:
+    def get_file_name_from_path(path:str, with_ext:bool = False) -> str:
         if path is None:
             print("warning: path is None")
             return ""
@@ -124,4 +124,8 @@ class UtilData:
             elif output_type == 'torch':
                 batch_dict[feature_name] = torch.from_numpy(np.array(batch_dict[feature_name]))
         return batch_dict
+    
+    @staticmethod
+    def sort_dict_list_by_key(dict_list:List[dict], key:str):
+        return sorted(dict_list, key=lambda dictionary: dictionary[key])
         

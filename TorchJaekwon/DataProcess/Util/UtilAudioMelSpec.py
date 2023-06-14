@@ -1,24 +1,31 @@
+#type
 from typing import Union
 from numpy import ndarray
 from torch import Tensor
-
+#package
 import os
 import torch
 import numpy as np
 import librosa.display
 from librosa.filters import mel as librosa_mel_fn
 import matplotlib.pyplot as plt
-
+#torchjaekwon
 from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
 
 class UtilAudioMelSpec(UtilAudioSTFT):
-    def __init__(self, nfft: int, hop_size: int, sample_rate:int,mel_size:int,frequency_min:float,frequency_max:float):
+    def __init__(self, 
+                 nfft: int, 
+                 hop_size: int, 
+                 sample_rate:int,
+                 mel_size:int,
+                 frequency_min:float,
+                 frequency_max:float):
         super().__init__(nfft, hop_size)
 
-        self.sample_rate = sample_rate
-        self.mel_size = mel_size
-        self.frequency_min = frequency_min
-        self.frequency_max = frequency_max
+        self.sample_rate:int = sample_rate
+        self.mel_size:int = mel_size
+        self.frequency_min:float = frequency_min
+        self.frequency_max:float = frequency_max
 
         #[self.mel_size, self.nfft//2 + 1]
         self.mel_basis_np:ndarray = librosa_mel_fn(sr = self.sample_rate,
@@ -67,7 +74,10 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         else:
             return log_scale_mel
     
-    def save_mel_spec_plot(self,save_path:str,mel_spec:ndarray):
+    def save_mel_spec_plot(self,
+                           save_path:str, #'*.png'
+                           mel_spec:ndarray, #[mel_size, time]
+                           dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
 
         fig, ax = plt.subplots()        
@@ -84,4 +94,5 @@ class UtilAudioMelSpec(UtilAudioSTFT):
 
         ax.set(title='Mel spectrogram display')
         fig.colorbar(img, ax=ax, format="%+2.f dB")
-        plt.savefig(save_path,dpi=1000)
+        plt.savefig(save_path,dpi=dpi)
+        plt.close()

@@ -1,3 +1,69 @@
+#type
+from torch import Tensor
+from numpy import ndarray
+
+import numpy as np
+try:
+    import pyworld as pw
+    import pysptk
+    from pesq import pesq
+    from fastdtw import fastdtw
+except:
+    pass
+
+class MetricVoice:
+    @staticmethod
+    def get_pesq(source:ndarray, #[time]
+                 target:ndarray, #[time]
+                 sample_rate:int = [8000,16000][1],
+                 band:str = ['wide-band','narrow-band'][0]):
+        assert (sample_rate in [8000,16000]), f'sample rate must be either 8000 or 16000. current sample rate {sample_rate}'
+        assert not (sample_rate == 16000 and band == 'narrow-band'), 'narrowband (nb) mode only when sampling rate is 8000Hz'
+        if band == 'wide-band':
+            return pesq(sample_rate, target, source, 'wb')
+        else:
+            return pesq(sample_rate, target, source, 'nb')
+        
+    @staticmethod
+    def get_mcd(source:ndarray, #[time]
+                target:ndarray, #[time]
+                sample_rate:int, 
+                frame_period=5):
+        cost_function = MetricVoice.dB_distance
+        mgc_source = MetricVoice.get_mgc(source, sample_rate, frame_period)
+        mgc_target = MetricVoice.get_mgc(target, sample_rate, frame_period)
+
+        length = min(mgc_source.shape[0], mgc_target.shape[0])
+        mgc_source = mgc_source[:length]
+        mgc_target = mgc_target[:length]
+
+        mcd, _ = fastdtw(mgc_source[..., 1:], mgc_target[..., 1:], dist=cost_function)
+        mcd = mcd/length
+
+        return float(mcd), length
+    
+    @staticmethod
+    def get_mgc(audio, sample_rate, frame_period, fft_size=512, mcep_size=60, alpha=0.65):
+        if isinstance(audio, Tensor):
+            if audio.ndim > 1:
+                audio = audio[0]
+
+            audio = audio.numpy()
+
+        _, sp, _ = pw.wav2world(
+            audio.astype(np.double), fs=sample_rate, frame_period=frame_period, fft_size=fft_size)
+        mgc = pysptk.sptk.mcep(
+            sp, order=mcep_size, alpha=alpha, maxiter=0, etype=1, eps=1.0E-8, min_det=0.0, itype=3)
+
+        return mgc
+    
+    @staticmethod
+    def dB_distance(source, target):
+        dB_const = 10.0/np.log(10.0)*np.sqrt(2.0)
+        distance = source - target
+
+        return dB_const*np.sqrt(np.inner(distance, distance))
+'''
 from copy import deepcopy
 from typing import Union
 from numpy import ndarray
@@ -90,42 +156,6 @@ class MetricVoice:
         """
         return torch.pow(torch.norm(signal, p=2), 2)
 
-def get_mgc(audio, sample_rate, frame_period, fft_size=512, mcep_size=60, alpha=0.65):
-    if isinstance(audio, torch.Tensor):
-        if audio.ndim > 1:
-            audio = audio[0]
-
-        audio = audio.numpy()
-
-    _, sp, _ = pw.wav2world(
-        audio.astype(np.double), fs=sample_rate, frame_period=frame_period, fft_size=fft_size)
-    mgc = pysptk.sptk.mcep(
-        sp, order=mcep_size, alpha=alpha, maxiter=0, etype=1, eps=1.0E-8, min_det=0.0, itype=3)
-
-    return mgc
-
-
-def dB_distance(source, target):
-    dB_const = 10.0/np.log(10.0)*np.sqrt(2.0)
-    distance = source - target
-
-    return dB_const*np.sqrt(np.inner(distance, distance))
-
-
-def get_mcd(source, target, sample_rate, frame_period=5, cost_function=dB_distance):
-    mgc_source = get_mgc(source, sample_rate, frame_period)
-    mgc_target = get_mgc(target, sample_rate, frame_period)
-
-    length = min(mgc_source.shape[0], mgc_target.shape[0])
-    mgc_source = mgc_source[:length]
-    mgc_target = mgc_target[:length]
-
-    mcd, _ = fastdtw(mgc_source[..., 1:], mgc_target[..., 1:], dist=cost_function)
-    mcd = mcd/length
-
-    return mcd, length
-
-
 def get_f0(audio, sample_rate, frame_period=5, method='dio'):
     if isinstance(audio, torch.Tensor):
         if audio.ndim > 1:
@@ -168,3 +198,4 @@ def get_f0_rmse(source, target, sample_rate, frame_period=5, method='dio'):
     f0_rmse = f0_rmse.sum()/length
 
     return f0_rmse.item(), length
+'''
