@@ -23,7 +23,7 @@ class ModelTemplate(nn.Module):
     def get_argument_of_this_model() -> dict:
         from HParams import HParams
         h_params = HParams()
-        model_argument:dict = h_params.model.ModelTemplate
+        model_argument:dict = getattr(h_params.model,'ModelTemplate',dict())
         model_argument["parameter1"] = h_params.preprocess.parameter1
         model_argument["parameter2"] = h_params.preprocess.parameter2
         return model_argument

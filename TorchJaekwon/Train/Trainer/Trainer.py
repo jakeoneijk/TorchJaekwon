@@ -13,8 +13,6 @@ from HParams import HParams
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
-from TorchJaekwon.Train.LogWriter.LogWriterTensorboard import LogWriterTensorboard
-from TorchJaekwon.Train.LogWriter.LogWriterWandb import LogWriterWandb
 from TorchJaekwon.Train.Optimizer.OptimizerControl import OptimizerControl
 from TorchJaekwon.Train.AverageMeter import AverageMeter
 from TorchJaekwon.Train.Loss.LossControl.LossControl import LossControl
@@ -48,8 +46,6 @@ class Trainer(ABC):
         self.best_valid_epoch:int = 0
 
         self.max_norm_value_for_gradient_clip:float = getattr(self.h_params.train,'max_norm_value_for_gradient_clip',None)
-
-        self.log_writer:LogWriter = LogWriterTensorboard() if self.h_params.log.visualizer_type == 'tensorboard' else LogWriterWandb(model=self.model)
     '''
     ==============================================================
     abstract method start
@@ -120,7 +116,7 @@ class Trainer(ABC):
                 y_axis_name=f'{train_state.value}/{metric_name}',
                 y_axis_value=val
             )
-        self.log_writer.print_and_log(log,self.global_step)
+        self.log_writer.print_and_log(log)
 
     '''
     ==============================================================
@@ -138,11 +134,11 @@ class Trainer(ABC):
 
     def init_train(self, dataset_dict=None):
         self.model:nn.Module = GetModule.get_model(self.h_params.model.class_name)
-        self.optimizer_control = GetModule.get_module('./Train/Optimizer',self.h_params.train.optimizer_control_config['class_name'],{"model":self.model},arg_unpack=True)
-        self.loss_control = GetModule.get_module("./Train/Loss/LossControl",self.h_params.train.loss_control["class_name"],None)
+        self.optimizer_control = GetModule.get_module_class('./Train/Optimizer',self.h_params.train.optimizer_control_config['class_name'])(**{"model":self.model})
+        self.loss_control = GetModule.get_module_class("./Train/Loss/LossControl",self.h_params.train.loss_control["class_name"])()
 
         if self.h_params.resource.multi_gpu:
-            from TorchJAEKWON.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
+            from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
             self.model = DataParallelModel(self.model)
             self.model.cuda()
             for loss_name in self.loss_control.loss_function_dict:
@@ -150,11 +146,12 @@ class Trainer(ABC):
         else:
             self.loss_control.to(self.h_params.resource.device)
             self.model = self.model.to(self.h_params.resource.device)
-
+        
+        self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_loader:PytorchDataLoader = GetModule.get_module('./Data/PytorchDataLoader',self.h_params.pytorch_data.class_name,None)
+        data_loader_loader:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader',self.h_params.pytorch_data.class_name)()
 
         if dataset_dict is not None:
             pytorch_data_loader_config_dict = data_loader_loader.get_pytorch_data_loader_config(dataset_dict)
@@ -169,22 +166,22 @@ class Trainer(ABC):
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
                 
         for _ in range(self.current_epoch, self.total_epoch):
-            self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.h_params.train.epoch} -----------------------',self.global_step)
-            self.log_writer.print_and_log(f'current best epoch: {self.best_valid_epoch}',self.global_step)
+            self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.h_params.train.epoch} -----------------------')
+            self.log_writer.print_and_log(f'current best epoch: {self.best_valid_epoch}')
             if self.best_valid_metric is not None:
                 for loss_name in self.best_valid_metric:
-                    self.log_writer.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}',self.global_step)
+                    self.log_writer.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
             
-            self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------',self.global_step)
-            self.log_writer.print_and_log(f'current lr: {self.optimizer_control.get_lr()}',self.global_step)
-            self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------',self.global_step)
+            self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+            self.log_writer.print_and_log(f'current lr: {self.optimizer_control.get_lr()}')
+            self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
             #Train
-            self.log_writer.print_and_log('train_start',self.global_step)
+            self.log_writer.print_and_log('train_start')
             self.run_epoch(self.data_loader_dict['train'],TrainState.TRAIN, metric_range = "step")
             
             #Valid
-            self.log_writer.print_and_log('valid_start',self.global_step)
+            self.log_writer.print_and_log('valid_start')
 
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
@@ -198,8 +195,8 @@ class Trainer(ABC):
             self.current_epoch += 1
             self.log_writer.log_every_epoch(model=self.model)
 
-        self.log_writer.print_and_log(f'best_epoch: {self.best_valid_epoch}',self.global_step)
-        self.log_writer.print_and_log("Training complete",self.global_step)
+        self.log_writer.print_and_log(f'best_epoch: {self.best_valid_epoch}')
+        self.log_writer.print_and_log('Training complete')
     
     def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step"):
         assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
@@ -229,9 +226,16 @@ class Trainer(ABC):
             if train_state == TrainState.TRAIN:
                 if self.max_norm_value_for_gradient_clip is not None:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
-                self.optimizer_control.optimizer_zero_grad()
-                loss.backward()
-                self.optimizer_control.optimizer_step()
+
+                if getattr(self.h_params.train,'optimizer_step_unit',1) == 1:
+                    self.optimizer_control.optimizer_zero_grad()
+                    loss.backward()
+                    self.optimizer_control.optimizer_step()
+                else:
+                    loss.backward()
+                    if (self.global_step + 1) % self.h_params.train.optimizer_step_unit == 0:
+                        self.optimizer_control.step()
+                        self.optimizer_control.zero_grad()
 
                 if self.local_step % self.h_params.log.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
@@ -279,7 +283,7 @@ class Trainer(ABC):
             'best_model_epoch' :  self.best_valid_epoch,
         }
         path = os.path.join(self.log_writer.log_path["root"],save_name)
-        self.log_writer.print_and_log(save_name,self.global_step)
+        self.log_writer.print_and_log(save_name)
         torch.save(train_state,path)
 
     def load_train(self,filename:str):

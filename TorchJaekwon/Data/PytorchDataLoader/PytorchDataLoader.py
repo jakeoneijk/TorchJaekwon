@@ -23,7 +23,7 @@ class PytorchDataLoader:
             config_for_dataset = {
                 "subset": subset
             }
-            pytorch_dataset_dict[subset] = GetModule.get_module('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]["class_name"],config_for_dataset)
+            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]["class_name"])(config_for_dataset)
         return pytorch_dataset_dict
     
     def get_pytorch_data_loader_config(self,pytorch_dataset:dict) -> dict:
