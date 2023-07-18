@@ -8,7 +8,10 @@ import torch
 import numpy as np
 import librosa.display
 from librosa.filters import mel as librosa_mel_fn
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except:
+    print('matplotlib is uninstalled')
 #torchjaekwon
 from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
 
@@ -79,20 +82,28 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                            mel_spec:ndarray, #[mel_size, time]
                            dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
+        try:
+            fig, ax = plt.subplots()        
+                
+            img =   librosa.display.specshow(
+                    mel_spec, 
+                    y_axis='mel', 
+                    x_axis='time',
+                    sr=self.sample_rate, 
+                    hop_length=self.hop_size, 
+                    fmin=self.frequency_min, 
+                    fmax=self.frequency_max, 
+                    ax=ax)
 
-        fig, ax = plt.subplots()        
-            
-        img =   librosa.display.specshow(
-                mel_spec, 
-                y_axis='mel', 
-                x_axis='time',
-                sr=self.sample_rate, 
-                hop_length=self.hop_size, 
-                fmin=self.frequency_min, 
-                fmax=self.frequency_max, 
-                ax=ax)
-
-        ax.set(title='Mel spectrogram display')
-        fig.colorbar(img, ax=ax, format="%+2.f dB")
-        plt.savefig(save_path,dpi=dpi)
-        plt.close()
+            ax.set(title='Mel spectrogram display')
+            fig.colorbar(img, ax=ax, format="%+2.f dB")
+            plt.savefig(save_path,dpi=dpi)
+            plt.close()
+        except:
+            print('there is some problem with matplotlib, so we will use alternative way')
+            plt.close()
+            self.spec_to_figure(spec=mel_spec,
+                                fig_size = None,
+                                dpi = dpi,
+                                transposed=False,
+                                save_path=save_path)

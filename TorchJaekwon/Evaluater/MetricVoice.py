@@ -6,19 +6,87 @@ import numpy as np
 try:
     import pyworld as pw
     import pysptk
+    import torch
     from pesq import pesq
     from fastdtw import fastdtw
+    from TorchJaekwon.DataProcess.Util.UtilAudioMelSpec import UtilAudioMelSpec
+    from TorchJaekwon.DataProcess.Util.UtilAudio import UtilAudio
+    from skimage.metrics import structural_similarity as ssim
 except:
     pass
 
 class MetricVoice:
+    def __init__(self,sample_rate:int = 16000) -> None:
+        self.util_mel = UtilAudioMelSpec(nfft = 512, 
+                                         hop_size = 256, 
+                                         sample_rate = sample_rate, 
+                                         mel_size = 80,
+                                         frequency_min = 0,
+                                         frequency_max = float(sample_rate // 2))
+        '''
+        self.mel_44k = MelScale(n_mels=128, sample_rate=44100, n_stft=1025)
+        self.mel_16k = MelScale(n_mels=80, sample_rate=16000, n_stft=372)
+        '''
+    def get_spec_metrics_from_audio(self,
+                                   source, #linear scale spectrogram [time]
+                                   target):
+        source_spec_dict = self.get_spec_dict_of_audio(source)
+        target_spec_dict = self.get_spec_dict_of_audio(target)
+
+        metric_dict = dict()
+        for spec_name in source_spec_dict:
+            metric_dict[f'lsd_{spec_name}'] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
+            metric_dict[f'ssim_{spec_name}'] = float(ssim(source_spec_dict[spec_name],target_spec_dict[spec_name],win_size=7))
+        
+        linear_spec_name = list(source_spec_dict.keys())
+        for spec_name in linear_spec_name:
+            source_spec_dict[f'{spec_name}_log'] = np.log10(np.clip(source_spec_dict[spec_name], a_min=1e-8, a_max=None))
+            target_spec_dict[f'{spec_name}_log'] = np.log10(np.clip(target_spec_dict[spec_name], a_min=1e-8, a_max=None))
+        
+        for spec_name in source_spec_dict:
+            metric_dict[f'sispnr_{spec_name}'] = MetricVoice.get_sispnr(torch.from_numpy(source_spec_dict[spec_name]),torch.from_numpy(target_spec_dict[spec_name]))
+        
+        return metric_dict
+        
+    
+    def get_lsd_from_audio(self,
+                           source, #linear scale spectrogram [time]
+                           target):
+        source_spec_dict = self.get_spec_dict_of_audio(source)
+        target_spec_dict = self.get_spec_dict_of_audio(target)
+        lsd_dict = dict()
+        for spec_name in source_spec_dict:
+            lsd_dict[spec_name] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
+        return lsd_dict
+    
+    def get_spec_dict_of_audio(self,audio):
+        spectrogram_mag = self.util_mel.stft_torch(audio)['mag'].float()
+        mel_spec = self.util_mel.spec_to_mel_spec(spectrogram_mag)
+        return {'spec_mag':spectrogram_mag.squeeze().detach().cpu().numpy(), 'mel': mel_spec.squeeze().detach().cpu().numpy()}
+
+    @staticmethod
+    def get_lsd_from_spec(source, #linear scale spectrogram [freq, time]
+                          target,
+                          eps = 1e-12):
+        # in non-log scale
+        lsd = np.log10((target**2/((source + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
+        lsd = np.mean(np.mean(lsd,axis=1)**0.5,axis=0) #torch.mean(torch.mean(lsd,dim=3)**0.5,dim=2)
+        return float(lsd)
+    
+    @staticmethod
+    def get_si_sdr(source, target):
+        alpha = np.dot(target, source)/np.linalg.norm(source)**2   
+        sdr = 10*np.log10(np.linalg.norm(alpha*source)**2/np.linalg.norm(
+            alpha*source - target)**2)
+        return sdr
+    
     @staticmethod
     def get_pesq(source:ndarray, #[time]
                  target:ndarray, #[time]
                  sample_rate:int = [8000,16000][1],
                  band:str = ['wide-band','narrow-band'][0]):
         assert (sample_rate in [8000,16000]), f'sample rate must be either 8000 or 16000. current sample rate {sample_rate}'
-        assert not (sample_rate == 16000 and band == 'narrow-band'), 'narrowband (nb) mode only when sampling rate is 8000Hz'
+        if (sample_rate == 16000 and band == 'narrow-band'): print('Warning: narrowband (nb) mode only when sampling rate is 8000Hz')
         if band == 'wide-band':
             return pesq(sample_rate, target, source, 'wb')
         else:
@@ -63,37 +131,21 @@ class MetricVoice:
         distance = source - target
 
         return dB_const*np.sqrt(np.inner(distance, distance))
+    
+    @staticmethod
+    def get_sispnr(source, target, eps = 1e-12):
+        # scale_invariant_spectrogram_to_noise_ratio
+        # in log scale
+        output, target = UtilAudio.energy_unify(source, target)
+        noise = output - target
+        # print(pow_p_norm(target) , pow_p_norm(noise), pow_p_norm(target) / (pow_p_norm(noise) + EPS))
+        sp_loss = 10 * torch.log10((UtilAudio.pow_p_norm(target) / (UtilAudio.pow_p_norm(noise) + eps) + eps))
+        return float(sp_loss)
+    
+    
 '''
-from copy import deepcopy
-from typing import Union
-from numpy import ndarray
-from torch import Tensor, from_numpy
 
-import torch
-from torchmetrics.audio import SignalDistortionRatio
-import numpy as np
-from HParams import HParams
-from DataProcess.Util.UtilAudioMelSpec import UtilAudioMelSpec
-import pyworld as pw
-import pysptk
-from fastdtw import fastdtw
-
-class MetricVoice:
-    def __init__(self, h_params:HParams) -> None:
-        self.h_params:HParams = h_params
-        self.util = UtilAudioMelSpec(h_params)
-        self.eps:float = 1e-12
     
-    
-    def get_sispnr(self,pred_audio:Tensor, target_audio:Tensor) -> dict:
-        result_dict = dict()
-        audio_spec_tensor_dict:dict = self.get_audio_and_spec_tensor_pred_target_dict(pred_audio, target_audio)
-        for data_type in audio_spec_tensor_dict["pred"]:
-            if "audio" in data_type:
-                continue
-            result_dict[f"sispnr_{data_type}"] = self.sispnr_scale_invariant_spectrogram_to_noise_ratio(audio_spec_tensor_dict["pred"][data_type].clone(),audio_spec_tensor_dict["target"][data_type].clone())
-
-        return result_dict
     
     def get_sdr_torchmetrics(self,pred_audio:Union[Tensor,ndarray], target_audio:Union[Tensor,ndarray]) -> dict:
         result_dict = dict()
@@ -104,58 +156,8 @@ class MetricVoice:
 
         return result_dict
 
-    def get_audio_and_spec_tensor_pred_target_dict(self,pred_audio:Union[Tensor,ndarray], target_audio:Union[Tensor,ndarray]) -> dict:
-        audio_spec_tensor_dict:dict = {"pred":dict(),"target":dict()}
-        audio_spec_tensor_dict["pred"]["audio"] = pred_audio.clone().detach() if isinstance(pred_audio, Tensor) else torch.from_numpy(pred_audio)
-        audio_spec_tensor_dict["target"]["audio"] = target_audio.clone().detach() if isinstance(target_audio, Tensor) else torch.from_numpy(target_audio)
-
-        for data_type in audio_spec_tensor_dict:
-            audio_spec_tensor_dict[data_type]["spec_linear_scale"] = self.util.stft_torch(audio_spec_tensor_dict[data_type]["audio"])["mag"]
-            audio_spec_tensor_dict[data_type]["mel_spec_linear_scale"] = self.util.spec_to_mel_spec(audio_spec_tensor_dict[data_type]["spec_linear_scale"])
-            audio_spec_tensor_dict[data_type]["spec_log_scale"] = self.log_scale(audio_spec_tensor_dict[data_type]["spec_linear_scale"].clone().detach())
-            audio_spec_tensor_dict[data_type]["mel_spec_log_scale"] = self.log_scale(audio_spec_tensor_dict[data_type]["mel_spec_linear_scale"].clone().detach())
-        
-        return audio_spec_tensor_dict
     
-    def sispnr_scale_invariant_spectrogram_to_noise_ratio(self,pred:Tensor, target:Tensor)->float:
-        # in log scale
-        output, target = self.energy_unify(pred, target)
-        noise = output - target
-        # print(pow_p_norm(target) , pow_p_norm(noise), pow_p_norm(target) / (pow_p_norm(noise) + EPS))
-        sp_loss = 10 * torch.log10((self.pow_p_norm(target) / (self.pow_p_norm(noise) + self.eps) + self.eps))
-        return float(torch.sum(sp_loss))#float(torch.sum(sp_loss) / sp_loss.size()[0])
     
-    def log_scale(self, input:Tensor) -> Tensor:
-        return torch.log10(torch.clip(input, min=1e-8))
-
-    def energy_unify(self,estimated, original):
-        inner_product:Tensor = self.pow_norm(estimated, original)
-        denominator:Tensor = self.pow_p_norm(original) + self.eps
-        target:Tensor = (inner_product * original) / denominator
-        return estimated, target
-    
-    def pow_norm(self,s1, s2):
-        """
-        shape = list(s1.size())
-        dimension = []
-        for i in range(len(shape)):
-            if(i == 0 or i == 1):continue
-            dimension.append(i)
-        return torch.sum(s1 * s2, dim=dimension, keepdim=True)
-        """
-        return torch.sum(s1 * s2)
-    
-    def pow_p_norm(self,signal:Tensor):
-        """Compute 2 Norm
-        shape = list(signal.size())
-        dimension = []
-        for i in range(len(shape)):
-            if(i == 0):continue
-            dimension.append(i)
-        return torch.pow(torch.norm(signal, p=2, dim=dimension, keepdim=True), 2)
-        """
-        return torch.pow(torch.norm(signal, p=2), 2)
-
 def get_f0(audio, sample_rate, frame_period=5, method='dio'):
     if isinstance(audio, torch.Tensor):
         if audio.ndim > 1:

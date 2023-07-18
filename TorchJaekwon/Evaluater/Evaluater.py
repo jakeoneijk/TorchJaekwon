@@ -52,6 +52,7 @@ class Evaluater(ABC):
             result_dict_list.append(self.get_result_dict_from_one_meta_data(meta_data))
         
         metric_name_list:list = [metric_name for metric_name in list(result_dict_list[0].keys()) if type(result_dict_list[0][metric_name]) in [float,np.float_]]
+        metric_name_list.sort()
         mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict_list,metric_name_list)
         
         UtilData.yaml_save(f'{save_dir}/mean_median_std.yaml',mean_median_std_dict)

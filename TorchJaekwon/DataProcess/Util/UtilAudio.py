@@ -3,13 +3,30 @@ import numpy as np
 import soundfile as sf
 import librosa
 
+try:
+    import torch
+    from pydub import AudioSegment, effects  
+except:
+    print('import error: pydub')
+
 class UtilAudio:
-    def float32_to_int16(self, x: np.float32) -> np.int16:
+    @staticmethod
+    def float32_to_int16(x: np.float32) -> np.int16:
+        #-2**15 to 2**15-1
         x = np.clip(x, a_min=-1, a_max=1)
         return (x * 32767.0).astype(np.int16)
     
-    def int16_to_float32(self, x: np.int16) -> np.float32:
+    @staticmethod
+    def int16_to_float32(x: np.int16) -> np.float32:
         return (x / 32767.0).astype(np.float32)
+    
+    @staticmethod
+    def int32_to_float64(x: np.int32) -> np.float64:
+        return (x / (2**31 - 1)).astype(np.float64)
+    
+    @staticmethod
+    def float64_to_int32(x: np.float64) -> np.int32:
+        return (x * (2**31 - 1)).astype(np.int32)
     
     @staticmethod
     def resample_audio(audio,origin_sr,target_sr,resample_type = "kaiser_fast"):
@@ -44,3 +61,26 @@ class UtilAudio:
         assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'read audio shape problem: {audio_data.shape}'
             
         return audio_data
+    
+    @staticmethod
+    def normalize_audio_volume(audio_input:ndarray,sr:int, target_dBFS = -30):
+        audio = UtilAudio.float64_to_int32(audio_input)
+        audio_segment = AudioSegment(audio.tobytes(), frame_rate=sr, sample_width=audio.dtype.itemsize, channels=1)
+        change_in_dBFS = target_dBFS - audio_segment.dBFS
+        normalizedsound = audio_segment.apply_gain(change_in_dBFS)
+        return UtilAudio.int32_to_float64(np.array(normalizedsound.get_array_of_samples()))
+
+    @staticmethod
+    def energy_unify(estimated, original, eps = 1e-12):
+        target = UtilAudio.pow_norm(estimated, original) * original
+        target /= UtilAudio.pow_p_norm(original) + eps
+        return estimated, target
+
+    @staticmethod
+    def pow_norm(s1, s2):
+        return torch.sum(s1 * s2)
+
+    @staticmethod
+    def pow_p_norm(signal):
+        return torch.pow(torch.norm(signal, p=2), 2)
+

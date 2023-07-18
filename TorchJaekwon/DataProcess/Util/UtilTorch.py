@@ -5,10 +5,8 @@ from numpy import ndarray
 import os
 import torch
 import torch.nn as nn
-import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-import seaborn as sns
 
 class UtilTorch:
     @staticmethod
@@ -43,6 +41,8 @@ class UtilTorch:
                   embedding_array:ndarray,  #[the number of data, channel_size]
                   figure_size:tuple = (10,10)
                   ) -> None:
+        import pandas as pd
+        import seaborn as sns
         assert os.path.splitext(save_file_path)[-1] == '.png', 'save_file_path should be *.png'
 
         print('generating t-SNE plot...')

@@ -3,11 +3,11 @@ from typing import Union,Dict
 from numpy import ndarray
 from torch import Tensor
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import librosa
 import librosa.display
-import matplotlib.pyplot as plt
 
 from TorchJaekwon.DataProcess.Util.UtilAudio import UtilAudio
 
@@ -39,17 +39,32 @@ class UtilAudioSTFT(UtilAudio):
         
         assert(len(audio_torch.shape) <= 3), f'Error: stft_torch() audio torch shape is {audio_torch.shape}'
 
+        if (len(audio_torch.shape) == 1): audio_torch = audio_torch.unsqueeze(0)
+
         shape_is_three = True if len(audio_torch.shape) == 3 else False
         if shape_is_three:
             batch_size, channels_num, segment_samples = audio_torch.shape
             audio_torch = audio_torch.reshape(batch_size * channels_num, segment_samples)
         
         spec_dict:Dict[str,Tensor] = dict()
+
+        audio_torch = torch.nn.functional.pad(audio_torch.unsqueeze(1), (int((self.nfft-self.hop_size)/2), int((self.nfft-self.hop_size)/2)), mode='reflect').squeeze(1)
+        spec_dict['stft'] = torch.stft(audio_torch, 
+                          self.nfft, 
+                          hop_length=self.hop_size, 
+                          window=self.hann_window.to(audio_torch.device),
+                          center=False,
+                          pad_mode='reflect',
+                          normalized=False,
+                          onesided=True,
+                          return_complex=True)
+        '''
         spec_dict['stft'] = torch.stft(audio_torch,
                                  n_fft=self.nfft,
                                  hop_length=self.hop_size,
                                  window=self.hann_window.to(audio_torch.device),
                                  return_complex=True)
+        '''
         spec_dict['mag'] = spec_dict['stft'].abs()
         spec_dict['angle'] = spec_dict['stft'].angle()
 
@@ -96,7 +111,8 @@ class UtilAudioSTFT(UtilAudio):
                        transposed=False,
                        save_path=None):
         if isinstance(spec, torch.Tensor):
-            spec = spec.cpu().numpy()
+            spec = spec.squeeze().cpu().numpy()
+        spec = spec.squeeze()
         fig = plt.figure(figsize=fig_size, dpi = dpi)
         plt.pcolor(spec.T if transposed else spec, vmin=vmin, vmax=vmax)
         if save_path is not None:

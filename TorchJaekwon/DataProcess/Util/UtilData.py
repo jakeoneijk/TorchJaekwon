@@ -3,6 +3,7 @@ from numpy import ndarray
 from torch import Tensor
 
 import os
+import random
 import copy
 import numpy as np
 import torch
@@ -128,4 +129,10 @@ class UtilData:
     @staticmethod
     def sort_dict_list_by_key(dict_list:List[dict], key:str):
         return sorted(dict_list, key=lambda dictionary: dictionary[key])
+    
+    @staticmethod
+    def random_segment(data:ndarray, data_length:int) -> ndarray:
+        max_data_start = len(data) - data_length
+        data_start = random.randint(0, max_data_start)
+        return data[data_start:data_start+data_length]
         
