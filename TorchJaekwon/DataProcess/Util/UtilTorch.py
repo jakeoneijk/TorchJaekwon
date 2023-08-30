@@ -5,6 +5,7 @@ from numpy import ndarray
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
@@ -69,3 +70,18 @@ class UtilTorch:
         plt.ylabel('')
 
         plt.savefig(save_file_path, bbox_inches='tight')
+    
+    @staticmethod
+    def interpolate_2d(input:Tensor, #[width, height] | [batch, width, height] | [batch, channels, width, height]
+                       size_after_interpolation:tuple, #(width, height)
+                       mode:str = 'nearest'
+                       ) -> Tensor:
+        if len(input.shape) == 2:
+            shape_after_interpolation = size_after_interpolation
+            input = input.view(1,1,*(input.shape))
+        elif len(input.shape) == 3:
+            shape_after_interpolation = (input.shape[0],*(size_after_interpolation))
+            input = input.unsqueeze(1)
+        elif len(input.shape) == 4:
+            shape_after_interpolation = (input.shape[0],input.shape[1],*(size_after_interpolation))
+        return F.interpolate(input, size = size_after_interpolation, mode=mode).view(shape_after_interpolation)

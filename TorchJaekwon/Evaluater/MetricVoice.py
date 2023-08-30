@@ -1,4 +1,5 @@
 #type
+from typing import Optional,Dict
 from torch import Tensor
 from numpy import ndarray
 
@@ -16,17 +17,37 @@ except:
     pass
 
 class MetricVoice:
-    def __init__(self,sample_rate:int = 16000) -> None:
-        self.util_mel = UtilAudioMelSpec(nfft = 512, 
-                                         hop_size = 256, 
+    def __init__(self,
+                 sample_rate:int = 16000,
+                 nfft:Optional[int] = None,
+                 hop_size:Optional[int] = None,
+                 mel_size:Optional[int] = None,
+                 frequency_min:Optional[float] = None,
+                 frequency_max:Optional[float] = None) -> None:
+        
+        spec_config_of_sr:Dict[int,dict] = {
+            16000:{
+                nfft: 512,
+                hop_size: 256,
+                mel_size: 80,
+                frequency_min: 0,
+                frequency_max: float(sample_rate // 2)
+            },
+            44100:{
+                nfft: 1024,
+                hop_size: 512,
+                mel_size: 128,
+                frequency_min: 0,
+                frequency_max: float(sample_rate // 2)
+            }
+        }
+        
+        self.util_mel = UtilAudioMelSpec(nfft = spec_config_of_sr[sample_rate]['nfft'] if nfft is None else nfft, 
+                                         hop_size = spec_config_of_sr[sample_rate]['hop_size'] if hop_size is None else hop_size, 
                                          sample_rate = sample_rate, 
-                                         mel_size = 80,
-                                         frequency_min = 0,
-                                         frequency_max = float(sample_rate // 2))
-        '''
-        self.mel_44k = MelScale(n_mels=128, sample_rate=44100, n_stft=1025)
-        self.mel_16k = MelScale(n_mels=80, sample_rate=16000, n_stft=372)
-        '''
+                                         mel_size = spec_config_of_sr[sample_rate]['mel_size'] if mel_size is None else mel_size, 
+                                         frequency_min = spec_config_of_sr[sample_rate]['frequency_min'] if frequency_min is None else frequency_min, 
+                                         frequency_max = spec_config_of_sr[sample_rate]['frequency_max'] if frequency_max is None else frequency_max)
     def get_spec_metrics_from_audio(self,
                                    source, #linear scale spectrogram [time]
                                    target):
@@ -69,8 +90,8 @@ class MetricVoice:
                           target,
                           eps = 1e-12):
         # in non-log scale
-        lsd = np.log10((target**2/((source + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
-        lsd = np.mean(np.mean(lsd,axis=1)**0.5,axis=0) #torch.mean(torch.mean(lsd,dim=3)**0.5,dim=2)
+        lsd = np.log10(((target+ eps)**2/((source + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
+        lsd = np.mean(np.mean(lsd,axis=0)**0.5,axis=0) #torch.mean(torch.mean(lsd,dim=3)**0.5,dim=2)
         return float(lsd)
     
     @staticmethod

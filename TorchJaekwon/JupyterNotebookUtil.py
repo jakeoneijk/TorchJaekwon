@@ -1,6 +1,8 @@
 from typing import List
-
-import IPython.display as ipd
+try:    
+    import IPython.display as ipd
+except:
+    print('[error] there is no ipython package')
 import pandas as pd
 
 class JupyterNotebookUtil():
@@ -8,26 +10,59 @@ class JupyterNotebookUtil():
         self.lower_is_better_symbol:str = "↓"
         self.higher_is_better_symbol:str = "↑"
 
-    def get_html_from_src_path(self,type:str,path:str,width:int=200) -> str:
+    @staticmethod
+    def get_html_from_src_path(type:str,path:str,width:int=200) -> str:
         if type == "audio":
             if width is not None:
                 return f"""<audio controls style='width:{width}px'><source src="{path}" type="audio/wav"></audio></td>"""
             else:
                 return f"""<audio controls><source src="{path}" type="audio/wav"></audio></td>"""
         elif type == "img":
-            return f"""<img src="{path}">"""
+            if width is not None:
+                return f"""<img src="{path}" style='width:{width}px'>"""
+            else:
+                return f"""<img src="{path}">"""
     
-    def dict_list_to_html(self,pandas_list: List[dict]) -> str:
+    @staticmethod
+    def dict_list_to_html(dict_list: List[dict]) -> str:
         '''
-        panda_list = [
-        {'name':'testaudio','audio':html_code}
+        dict_list = [
+        {'name':'testaudio','audio1':html_code, 'audio2':html_code, 'image1':html_code ...}
+        {'name':'testaudio','audio1':html_code, 'audio2':html_code, 'image1':html_code ...}
         ...
         ]
         '''
-        df = pd.DataFrame(pandas_list)
+        df = pd.DataFrame(dict_list)
         return df.to_html(escape=False,index=False)
     
-    def display_html_list(self,html_list:list) -> None:
+    @staticmethod
+    def display_html_list(html_list:list) -> None:
         for html_result in html_list:
             ipd.display(ipd.HTML(html_result))
     
+    @staticmethod
+    def html_table_from_dict_list(dict_list: List[dict]):
+        '''
+        dict_list = [
+        {'name':'model1','metric1':html_code, 'metric2':html_code, ...}
+        {'name':'model2','metric1':html_code, 'metric2':html_code, ...}
+        ...
+        ]
+        '''
+        html:str = ''
+        new_line:str = '\n'
+        
+        html += '<table border="1">' + new_line
+
+        header_list = list(dict_list[0].keys())
+        for header_name in header_list:
+            html += f'<th>{header_name}</th>{new_line}'
+        
+        for body_dict in dict_list:
+            html += f'<tr>{new_line}'
+            for header_name in header_list:
+                html += f'<td>{body_dict[header_name]}</td>{new_line}'
+            html += f'</tr>{new_line}'
+
+        html+= '</table>'
+        return html

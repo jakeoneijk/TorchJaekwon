@@ -93,7 +93,8 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                     hop_length=self.hop_size, 
                     fmin=self.frequency_min, 
                     fmax=self.frequency_max, 
-                    ax=ax)
+                    ax=ax,
+                    cmap='viridis')
 
             ax.set(title='Mel spectrogram display')
             fig.colorbar(img, ax=ax, format="%+2.f dB")

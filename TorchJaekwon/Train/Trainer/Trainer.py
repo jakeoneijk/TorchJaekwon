@@ -287,12 +287,16 @@ class Trainer(ABC):
         torch.save(train_state,path)
 
     def load_train(self,filename:str):
-        cpt = torch.load(filename)
+        cpt = torch.load(filename,map_location='cpu')
         self.seed = cpt['seed']
         self.set_seeds(self.h_params.train.seed_strict)
         self.current_epoch = cpt['epoch']
         self.global_step = cpt['step']
+
+        self.model = self.model.to(torch.device('cpu'))
         self.model.load_state_dict(cpt['models'])
+        self.model = self.model.to(self.h_params.resource.device)
+
         self.optimizer_control.optimizer_load_state_dict(cpt['optimizers'])
         self.optimizer_control.lr_scheduler_load_state_dict(cpt['lr_scheduler'])
         self.best_valid_result = cpt['best_metric']
