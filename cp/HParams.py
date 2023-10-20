@@ -8,7 +8,7 @@ class Mode:
     config_name:str = "000000_template"
     config_path:str = f"./Config/{config_name}.yaml"
 
-    app:str = {0:"preprocess", 1:"make_meta_data", 2:"train", 3:"inference", 4:"evaluate"}[0]
+    stage:str = {0:"preprocess", 1:"make_meta_data", 2:"train", 3:"inference", 4:"evaluate"}[0]
 
     train:str = ["start","resume"][0]
     resume_path:str = f"./Train/Log/{config_name}"

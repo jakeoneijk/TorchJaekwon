@@ -40,7 +40,9 @@ class UtilTorch:
     def tsne_plot(save_file_path:str,
                   class_array:ndarray, #[the number of data, 1] data must be integer for class. ex) [[1],[3],...]
                   embedding_array:ndarray,  #[the number of data, channel_size]
-                  figure_size:tuple = (10,10)
+                  figure_size:tuple = (10,10),
+                  legend:str = 'full',
+                  point_size:float = None #s=200
                   ) -> None:
         import pandas as pd
         import seaborn as sns
@@ -60,8 +62,9 @@ class UtilTorch:
             palette=sns.color_palette("hls", 10),
             data=df,
             marker='o',
-            legend="full",
-            alpha=0.5
+            legend=legend,
+            alpha=0.5,
+            s = point_size
         )
 
         plt.xticks([])
