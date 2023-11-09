@@ -45,6 +45,8 @@ class GetModule:
         class_module = getattr(file_module,model_name)
         argument_getter:Callable[[],dict()] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
         model_parameter:dict = argument_getter()
-        if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')
+        if not model_parameter: 
+            model_parameter = getattr(HParams().model,model_name,dict())
+            if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')
         model:nn.Module = class_module(**model_parameter)
         return model

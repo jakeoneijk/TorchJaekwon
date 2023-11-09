@@ -1,16 +1,11 @@
 import numpy as np
 
-from TorchJAEKWON.Train.Trainer.Trainer import Trainer, TrainState
-from TorchJAEKWON.DataProcess.Process.Process import Process
+from TorchJaekwon.Train.Trainer.Trainer import Trainer, TrainState
 
 class TemplateTrainer(Trainer):
 
     def __init__(self):
         super().__init__()
-        if self.h_params.process.name is not None and self.h_params.process.name != "":
-            self.data_processor:Process = self.get_module.get_module("process",self.h_params.process.name, {"h_params":self.h_params},arg_unpack=True)
-        else:
-            self.data_processor = None
     
     def get_train_data_dict_and_name_dict(self,data,data_subset):
         dataset_config = self.h_params.pytorch_data.dataloader["train"]['dataset']
@@ -22,10 +17,7 @@ class TemplateTrainer(Trainer):
         for data_name in data:
             data[data_name] = data[data_name].float().to(self.h_params.resource.device)
 
-        if self.data_processor is not None:
-            train_data_dict = self.data_processor.preprocess_training_data(data,additional_dict=train_data_name_dict)
-        else:
-            train_data_dict = data
+        train_data_dict = data
         
         for train_data_name in train_data_dict:
             if type(train_data_dict[train_data_name]) == dict:

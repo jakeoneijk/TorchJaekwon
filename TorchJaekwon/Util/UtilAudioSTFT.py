@@ -9,7 +9,7 @@ import torch
 import librosa
 import librosa.display
 
-from TorchJaekwon.DataProcess.Util.UtilAudio import UtilAudio
+from TorchJaekwon.Util.UtilAudio import UtilAudio
 
 class UtilAudioSTFT(UtilAudio):
     def __init__(self,nfft:int, hop_size:int):

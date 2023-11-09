@@ -13,8 +13,8 @@ try:
 except:
     print('Didnt import following packages: wandb')
 
-from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
-from TorchJaekwon.DataProcess.Util.UtilTorch import UtilTorch
+from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
+from TorchJaekwon.Util.UtilTorch import UtilTorch
 
 from HParams import HParams
 

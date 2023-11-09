@@ -13,7 +13,7 @@ try:
 except:
     print('matplotlib is uninstalled')
 #torchjaekwon
-from TorchJaekwon.DataProcess.Util.UtilAudioSTFT import UtilAudioSTFT
+from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 
 class UtilAudioMelSpec(UtilAudioSTFT):
     def __init__(self, 

@@ -11,6 +11,7 @@ import pickle
 import yaml
 import csv
 from pathlib import Path
+from inspect import isfunction
 
 class UtilData:
 
@@ -135,4 +136,10 @@ class UtilData:
         max_data_start = len(data) - data_length
         data_start = random.randint(0, max_data_start)
         return data[data_start:data_start+data_length]
+    
+    @staticmethod
+    def default(val, d):
+        if val is not None:
+            return val
+        return d() if isfunction(d) else d
         
