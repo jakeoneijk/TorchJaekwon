@@ -6,8 +6,8 @@ class DiffusionUtil:
     @staticmethod
     def extract(array:Tensor, t, x_shape):
         batch_size, *_ = t.shape
-        out = array.gather(dim = -1, index = t)
-        return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))
+        out = array.gather(dim = -1, index = t).contiguous()
+        return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).contiguous()
 
     @staticmethod
     def noise_like(shape:tuple, device:device, repeat:bool = False):

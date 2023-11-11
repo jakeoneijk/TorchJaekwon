@@ -1,5 +1,5 @@
-import os
-from torch.utils.data import DataLoader
+from typing import Dict
+from torch.utils.data import Dataset, DataLoader
 
 from HParams import HParams
 from TorchJaekwon.GetModule import GetModule
@@ -9,28 +9,24 @@ class PytorchDataLoader:
         self.h_params = HParams()
         self.data_loader_config:dict = self.h_params.pytorch_data.dataloader
     
-    def get_pytorch_data_loaders(self) -> dict:
-        pytorch_dataset_dict = self.get_pytorch_data_set_dict()
-        pytorch_data_loader_config_dict = self.get_pytorch_data_loader_config(pytorch_dataset_dict)
-        pytorch_data_loader_dict = self.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
-        if getattr(self.h_params.data,'use_testset_as_validset',False):
-            pytorch_data_loader_dict['valid'] = pytorch_data_loader_dict['test']
+    def get_pytorch_data_loaders(self) -> Dict[str,DataLoader]: #subset,dataloader
+        pytorch_dataset_dict:Dict[str,Dataset] = self.get_pytorch_data_set_dict() #key: subset, value: dataset
+        pytorch_data_loader_config_dict:dict = self.get_pytorch_data_loader_args(pytorch_dataset_dict)
+        pytorch_data_loader_dict:Dict[str,DataLoader] = self.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
         return pytorch_data_loader_dict
     
-    def get_pytorch_data_set_dict(self) -> dict:
-        pytorch_dataset_dict = dict()
+    def get_pytorch_data_set_dict(self) -> Dict[str,Dataset]:
+        pytorch_dataset_dict:Dict[str,Dataset] = dict()
         for subset in self.data_loader_config:
-            config_for_dataset = {
-                "subset": subset
-            }
-            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]["class_name"])(config_for_dataset)
+            dataset_args:dict = self.data_loader_config[subset]['dataset']['dataset_args']
+            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]["class_name"])(**dataset_args)
         return pytorch_dataset_dict
     
-    def get_pytorch_data_loader_config(self,pytorch_dataset:dict) -> dict:
+    def get_pytorch_data_loader_args(self,pytorch_dataset:dict) -> dict:
         pytorch_data_loader_config_dict:dict = {subset:dict() for subset in pytorch_dataset}
 
         for subset in pytorch_dataset:
-            args_exception_list = self.get_exception_list_of_dataloader_args_config(subset)
+            args_exception_list = self.get_exception_list_of_dataloader_parameters(subset)
             pytorch_data_loader_config_dict[subset]["dataset"] = pytorch_dataset[subset]
             for arg_name in self.data_loader_config[subset]:
                 if arg_name in args_exception_list:
@@ -48,7 +44,7 @@ class PytorchDataLoader:
         
         return pytorch_data_loader_config_dict
     
-    def get_exception_list_of_dataloader_args_config(self,subset):
+    def get_exception_list_of_dataloader_parameters(self,subset):
         args_exception_list = ["dataset"]
         if "batch_sampler" in self.data_loader_config[subset]:
             args_exception_list += ["batch_size", "shuffle", "sampler", "drop_last"]

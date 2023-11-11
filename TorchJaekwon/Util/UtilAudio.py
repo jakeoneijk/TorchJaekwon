@@ -1,32 +1,32 @@
+from typing import Optional, Literal, Union, Final
 from numpy import ndarray
+try: from torch import Tensor
+except: print('import error: torch')
+
 import numpy as np
 import soundfile as sf
 import librosa
 
-try:
-    import torch
-    from pydub import AudioSegment, effects  
-except:
-    print('import error: pydub')
+try: import torch 
+except: print('import error: torch')
+try: import torchaudio
+except: print('import error: torch')
+try: from pydub import AudioSegment, effects  
+except: print('import error: pydub')
+
+DATA_TYPE_MIN_MAX_DICT:Final[dict] = {'float32':(-1,1), 'float64':(-1,1), 'int16':(-2**15, 2**15-1), 'int32':(-2**31,2**31-1)}
 
 class UtilAudio:
     @staticmethod
-    def float32_to_int16(x: np.float32) -> np.int16:
-        #-2**15 to 2**15-1
-        x = np.clip(x, a_min=-1, a_max=1)
-        return (x * 32767.0).astype(np.int16)
-    
-    @staticmethod
-    def int16_to_float32(x: np.int16) -> np.float32:
-        return (x / 32767.0).astype(np.float32)
-    
-    @staticmethod
-    def int32_to_float64(x: np.int32) -> np.float64:
-        return (x / (2**31 - 1)).astype(np.float64)
-    
-    @staticmethod
-    def float64_to_int32(x: np.float64) -> np.int32:
-        return (x * (2**31 - 1)).astype(np.int32)
+    def change_dtype(audio:ndarray,
+                     current_dtype:Literal['float32', 'float64', 'int16', 'int32'],
+                     target_dtype:Literal['float32', 'float64', 'int16', 'int32']
+                     ) -> ndarray:
+        audio = np.clip(audio, a_min = DATA_TYPE_MIN_MAX_DICT[current_dtype][0], a_max = DATA_TYPE_MIN_MAX_DICT[current_dtype][1])
+        audio = audio / DATA_TYPE_MIN_MAX_DICT[current_dtype][1]
+        audio = (audio * DATA_TYPE_MIN_MAX_DICT[target_dtype][1])
+        audio = audio.astype(getattr(np,target_dtype))
+        return audio
     
     @staticmethod
     def resample_audio(audio,origin_sr,target_sr,resample_type = "kaiser_fast"):
@@ -35,10 +35,14 @@ class UtilAudio:
         return librosa.core.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type)
     
     @staticmethod
-    def read_audio_fix_channels_sr(
-            audio_path:str,sample_rate=None, mono=False,read_type=["soundfile","librosa",][0]
-            ) -> ndarray: #[shape=(channel, num_samples) or (num_samples)]
-        if read_type == "soundfile":
+    def read(audio_path:str,
+             sample_rate:Optional[int] = None,
+             mono:Optional[bool] = None,
+             module_name:Literal['soundfile','librosa', 'torchaudio'] = 'soundfile',
+             return_type:Union[ndarray, Tensor] = ndarray
+            ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
+        
+        if module_name == "soundfile":
             audio_data, original_samplerate = sf.read(audio_path)
             audio_data = audio_data.T
 
@@ -46,22 +50,41 @@ class UtilAudio:
                 print(f"resample audio {original_samplerate} to {sample_rate}")
                 audio_data = UtilAudio.resample_audio(audio_data,original_samplerate,sample_rate)
 
-        elif read_type == "librosa":
+        elif module_name == "librosa":
             print(f"read audio sr: {sample_rate}")
             audio_data, _ = librosa.load( audio_path, sr=sample_rate, mono=mono)
         
-        if mono and audio_data.shape[0] == 2:
-            audio_data = np.mean(audio_data,axis=1)
-        elif not mono and len(audio_data.shape) == 1:
-            stereo_audio = np.zeros((2,len(audio_data)))
-            stereo_audio[0,...] = audio_data
-            stereo_audio[1,...] = audio_data
-            audio_data = stereo_audio
+        elif module_name == 'torchaudio':
+            audio_data, original_samplerate = torchaudio.load(audio_path) #[channel, time], int
+            if sample_rate is not None and sample_rate != original_samplerate:
+                audio_data = torchaudio.transforms.Resample(orig_freq = original_samplerate, new_freq = sample_rate)(audio_data)
+                
+        if mono is not None:
+            if mono and audio_data.shape[0] == 2:
+                audio_data = np.mean(audio_data,axis=1)
+            elif not mono and len(audio_data.shape) == 1:
+                stereo_audio = np.zeros((2,len(audio_data)))
+                stereo_audio[0,...] = audio_data
+                stereo_audio[1,...] = audio_data
+                audio_data = stereo_audio
         
         assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'read audio shape problem: {audio_data.shape}'
             
         return audio_data
     
+    @staticmethod
+    def stereo_to_modo(audio_data:Union[ndarray, Tensor]) -> Union[ndarray, Tensor]:
+        audio_data = np.mean(audio_data,axis=1)
+        return audio_data
+    
+    @staticmethod
+    def mono_to_stereo(audio_data:Union[ndarray, Tensor]) -> Union[ndarray, Tensor]:
+        stereo_audio = np.zeros((2,len(audio_data)))
+        stereo_audio[0,...] = audio_data
+        stereo_audio[1,...] = audio_data
+        audio_data = stereo_audio
+        return audio_data
+
     @staticmethod
     def normalize_audio_volume(audio_input:ndarray,sr:int, target_dBFS = -30):
         audio = UtilAudio.float64_to_int32(audio_input)

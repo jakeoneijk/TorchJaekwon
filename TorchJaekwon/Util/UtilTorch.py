@@ -84,16 +84,11 @@ class UtilTorch:
         df['class'] = class_array
 
         plt.rcParams['figure.figsize'] = figure_size
-        sns.scatterplot(
-            x='x', y='y',
-            hue='class',
-            palette=sns.color_palette("hls", 10),
-            data=df,
-            marker='o',
-            legend=legend,
-            alpha=0.5,
-            s = point_size
-        )
+        
+        scatterplot_args:dict = {'x':'x', 'y':'y', 'hue':'class',  'palette':sns.color_palette("hls", 10),
+                                 'data':df, 'marker':'o', 'legend':legend, 'alpha':0.5}
+        if point_size is not None: scatterplot_args['s'] = point_size
+        sns.scatterplot(**scatterplot_args)
 
         plt.xticks([])
         plt.yticks([])

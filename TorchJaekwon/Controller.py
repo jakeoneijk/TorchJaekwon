@@ -59,7 +59,7 @@ class Controller():
 
     def train(self) -> None:
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
-        trainer:Trainer = GetModule.get_module_class('./Train/Trainer',self.h_params.train.class_name)()
+        trainer:Trainer = GetModule.get_module_class('./Train/Trainer',self.h_params.train.class_name)(**self.h_params.train.trainer_args)
         trainer.init_train()
         
         if self.h_params.mode.train == "resume":

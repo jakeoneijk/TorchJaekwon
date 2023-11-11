@@ -19,7 +19,7 @@ class DDPM(nn.Module):
                  model_class_name:Optional[str] = None,
                  model:Optional[nn.Module] = None,
 
-                 model_output_type:Literal['noise', 'x_start', 'v-prediction'] = 'noise',
+                 model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
                  timesteps:int = 1000,
                  
                  loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
@@ -35,7 +35,7 @@ class DDPM(nn.Module):
             self.model = GetModule.get_model(model_name = model_class_name)
         else:
             self.model:nn.Module = model
-        self.model_output_type:Literal['noise', 'x_start', 'v-prediction'] = model_output_type
+        self.model_output_type:Literal['noise', 'x_start', 'v_prediction'] = model_output_type
         
         self.loss_func:Union[nn.Module, Callable] = loss_func
 
@@ -79,7 +79,7 @@ class DDPM(nn.Module):
         self.posterior_mean_coef2:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_mean_coef2', value = (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
     
     def forward(self,
-                x_start:Optional[Tensor],
+                x_start:Optional[Tensor] = None,
                 x_shape:Optional[tuple] = None,
                 cond:Optional[dict] = None,
                 is_cond_unpack:bool = False,
@@ -89,16 +89,15 @@ class DDPM(nn.Module):
         train diffusion model. 
         return diffusion loss
         '''
-        x_start = self.norm_x_start(x_start)
-        if x_shape is None: x_shape = x_start.shape
-
         if stage == 'train' and x_start is not None:
+            x_start = self.norm_x_start(x_start)
+            if x_shape is None: x_shape = x_start.shape
             batch_size:int = x_shape[0] 
             input_device:device = x_start.device
             t:Tensor = torch.randint(0, self.timesteps, (batch_size,), device=input_device).long()
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
-            self.infer(x_shape = x_shape)
+            return self.infer(x_shape = x_shape)
     
     def p_losses(self, 
                  x_start:Tensor,
@@ -114,10 +113,22 @@ class DDPM(nn.Module):
             target:Tensor = x_start
         elif self.model_output_type == 'noise':
             target:Tensor = noise
+        elif self.model_output_type == 'v_prediction':
+            target:Tensor = self.get_v(x_start, noise, t)
         else:
             print(f'''model output type is {self.model_output_type}. It should be in [x_start, noise]''')
             raise NotImplementedError()
         return self.loss_func(target, model_output)
+    
+    def get_v(self, x, noise, t):
+        '''
+        Progressive Distillation for Fast Sampling of Diffusion Models
+        https://arxiv.org/abs/2202.00512
+        '''
+        return (
+            DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x.shape) * noise
+            - DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * x
+        )
     
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:
         '''
@@ -213,7 +224,12 @@ class DDPM(nn.Module):
                     t:Tensor,
                     cond:Optional[dict],
                     is_cond_unpack:bool):
-        return self.model(x, t, **cond if is_cond_unpack else cond) if cond is not None else self.model(x, t)
+        if cond is None:
+            return self.model(x, t)
+        elif is_cond_unpack:
+            return self.model(x, t, **cond)
+        else:
+            return self.model(x, t, cond)
 
     
     

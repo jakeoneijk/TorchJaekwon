@@ -5,6 +5,9 @@ data:
       subset_list: ["train","valid","test"]
       load_to_pytorch_dataset: True
 #####################################################################################################
+preprocess:
+  sample_rate: &sample_rate 16000 #*sample_rate
+#####################################################################################################
 make_meta_data:
   process_dict:
     'class_name': {}
@@ -35,6 +38,7 @@ model:
 #####################################################################################################
 train:
   class_name: 'Trainer'
+  trainer_args: {}
   log_writer_class_name: 'LogWriter'
   save_model_after_epoch: 30
   save_model_every_epoch: 5

@@ -151,13 +151,13 @@ class Trainer(ABC):
         self.set_data_loader(dataset_dict)
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_loader:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader',self.h_params.pytorch_data.class_name)()
+        data_loader_getter:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader',self.h_params.pytorch_data.class_name)()
 
         if dataset_dict is not None:
-            pytorch_data_loader_config_dict = data_loader_loader.get_pytorch_data_loader_config(dataset_dict)
-            self.data_loader_dict = data_loader_loader.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
+            pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)
+            self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
         else:
-            self.data_loader_dict = data_loader_loader.get_pytorch_data_loaders()
+            self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders()
     
     def fit(self):
         if getattr(self.h_params.train,'check_evalstep_first',False):
