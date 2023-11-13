@@ -28,7 +28,8 @@ class DDPM(nn.Module):
                  beta_schedule_type:Literal['linear','cosine'] = 'linear',
                  beta_arg_dict:dict = dict(),
 
-                 unconditional_prob:float = 0 #if unconditional_prob > 0, this model works as classifier free guidance
+                 unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance
+                 sampling_unconditional_guidance_scale:Optional[float] = None
                  ) -> None:
         super().__init__()
         if model_class_name is not None:
@@ -43,6 +44,7 @@ class DDPM(nn.Module):
         self.set_noise_schedule(betas=betas, beta_schedule_type=beta_schedule_type, beta_arg_dict=beta_arg_dict, timesteps=timesteps)
 
         self.unconditional_prob:float = unconditional_prob
+        self.sampling_unconditional_guidance_scale:Optional[float] = sampling_unconditional_guidance_scale
     
     def set_noise_schedule(self,
                            betas: Optional[ndarray] = None, 
@@ -81,7 +83,7 @@ class DDPM(nn.Module):
     def forward(self,
                 x_start:Optional[Tensor] = None,
                 x_shape:Optional[tuple] = None,
-                cond:Optional[dict] = None,
+                cond:Optional[Union[dict,Tensor]] = None,
                 is_cond_unpack:bool = False,
                 stage: Literal['train', 'infer'] = 'train'
                 ) -> Tensor: # return loss value or sample
@@ -95,13 +97,15 @@ class DDPM(nn.Module):
             batch_size:int = x_shape[0] 
             input_device:device = x_start.device
             t:Tensor = torch.randint(0, self.timesteps, (batch_size,), device=input_device).long()
+            if DDPM.make_decision(self.unconditional_prob):
+                cond:Optional[Union[dict,Tensor]] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
             return self.infer(x_shape = x_shape)
     
     def p_losses(self, 
                  x_start:Tensor,
-                 cond:Optional[dict],
+                 cond:Optional[Union[dict,Tensor]],
                  is_cond_unpack:bool,
                  t:Tensor, 
                  noise:Optional[Tensor] = None):
@@ -155,7 +159,7 @@ class DDPM(nn.Module):
     @torch.no_grad()
     def infer(self,
               x_shape:tuple,
-              cond:Optional[dict],
+              cond:Optional[Union[dict,Tensor]],
               is_cond_unpack:bool):
         model_device:device = UtilTorch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
@@ -182,7 +186,7 @@ class DDPM(nn.Module):
     def p_mean_variance(self,
                         x:Tensor,
                         t:Tensor,
-                        cond:Optional[dict],
+                        cond:Optional[Union[dict,Tensor]],
                         is_cond_unpack:bool,
                         clip_denoised: bool) -> Tuple[Tensor]:
         
@@ -223,13 +227,39 @@ class DDPM(nn.Module):
                     x:Tensor,
                     t:Tensor,
                     cond:Optional[dict],
-                    is_cond_unpack:bool):
-        if cond is None:
-            return self.model(x, t)
-        elif is_cond_unpack:
-            return self.model(x, t, **cond)
+                    is_cond_unpack:bool,
+                    sampling_unconditional_guidance_scale:Optional[float] = None
+                    ) -> Tensor:
+        if sampling_unconditional_guidance_scale is None or sampling_unconditional_guidance_scale == 1.0:
+            if cond is None:
+                return self.model(x, t)
+            elif is_cond_unpack:
+                return self.model(x, t, **cond)
+            else:
+                return self.model(x, t, cond)
         else:
-            return self.model(x, t, cond)
+            model_conditioned_output = self.model(x, t, **cond) if is_cond_unpack else self.model(x, t, cond)
+            unconditional_conditioning = self.get_unconditional_condition(cond=cond)
+            model_unconditioned_output = self.model(x, t, **unconditional_conditioning) if is_cond_unpack else self.model(x, t, unconditional_conditioning)
+            return model_unconditioned_output + sampling_unconditional_guidance_scale * (model_conditioned_output - model_unconditioned_output)
+        
+    @staticmethod
+    def make_decision(probability:float #[0,1]
+                      ) -> bool:
+        if float(torch.rand(1)) < probability:
+            return True
+        else:
+            return False
+    
+    def get_unconditional_condition(self,
+                                    cond:Optional[Tensor] = None, 
+                                    cond_shape:Optional[tuple] = None,
+                                    condition_device:Optional[device] = None
+                                    ) -> Tensor:
+        print('Default Unconditional Condition. You might wanna overwrite this function')
+        if cond_shape is None: cond_shape = cond.shape
+        if cond is not None and isinstance(cond,Tensor): condition_device = cond.device
+        return (-11.4981 + torch.zeros(cond_shape)).to(condition_device)
 
     
     

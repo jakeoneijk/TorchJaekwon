@@ -21,9 +21,8 @@ class PNDM:
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               pndm_speedup:int = 10):
-        self.noise_list = deque(maxlen=4)
         total_timesteps:int = self.ddpm_module.timesteps
-        model_device:device = UtilTorch.get_model_device(self.model)
+        model_device:device = UtilTorch.get_model_device(self.ddpm_module)
         x:Tensor = torch.randn(x_shape, device = model_device)
         self.noise_list = deque(maxlen=4)
 
@@ -39,7 +38,7 @@ class PNDM:
         """
 
         noise_list = self.noise_list
-        noise_pred = self.ddpm_module.apply_model(x, t, cond, is_cond_unpack)
+        noise_pred = self.ddpm_module.apply_model(x, t, cond, is_cond_unpack, self.ddpm_module.sampling_unconditional_guidance_scale)
 
         if len(noise_list) == 0:
             x_pred = self.get_x_pred(x, noise_pred, t, interval)

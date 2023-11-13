@@ -7,6 +7,7 @@ import random
 import copy
 import numpy as np
 import torch
+import torch.nn.functional as F
 import pickle
 import yaml
 import csv
@@ -142,4 +143,12 @@ class UtilData:
         if val is not None:
             return val
         return d() if isfunction(d) else d
+    
+    @staticmethod
+    def fix_length(data:Union[ndarray,Tensor],length:int,dim:int) -> Tensor:
+        if isinstance(data,Tensor):
+            if data.shape[dim] < length:
+                return F.pad(data, (0,length - data.shape[dim]), "constant", 0)
+        else:
+            NotImplementedError
         

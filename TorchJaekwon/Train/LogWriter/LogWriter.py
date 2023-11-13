@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 from numpy import ndarray
 
 import os
@@ -7,11 +7,10 @@ import time
 import torch.nn as nn
 from datetime import datetime
 from datetime import timedelta
-try:
-    import wandb
-    from tensorboardX import SummaryWriter
-except:
-    print('Didnt import following packages: wandb')
+try: import wandb
+except: print('Didnt import following packages: wandb')
+try: from tensorboardX import SummaryWriter
+except: print('Didnt import following packages: tensorboardX')
 
 from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 from TorchJaekwon.Util.UtilTorch import UtilTorch
@@ -96,21 +95,21 @@ class LogWriter():
             wandb.log({y_axis_name: y_axis_value, x_axis_name: x_axis_value})
     
     def plot_audio(self, 
-                   name:str, #test case name, you could make structure by using /. ex) 'task/test_set_1'
-                   audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array},
+                   name:str, #test case name, you could make structure by using /. ex) 'taskcase_1/test_set_1'
+                   audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array}.
                    global_step:int,
-                   is_spec:bool = False,
-                   is_mel:bool = True
+                   is_plot_spec:bool = False,
+                   is_plot_mel:bool = True,
+                   mel_spec_args:Optional[dict] = None
                    ) -> None:
         self.plot_wav(name = name + '_audio', audio_dict = audio_dict, global_step=global_step)
-        if is_mel:
-            from TorchJaekwon.DataProcess.Util.UtilAudioMelSpec import UtilAudioMelSpec
-            mel_spec_util = UtilAudioMelSpec(nfft=self.h_params.preprocess.fft_size,
-                                              hop_size = self.h_params.preprocess.hop_size,
-                                              sample_rate = self.h_params.preprocess.sample_rate,
-                                              mel_size= self.h_params.preprocess.mel_size,
-                                              frequency_max= self.h_params.preprocess.mel_fmax,
-                                              frequency_min= self.h_params.preprocess.mel_fmin)
+        if is_plot_mel:
+            from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
+            if mel_spec_args is None:
+                mel_spec_args = {'nfft': self.h_params.preprocess.fft_size, 'hop_size': self.h_params.preprocess.hop_size,
+                                 'sample_rate': self.h_params.preprocess.sample_rate, 'mel_size': self.h_params.preprocess.mel_size,
+                                 'frequency_max': self.h_params.preprocess.mel_fmax, 'frequency_min': self.h_params.preprocess.mel_fmin}
+            mel_spec_util = UtilAudioMelSpec(**mel_spec_args)
             mel_dict = dict()
             for audio_name in audio_dict:
                 mel_dict[audio_name] = mel_spec_util.get_hifigan_mel_spectrogram_from_audio(audio=audio_dict[audio_name],return_type='ndarray')

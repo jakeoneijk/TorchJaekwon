@@ -9,9 +9,9 @@ from tqdm import tqdm
 from HParams import HParams
 
 class Preprocessor(ABC):
-    def __init__(self, data_config_dict:dict = None) -> None:
+    def __init__(self,data_name:str, data_config_dict:dict = None) -> None:
         self.h_params: HParams = HParams()
-        self.data_name:str = self.get_dataset_name()
+        self.data_name:str = data_name
         self.preprocessed_data_path = os.path.join(self.h_params.data.root_path,self.data_name)
         self.data_config_dict:dict = data_config_dict
     
@@ -30,12 +30,8 @@ class Preprocessor(ABC):
             for meta_param in tqdm(meta_param_list,desc='preprocess data'):
                 self.preprocess_one_data(meta_param)
 
-        self.finish_pre_process()
+        self.final_process()
         print("{:.3f} s".format(time.time() - start_time))
-
-    @abstractmethod
-    def get_dataset_name(self) -> str:
-        raise NotImplementedError
 
     @abstractmethod
     def get_meta_data_param(self) -> List[tuple]:
@@ -57,5 +53,5 @@ class Preprocessor(ABC):
         '''
         raise NotImplementedError
     
-    def finish_pre_process(self) -> None:
+    def final_process(self) -> None:
         print("Finish preprocess")

@@ -41,10 +41,13 @@ class Controller():
     def preprocess(self) -> None:
         from TorchJaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
         for data_name in self.h_params.data.data_config_per_dataset_dict:
+            preprocessor_args:dict = {'data_name': data_name, "data_config_dict": self.h_params.data.data_config_per_dataset_dict[data_name]}
+            if 'preprocessor_args' in self.h_params.data.data_config_per_dataset_dict[data_name]:
+                preprocessor_args.update(self.h_params.data.data_config_per_dataset_dict[data_name]['preprocessor_args'])
             preprocessor: Preprocessor = GetModule.get_module_class(
                 "./DataProcess/Preprocess", 
                 self.h_params.data.data_config_per_dataset_dict[data_name]["preprocessor_class_name"]
-                )(**{"data_config_dict": self.h_params.data.data_config_per_dataset_dict[data_name]})
+                )(**preprocessor_args)
                                                                     
             
             preprocessor.preprocess_data()
