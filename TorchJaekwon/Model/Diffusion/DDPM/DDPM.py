@@ -246,6 +246,8 @@ class DDPM(nn.Module):
     @staticmethod
     def make_decision(probability:float #[0,1]
                       ) -> bool:
+        if probability == 0:
+            return False
         if float(torch.rand(1)) < probability:
             return True
         else:

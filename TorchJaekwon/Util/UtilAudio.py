@@ -87,11 +87,11 @@ class UtilAudio:
 
     @staticmethod
     def normalize_audio_volume(audio_input:ndarray,sr:int, target_dBFS = -30):
-        audio = UtilAudio.float64_to_int32(audio_input)
+        audio = UtilAudio.change_dtype(audio=audio_input,current_dtype='float64',target_dtype='int32')#UtilAudio.float64_to_int32(audio_input)
         audio_segment = AudioSegment(audio.tobytes(), frame_rate=sr, sample_width=audio.dtype.itemsize, channels=1)
         change_in_dBFS = target_dBFS - audio_segment.dBFS
         normalizedsound = audio_segment.apply_gain(change_in_dBFS)
-        return UtilAudio.int32_to_float64(np.array(normalizedsound.get_array_of_samples()))
+        return UtilAudio.change_dtype(audio=np.array(normalizedsound.get_array_of_samples()),current_dtype='int32',target_dtype='float64') #UtilAudio.int32_to_float64(np.array(normalizedsound.get_array_of_samples()))
 
     @staticmethod
     def energy_unify(estimated, original, eps = 1e-12):

@@ -57,10 +57,10 @@ class UtilAudioMelSpec(UtilAudioSTFT):
             print("dynamic_range_compression type error")
             exit()
     
-    def get_hifigan_mel_spectrogram_from_audio(self,
-                                               audio:Union[ndarray,Tensor], #[Batch,Time]
-                                               return_type:str=['ndarray','Tensor'][1]
-                                               ) -> Union[ndarray,Tensor]:
+    def get_hifigan_mel_spec(self,
+                             audio:Union[ndarray,Tensor], #[Batch,Time]
+                             return_type:str=['ndarray','Tensor'][1]
+                             ) -> Union[ndarray,Tensor]:
         if isinstance(audio,ndarray): audio = torch.FloatTensor(audio)
 
         if torch.min(audio) < -1.:
