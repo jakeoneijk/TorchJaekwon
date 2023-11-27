@@ -8,7 +8,7 @@ class Mode:
     config_name:str = "000000_template"
     config_path:str = f"./Config/{config_name}.yaml"
 
-    stage:str = {0:"preprocess", 1:"make_meta_data", 2:"train", 3:"inference", 4:"evaluate"}[0]
+    stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
     train:str = ["start","resume"][0]
     resume_path:str = f"./Train/Log/{config_name}"
@@ -26,21 +26,13 @@ class Logging():
 class Resource:
     device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     multi_gpu = False
+    preprocess:dict = { 'multi_processing':False,  'max_workers': None}
 
 @dataclass
 class Data:
     original_data_dir:str = "../220101_data"
     root_path:str = "./Data/Dataset"
     data_config_per_dataset_dict = dict()
-
-@dataclass
-class PreProcess:
-    multi_processing:bool = False
-    max_workers:int = None
-
-@dataclass
-class MakeMetaData:
-    process_dict = {}
 
 @dataclass
 class PytorchData:
@@ -101,8 +93,6 @@ class HParams(Singleton):
         self.mode = Mode()
         self.resource = Resource()
         self.data = Data()
-        self.preprocess = PreProcess()
-        self.make_meta_data = MakeMetaData()
         self.pytorch_data = PytorchData()
         self.model = Model()
         self.train= Train()

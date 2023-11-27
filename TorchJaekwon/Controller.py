@@ -16,7 +16,7 @@ class Controller():
             type=str,
             required=False,
             default=None,
-            choices = ['preprocess', 'make_meta_data', 'train', 'inference', 'evaluate'],
+            choices = ['preprocess', 'train', 'inference', 'evaluate'],
             help="",
         )
 
@@ -41,24 +41,13 @@ class Controller():
     def preprocess(self) -> None:
         from TorchJaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
         for data_name in self.h_params.data.data_config_per_dataset_dict:
-            preprocessor_args:dict = {'data_name': data_name, "data_config_dict": self.h_params.data.data_config_per_dataset_dict[data_name]}
-            if 'preprocessor_args' in self.h_params.data.data_config_per_dataset_dict[data_name]:
-                preprocessor_args.update(self.h_params.data.data_config_per_dataset_dict[data_name]['preprocessor_args'])
-            preprocessor: Preprocessor = GetModule.get_module_class(
-                "./DataProcess/Preprocess", 
-                self.h_params.data.data_config_per_dataset_dict[data_name]["preprocessor_class_name"]
-                )(**preprocessor_args)
-                                                                    
-            
-            preprocessor.preprocess_data()
-    
-    def make_meta_data(self) -> None:
-        from TorchJaekwon.DataProcess.MakeMetaData.MakeMetaData import MakeMetaData
-        for mata_data_class_name in self.h_params.make_meta_data.process_dict:
-            meta_data_maker: MakeMetaData = GetModule.get_module_class(root_path='./DataProcess/MakeMetaData',
-                                                                       module_name=mata_data_class_name
-                                                                       )(**self.h_params.make_meta_data.process_dict[mata_data_class_name])
-            meta_data_maker.make_meta_data()
+            for preprocessor_meta in self.h_params.data.data_config_per_dataset_dict[data_name]['preprocessor_list']:
+                preprocessor_class_name:str = preprocessor_meta['class_name']
+                preprocessor_args:dict = {'data_name': data_name, "data_config_dict": self.h_params.data.data_config_per_dataset_dict[data_name]}
+                preprocessor_args.update(preprocessor_meta['args'])
+                
+                preprocessor: Preprocessor = GetModule.get_module_class( "./DataProcess/Preprocess", preprocessor_class_name )(**preprocessor_args)                             
+                preprocessor.preprocess_data()
 
     def train(self) -> None:
         from TorchJaekwon.Train.Trainer.Trainer import Trainer

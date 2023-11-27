@@ -150,5 +150,8 @@ class UtilData:
             if data.shape[dim] < length:
                 return F.pad(data, (0,length - data.shape[dim]), "constant", 0)
         else:
-            NotImplementedError
+            if data.shape[dim] < length:
+                return np.pad(data, (0,length - data.shape[dim]), 'constant', constant_values=0)
+            else:
+                return data[:length]
         
