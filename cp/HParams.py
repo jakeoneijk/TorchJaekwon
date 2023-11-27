@@ -3,9 +3,11 @@ import yaml
 import torch
 from dataclasses import dataclass
 
+TORCH_JAEKWON_PATH = '../000000_TorchJAEKWON'
+
 @dataclass
 class Mode:
-    config_name:str = "000000_template"
+    config_name:str = str()
     config_path:str = f"./Config/{config_name}.yaml"
 
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
@@ -15,16 +17,8 @@ class Mode:
     debug_mode:bool = False
 
 @dataclass
-class Logging():
-    class_root_dir:str = "./Train/Log"
-    project_name:str = "baseline"
-    visualizer_type = ["tensorboard","wandb"][1]
-    use_currenttime_on_experiment_name:bool = False
-    log_every_local_step:int = 40
-
-@dataclass
 class Resource:
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     multi_gpu = False
     preprocess:dict = { 'multi_processing':False,  'max_workers': None}
 
@@ -32,7 +26,16 @@ class Resource:
 class Data:
     original_data_dir:str = "../220101_data"
     root_path:str = "./Data/Dataset"
-    data_config_per_dataset_dict = dict()
+    config = dict()
+    config_per_dataset_dict = dict()
+
+@dataclass
+class Logging():
+    class_root_dir:str = "./Train/Log"
+    project_name:str = "ldm_enhance"
+    visualizer_type = ["tensorboard","wandb"][0]
+    use_currenttime_on_experiment_name:bool = False
+    log_every_local_step:int = 40
 
 @dataclass
 class PytorchData:
@@ -58,6 +61,7 @@ class Train:
     epoch:int = 3000
     save_model_after_epoch:int = 200
     save_model_every_epoch:int = 100
+    check_evalstep_first:bool = True
 
 @dataclass
 class Inference():
@@ -87,9 +91,7 @@ class Singleton(object):
 
 class HParams(Singleton):
     def __init__(self) -> None:
-        
-        self.torch_jaekwon_path = '../000000_TorchJAEKWON'
-        if os.path.abspath(self.torch_jaekwon_path) not in sys.path: sys.path.append(os.path.abspath(self.torch_jaekwon_path))
+        if os.path.abspath(TORCH_JAEKWON_PATH) not in sys.path: sys.path.append(os.path.abspath(TORCH_JAEKWON_PATH))
         self.mode = Mode()
         self.resource = Resource()
         self.data = Data()
@@ -116,4 +118,3 @@ class HParams(Singleton):
         for data_class_name in h_params_dict:
             for var_name in h_params_dict[data_class_name]:
                 setattr(getattr(self,data_class_name),var_name,h_params_dict[data_class_name][var_name])
-
