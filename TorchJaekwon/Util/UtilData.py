@@ -145,13 +145,27 @@ class UtilData:
         return d() if isfunction(d) else d
     
     @staticmethod
-    def fix_length(data:Union[ndarray,Tensor],length:int,dim:int) -> Tensor:
-        if isinstance(data,Tensor):
-            if data.shape[dim] < length:
+    def fix_length(data:Union[ndarray,Tensor],
+                   length:int,
+                   dim:int = -1
+                   ) -> Tensor:
+        if data.shape[dim] < length:
+            if isinstance(data,Tensor):
                 return F.pad(data, (0,length - data.shape[dim]), "constant", 0)
-        else:
-            if data.shape[dim] < length:
-                return np.pad(data, (0,length - data.shape[dim]), 'constant', constant_values=0)
             else:
-                return data[:length]
+                return np.pad(data, (0,length - data.shape[dim]), 'constant', constant_values=0)
+        elif data.shape[dim] == length:
+            return data
+        else:
+            assert dim == -1, "Error[UtilData.fix_length] slicing when dim is not -1 not implemented yet"
+            return data[..., :length]
+    
+    @staticmethod
+    def listdir(dir_name:str, ext:Union[str,list] = None) -> list:
+        if ext is None:
+            return os.listdir(dir_name)
+        elif isinstance(ext,list):
+            return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext]
+        else:
+            return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
         

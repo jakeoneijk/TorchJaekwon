@@ -98,36 +98,36 @@ class LogWriter():
                    name:str, #test case name, you could make structure by using /. ex) 'taskcase_1/test_set_1'
                    audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array}.
                    global_step:int,
+                   sample_rate:int = 16000,
                    is_plot_spec:bool = False,
                    is_plot_mel:bool = True,
                    mel_spec_args:Optional[dict] = None
                    ) -> None:
-        self.plot_wav(name = name + '_audio', audio_dict = audio_dict, global_step=global_step)
+        self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step)
         if is_plot_mel:
             from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
             if mel_spec_args is None:
-                mel_spec_args = {'nfft': self.h_params.preprocess.fft_size, 'hop_size': self.h_params.preprocess.hop_size,
-                                 'sample_rate': self.h_params.preprocess.sample_rate, 'mel_size': self.h_params.preprocess.mel_size,
-                                 'frequency_max': self.h_params.preprocess.mel_fmax, 'frequency_min': self.h_params.preprocess.mel_fmin}
+                mel_spec_args = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate=sample_rate)
             mel_spec_util = UtilAudioMelSpec(**mel_spec_args)
             mel_dict = dict()
             for audio_name in audio_dict:
-                mel_dict[audio_name] = mel_spec_util.get_hifigan_mel_spectrogram_from_audio(audio=audio_dict[audio_name],return_type='ndarray')
+                mel_dict[audio_name] = mel_spec_util.get_hifigan_mel_spec(audio=audio_dict[audio_name],return_type='ndarray')
             self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict)
         
     
     def plot_wav(self, 
                  name:str, #test case name, you could make structure by using /. ex) 'audio/test_set_1'
                  audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array},
+                 sample_rate:int,
                  global_step:int
                  ) -> None:
         if self.visualizer_type == 'tensorboard':
             for audio_name in audio_dict:
-                self.tensorboard_writer.add_audio(f'{name}/{audio_name}', audio_dict[audio_name], sample_rate=self.h_params.preprocess.sample_rate, global_step=global_step)
+                self.tensorboard_writer.add_audio(f'{name}/{audio_name}', audio_dict[audio_name], sample_rate=sample_rate, global_step=global_step)
         else:
             wandb_audio_list = list()
             for audio_name in audio_dict:
-                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=audio_name,sample_rate=self.h_params.preprocess.sample_rate))
+                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=audio_name,sample_rate=sample_rate))
             wandb.log({name: wandb_audio_list})
     
     def plot_spec(self, 

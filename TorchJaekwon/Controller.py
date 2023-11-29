@@ -40,10 +40,10 @@ class Controller():
 
     def preprocess(self) -> None:
         from TorchJaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
-        for data_name in self.h_params.data.data_config_per_dataset_dict:
-            for preprocessor_meta in self.h_params.data.data_config_per_dataset_dict[data_name]['preprocessor_list']:
+        for data_name in self.h_params.data.config_per_dataset_dict:
+            for preprocessor_meta in self.h_params.data.config_per_dataset_dict[data_name]['preprocessor_list']:
                 preprocessor_class_name:str = preprocessor_meta['class_name']
-                preprocessor_args:dict = {'data_name': data_name, "data_config_dict": self.h_params.data.data_config_per_dataset_dict[data_name]}
+                preprocessor_args:dict = {'data_name': data_name}
                 preprocessor_args.update(preprocessor_meta['args'])
                 
                 preprocessor: Preprocessor = GetModule.get_module_class( "./DataProcess/Preprocess", preprocessor_class_name )(**preprocessor_args)                             

@@ -1,13 +1,10 @@
 from typing import List
 
-from TorchJAEKWON.DataProcess.Preprocess.Preprocessor import Preprocessor
+from TorchJaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
 
 class TemplatePreprocessor(Preprocessor):
-    def __init__(self, data_config_dict: dict = None) -> None:
-        super().__init__(data_config_dict)
-    
-    def get_dataset_name(self) -> str:
-        raise NotImplementedError
+    def __init__(self, data_name:str) -> None:
+        super().__init__(data_name)
 
     def get_meta_data_param(self) -> List[tuple]:
         '''
@@ -15,14 +12,8 @@ class TemplatePreprocessor(Preprocessor):
         '''
         raise NotImplementedError
 
-    def preprocess_one_data(self,param: tuple) -> None:
+    def preprocess_one_data(self,param_dict: dict) -> None:
         '''
         ex) (subset, file_name) = param
-        '''
-        raise NotImplementedError
-
-    def extract_features(self,input_feature:str) -> dict:
-        '''
-        extract features from input feature
         '''
         raise NotImplementedError

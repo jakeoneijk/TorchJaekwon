@@ -106,4 +106,18 @@ class UtilAudio:
     @staticmethod
     def pow_p_norm(signal):
         return torch.pow(torch.norm(signal, p=2), 2)
+    
+    @staticmethod
+    def get_segment_index_list(audio:ndarray, #[time]
+                               sample_rate:int,
+                               segment_sample_length:int,
+                               hop_seconds:float = 0.1
+                               ) -> list:
+        begin_sample:int = 0
+        hop_samples = int(hop_seconds * sample_rate)
+        segment_index_list = list()
+        while (begin_sample == 0) or (begin_sample + segment_sample_length < len(audio)):
+            segment_index_list.append({'begin':begin_sample, 'end':begin_sample + segment_sample_length})
+            begin_sample += hop_samples
+        return segment_index_list
 

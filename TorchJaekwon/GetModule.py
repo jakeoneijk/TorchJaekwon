@@ -8,13 +8,13 @@ try:
 except:
     print('''Can't import torch.nn''')
 
-from HParams import HParams
+from HParams import HParams, TORCH_JAEKWON_PATH
 
 class GetModule:
     @staticmethod
     def get_import_path_of_module(root_path:str, module_name:str) -> Optional[str]:
         root_path_list:list = [root_path]
-        torch_jaekwon_path = f'{HParams().torch_jaekwon_path}/TorchJaekwon/'
+        torch_jaekwon_path = f'{TORCH_JAEKWON_PATH}/TorchJaekwon/'
         if os.path.isdir(root_path.replace("./",torch_jaekwon_path)):
             root_path_list.append(root_path.replace("./",torch_jaekwon_path))
         
@@ -24,7 +24,7 @@ class GetModule:
                     for file in files:
                         if os.path.splitext(file)[0] == module_name:
                             if torch_jaekwon_path in root:
-                                return f'{root}/{os.path.splitext(file)[0]}'.replace(HParams().torch_jaekwon_path+'/','').replace("/",".")
+                                return f'{root}/{os.path.splitext(file)[0]}'.replace(TORCH_JAEKWON_PATH+'/','').replace("/",".")
                             else:
                                 return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
         return None

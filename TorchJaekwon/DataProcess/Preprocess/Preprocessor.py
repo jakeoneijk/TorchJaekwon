@@ -9,11 +9,21 @@ from tqdm import tqdm
 from HParams import HParams
 
 class Preprocessor(ABC):
-    def __init__(self,data_name:str, data_config_dict:dict = None) -> None:
-        self.h_params: HParams = HParams()
+    def __init__(self,
+                 data_name:str,
+                 root_dir:str = HParams().data.root_path,
+                 is_multi_processing:bool = HParams().h_params.resource.preprocess['multi_processing']
+                 ) -> None:
+        # args to class variable
         self.data_name:str = data_name
-        self.preprocessed_data_path = os.path.join(self.h_params.data.root_path,self.data_name)
-        self.data_config_dict:dict = data_config_dict
+        self.root_dir:str = root_dir
+        self.is_multi_processing:bool = is_multi_processing
+
+        self.output_dir = self.get_output_dir()
+        os.makedirs(self.output_dir,exist_ok=True)
+    
+    def get_output_dir(self) -> str:
+        return os.path.join(self.root_dir, self.data_name)
     
     def write_message(self,message_type:str,message:str) -> None:
         with open(f"{self.preprocessed_data_path}/{message_type}.txt",'a') as file_writer:
@@ -21,10 +31,12 @@ class Preprocessor(ABC):
     
     def preprocess_data(self) -> None:
         meta_param_list:list = self.get_meta_data_param()
+        if meta_param_list is None:
+            print('meta_param_list is None, So we skip preprocess data')
+            return
         start_time:float = time.time()
-
-        if self.h_params.preprocess.multi_processing:
-            with ProcessPoolExecutor(max_workers=self.h_params.preprocess.max_workers) as pool:
+        if self.is_multi_processing:
+            with ProcessPoolExecutor(max_workers=self.h_params.resource.preprocess['max_workers']) as pool:
                 pool.map(self.preprocess_one_data, meta_param_list)
         else:
             for meta_param in tqdm(meta_param_list,desc='preprocess data'):
@@ -44,12 +56,6 @@ class Preprocessor(ABC):
     def preprocess_one_data(self,param: tuple) -> None:
         '''
         ex) (subset, file_name) = param
-        '''
-        raise NotImplementedError
-
-    def extract_features(self,input_feature:str) -> dict:
-        '''
-        extract features from input feature
         '''
         raise NotImplementedError
     
