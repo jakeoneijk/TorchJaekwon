@@ -8,9 +8,7 @@ import copy
 import numpy as np
 import torch
 import torch.nn.functional as F
-import pickle
-import yaml
-import csv
+import pickle, yaml, csv, json
 from pathlib import Path
 from inspect import isfunction
 
@@ -76,6 +74,10 @@ class UtilData:
             for key in csv_save_dict:
                 csv_save_dict[key].append(data_dict[key])
         pd.DataFrame(csv_save_dict).to_csv(file_path)
+    
+    @staticmethod
+    def json_load(file_path:str) -> dict:
+        return json.loads(file_path)
 
     @staticmethod
     def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int=-1,remainder:str = ['discard','pad','maintain'][1],ext:str = ['pkl'][0]):
