@@ -77,7 +77,8 @@ class UtilData:
     
     @staticmethod
     def json_load(file_path:str) -> dict:
-        return json.loads(file_path)
+        with open(file_path) as f: data = f.read()
+        return json.loads(data)
 
     @staticmethod
     def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int=-1,remainder:str = ['discard','pad','maintain'][1],ext:str = ['pkl'][0]):
