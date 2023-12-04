@@ -20,7 +20,7 @@ class PNDM:
               x_shape:tuple,
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
-              pndm_speedup:int = 10):
+              pndm_speedup:int = 10) -> Tensor:
         total_timesteps:int = self.ddpm_module.timesteps
         model_device:device = UtilTorch.get_model_device(self.ddpm_module)
         x:Tensor = torch.randn(x_shape, device = model_device)

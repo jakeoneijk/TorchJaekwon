@@ -29,7 +29,7 @@ class DDPM(nn.Module):
                  beta_arg_dict:dict = dict(),
 
                  unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance
-                 sampling_unconditional_guidance_scale:Optional[float] = None
+                 sampling_guidance_scale:Optional[float] = None
                  ) -> None:
         super().__init__()
         if model_class_name is not None:
@@ -44,7 +44,7 @@ class DDPM(nn.Module):
         self.set_noise_schedule(betas=betas, beta_schedule_type=beta_schedule_type, beta_arg_dict=beta_arg_dict, timesteps=timesteps)
 
         self.unconditional_prob:float = unconditional_prob
-        self.sampling_unconditional_guidance_scale:Optional[float] = sampling_unconditional_guidance_scale
+        self.sampling_guidance_scale:Optional[float] = sampling_guidance_scale
     
     def set_noise_schedule(self,
                            betas: Optional[ndarray] = None, 
@@ -228,9 +228,9 @@ class DDPM(nn.Module):
                     t:Tensor,
                     cond:Optional[dict],
                     is_cond_unpack:bool,
-                    sampling_unconditional_guidance_scale:Optional[float] = None
+                    sampling_guidance_scale:Optional[float] = None
                     ) -> Tensor:
-        if sampling_unconditional_guidance_scale is None or sampling_unconditional_guidance_scale == 1.0:
+        if sampling_guidance_scale is None or sampling_guidance_scale == 1.0:
             if cond is None:
                 return self.model(x, t)
             elif is_cond_unpack:
@@ -241,7 +241,7 @@ class DDPM(nn.Module):
             model_conditioned_output = self.model(x, t, **cond) if is_cond_unpack else self.model(x, t, cond)
             unconditional_conditioning = self.get_unconditional_condition(cond=cond)
             model_unconditioned_output = self.model(x, t, **unconditional_conditioning) if is_cond_unpack else self.model(x, t, unconditional_conditioning)
-            return model_unconditioned_output + sampling_unconditional_guidance_scale * (model_conditioned_output - model_unconditioned_output)
+            return model_unconditioned_output + sampling_guidance_scale * (model_conditioned_output - model_unconditioned_output)
         
     @staticmethod
     def make_decision(probability:float #[0,1]

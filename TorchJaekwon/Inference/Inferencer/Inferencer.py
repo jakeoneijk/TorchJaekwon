@@ -8,17 +8,17 @@ import torch.nn as nn
 from tqdm import tqdm
 #torchjaekwon
 from TorchJaekwon.GetModule import GetModule
-from TorchJaekwon.DataProcess.Util.UtilData import UtilData
+from TorchJaekwon.Util.UtilData import UtilData 
 #internal
 from HParams import HParams
 
 class Inferencer():
-    def __init__(self) -> None:
-        self.h_params = HParams()
+    def __init__(self,
+                 model:Union[nn.Module,object] = GetModule.get_model(HParams().model.class_name)
+                 ) -> None:
         self.get_module = GetModule()
-        self.util_data = UtilData()
 
-        self.model:Union[nn.Module,object] = GetModule.get_model(self.h_params.model.class_name)
+        self.model:Union[nn.Module,object] = model
         self.output_dir:str = None
     
     '''
@@ -64,7 +64,11 @@ class Inferencer():
     '''
 
     def inference(self) -> None:
-        pretrained_path_list:List[str] = self.get_pretrained_path_list()
+        pretrained_path_list:List[str] = self.get_pretrained_path_list(
+            pretrain_root_dir= HParams().inference.pretrain_root_dir,
+            pretrain_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
+            pretrain_module_name= HParams().inference.pretrain_module_name
+        )
 
         for pretrained_path in pretrained_path_list:
             self.pretrained_load(pretrained_path) 
@@ -87,11 +91,14 @@ class Inferencer():
                 data_dict["pred"] = self.model(data_dict["model_input"].to(self.h_params.resource.device))
         return data_dict
                     
-    def get_pretrained_path_list(self) -> List[str]:
-        pretrain_dir:str = self.h_params.mode.config_name if self.h_params.inference.pretrain_dir == '' else self.h_params.inference.pretrain_dir
-        pretrain_dir = f"{self.h_params.inference.pretrain_root_dir}/{pretrain_dir}"
+    def get_pretrained_path_list(self,
+                                 pretrain_root_dir:str,
+                                 pretrain_dir_name:str,
+                                 pretrain_module_name:str
+                                 ) -> List[str]:
+        pretrain_dir = f"{pretrain_root_dir}/{pretrain_dir_name}"
         
-        if self.h_params.inference.pretrain_module_name in ["all","last_epoch"]:
+        if pretrain_module_name in ["all","last_epoch"]:
             pretrain_name_list:List[str] = [
                 pretrain_module
                 for pretrain_module in os.listdir(pretrain_dir)
@@ -99,10 +106,10 @@ class Inferencer():
                 ]
             pretrain_name_list.sort()
 
-            if self.h_params.inference.pretrain_module_name == "last_epoch":
+            if pretrain_module_name == "last_epoch":
                 pretrain_name_list = [pretrain_name_list[-1]]
         else:
-            pretrain_name_list:List[str] = [self.h_params.inference.pretrain_module_name]
+            pretrain_name_list:List[str] = [pretrain_module_name]
         
         return [f"{pretrain_dir}/{pretrain_name}" for pretrain_name in pretrain_name_list]
     
