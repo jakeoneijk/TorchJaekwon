@@ -3,7 +3,7 @@ from torch import Tensor
 
 import torch.nn as nn
 
-from TorchJAEKWON.Model.AudioModule.nnAudio.cqt import CQT2010v2
+from TorchJaekwon.Model.AudioModule.nnAudio.cqt import CQT2010v2
 
 class ConstantQTransform(nn.Module):
     def __init__(self,

@@ -1,13 +1,6 @@
 #####set sys path#####################################
-set_sys_path_to_project_home_dir:bool = False
-depth_to__home_dir_from_here:int = 1
-
-import os, sys
-if set_sys_path_to_project_home_dir:
-    dir : str = os.path.abspath(os.path.dirname(__file__))
-    for _ in range(depth_to__home_dir_from_here): dir = os.path.dirname(dir)
-    sys.path[0] = os.path.abspath(dir)
-#####set sys path#####################################
+from TorchJaekwon.Util.Util import Util
+Util.set_sys_path_to_parent_dir(__file__,1)
 #type
 #import
 import torch
