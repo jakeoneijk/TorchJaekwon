@@ -12,7 +12,7 @@ class Preprocessor(ABC):
     def __init__(self,
                  data_name:str,
                  root_dir:str = HParams().data.root_path,
-                 is_multi_processing:bool = HParams().h_params.resource.preprocess['multi_processing']
+                 is_multi_processing:bool = HParams().resource.preprocess['multi_processing']
                  ) -> None:
         # args to class variable
         self.data_name:str = data_name

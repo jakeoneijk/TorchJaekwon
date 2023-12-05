@@ -1,3 +1,5 @@
+from torch import Tensor
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -52,6 +54,6 @@ class MicrophoneEQ(nn.Module):
         eq_x = Util.batch_convolution(x, eq_filter, pad_both_sides=True)
         return eq_x
     
-    def get_random_gain(self, batch_size:int = 1):
+    def get_random_gain(self, batch_size:int = 1) -> Tensor:
         return (self.hi_db - self.low_db)*torch.rand(batch_size, self.firs.shape[0]-1, device=self.firs.device) + self.low_db
     
