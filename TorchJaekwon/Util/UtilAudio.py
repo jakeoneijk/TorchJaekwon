@@ -11,7 +11,7 @@ try: import torch
 except: print('import error: torch')
 try: import torchaudio
 except: print('import error: torch')
-try: from pydub import AudioSegment, effects  
+try: from pydub import AudioSegment  
 except: print('import error: pydub')
 
 DATA_TYPE_MIN_MAX_DICT:Final[dict] = {'float32':(-1,1), 'float64':(-1,1), 'int16':(-2**15, 2**15-1), 'int32':(-2**31,2**31-1)}

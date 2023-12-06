@@ -47,7 +47,9 @@ class MicrophoneEQ(nn.Module):
         eq_filter = (band_gains[:,:,None] * self.firs[None,:,:]).sum(dim=1, keepdim=True)
         return eq_filter
 
-    def forward(self, x, gain=None):
+    def forward(self, 
+                x, # [batch, signal, length]
+                gain=None):
         gains = self.get_random_gain(batch_size=x.shape[0]) if gain is None else gain
         gains = torch.cat((torch.zeros((x.shape[0], 1), device=self.firs.device), gains), dim=1)
         eq_filter = self.get_eq_filter(gains)

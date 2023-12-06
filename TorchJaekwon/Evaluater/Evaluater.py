@@ -8,7 +8,7 @@ import numpy as np
 import copy
 
 from HParams import HParams
-from TorchJaekwon.DataProcess.Util.UtilData import UtilData
+from TorchJaekwon.Util.UtilData import UtilData
 
 class Evaluater(ABC):
     def __init__(self):
