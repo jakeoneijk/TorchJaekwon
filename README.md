@@ -12,3 +12,4 @@ This is my personal repository for the efficiency of my research.
     └── TorchJaekwon
         └── cp
     ```
+* (Optional) If you are a vscode user change dir name `vscode` to `.vscode`. 
