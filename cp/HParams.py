@@ -49,7 +49,7 @@ class Model:
     
 @dataclass
 class Train:
-    class_name:str = 'Trainer'
+    class_meta = { 'name' : 'Trainer', 'args' : {}}
     seed_strict = False
     seed = (int)(torch.cuda.initial_seed() / (2**32))
     batch_size:int = 32
@@ -65,7 +65,7 @@ class Train:
 
 @dataclass
 class Inference():
-    class_name:str = 'Inferencer'
+    class_meta = {'name': 'Inferencer'}
     dataset_type:str = ["singledata","testset"][1]
     singledata_path:str ="./Test/TestInput/commercial_song.wav"
 
@@ -78,7 +78,7 @@ class Inference():
 
 @dataclass
 class Evaluate():
-    class_name:str = 'Evaluater'
+    class_meta = { 'name': 'Evaluater', 'args': {}}
     class_root_dir:str = "./Evaluater"
     source_dir:str = ""
 

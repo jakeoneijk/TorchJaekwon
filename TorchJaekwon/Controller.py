@@ -62,10 +62,10 @@ class Controller():
 
     def inference(self):
         from TorchJaekwon.Inference.Inferencer.Inferencer import Inferencer
-        inferencer:Inferencer = GetModule.get_module_class("./Inference/Inferencer", self.h_params.inference.class_name)()
+        inferencer:Inferencer = GetModule.get_module_class("./Inference/Inferencer", self.h_params.inference.class_meta['name'])( **self.h_params.inference.class_meta['args'])
         inferencer.inference()
 
     def evaluate(self) -> None:
         from TorchJaekwon.Evaluater.Evaluater import Evaluater
-        evaluater:Evaluater = GetModule.get_module_class("./Evaluater", self.h_params.evaluate.class_name)()
+        evaluater:Evaluater = GetModule.get_module_class("./Evaluater", self.h_params.evaluate.class_meta['name'])(**self.h_params.evaluate.class_meta['args'])
         evaluater.evaluate()

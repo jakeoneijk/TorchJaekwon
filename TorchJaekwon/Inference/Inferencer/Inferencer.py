@@ -130,5 +130,5 @@ class Inferencer():
             return
         pretrained_load:dict = torch.load(pretrain_path,map_location='cpu')
         self.model.load_state_dict(pretrained_load)
-        self.model = self.model.to(self.h_params.resource.device)
+        self.model = self.model.to(self.device)
         self.model.eval()

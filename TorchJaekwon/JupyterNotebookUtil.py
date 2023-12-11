@@ -11,7 +11,7 @@ class JupyterNotebookUtil():
         self.higher_is_better_symbol:str = "↑"
 
     @staticmethod
-    def get_html_from_src_path(type:str,path:str,width:int=200) -> str:
+    def get_html_from_src_path(type:str,path:str,width:int=100) -> str:
         if type == "audio":
             if width is not None:
                 return f"""<audio controls style='width:{width}px'><source src="{path}" type="audio/wav"></audio></td>"""

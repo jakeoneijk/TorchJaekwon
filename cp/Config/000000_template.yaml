@@ -2,43 +2,43 @@ data:
   config:
     sample_rate: &sample_rate 16000 #*sample_rate
   config_per_dataset_dict:
-    'dataset_name':
-      preprocessor_list: 
-        - { 'class_name': 'Preprocessor', 'args': {}}
+    dataset_name:
+      preprocessor_class_meta_list: 
+        - { 'name': 'Preprocessor', 'args': {}}
 #####################################################################################################
 pytorch_data:
-  class_name: "PytorchDataLoader"
+  class_meta: { 'name' : 'PytorchDataLoader', 'args' : {}}
   dataloader:
     train:
       batch_size: 16
       num_workers: 15
       dataset: 
-        class_name: "DataSet"
+        class_meta: { 'name' : 'DataSet', 'args' : {}}
         dataset_load_on_memory: True
       batch_sampler:
-        class_name: ""
+        class_meta: { 'name' : '', 'args' : {}}
       collate_fn: True
     valid:
       batch_size: 16
       num_workers: 15
       dataset: 
-        class_name: "DataSet"
+        class_meta: { 'name' : 'DataSet', 'args' : {}}
       shuffle: False
       drop_last: True
 #####################################################################################################
 model:
   class_name: ''
-  'model_class_name': {}
+  class_meta_dict:
+    model_class_name: {}
 #####################################################################################################
 train:
-  class_name: 'Trainer'
-  trainer_args: {}
+  class_meta: { 'name' : 'Trainer', 'args' : {}}
   log_writer_class_name: 'LogWriter'
   save_model_after_epoch: 30
   save_model_every_epoch: 5
 
   optimizer_control_config:
-    class_name: 'OptimizerControl'
+    class_meta: { 'name' : 'OptimizerControl', 'args' : {}}
 
   optimizer: 
     name: "Adam"
@@ -57,7 +57,7 @@ train:
       reduce_lr_steps: 15000
 
   loss_control:
-    class_name: 'LossControl'
+    class_meta: { 'name' : 'LossControl', 'args' : {}}
 
   loss_dict:
     loss_name :
@@ -70,13 +70,12 @@ train:
     - loss_name
 #####################################################################################################
 inference:
-  class_name: 'Inferencer'
+  class_meta:
+    name: 'Inferencer'
+    args: {}
   pretrain_dir_name: ''
 #####################################################################################################
 evaluate:
-  class_name: 'Evaluater'
-  source_dir_name: 'result_folder_name'
-  pred_gt_dict:
-    feature_type_name:
-      gt_file_name: ''
-      pred_file_name: ''
+  class_meta:
+    name: 'Evaluater'
+    args: {}
