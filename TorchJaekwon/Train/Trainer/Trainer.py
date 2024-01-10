@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import os
 from abc import ABC, abstractmethod
@@ -25,13 +25,22 @@ class TrainState(Enum):
     TEST = "test"
  
 class Trainer(ABC):
-    def __init__(self) -> None:
+    def __init__(self,
+                 model_class_name:Union[str, list] = HParams().model.class_name,
+                 model_class_meta_dict:dict = HParams().model.class_meta_dict,
+                 loss_class_meta:dict = HParams().train.loss_control['class_meta'],
+                 device:torch.device = HParams().resource.device
+                 ) -> None:
         self.h_params = HParams()
+        self.device:torch.device = device
 
-        self.model = None
+        self.model_class_name:Union[str, list] = model_class_name
+        self.model_class_meta_dict:dict = model_class_meta_dict
+        self.model:Union[nn.Module, nn.ModuleList, nn.ModuleDict] = None
         
         self.optimizer_control:OptimizerControl = None
         self.loss_control: LossControl = None
+        self.loss_class_meta:dict = loss_class_meta
 
         self.data_loader_dict:dict() = {subset: None for subset in ['train','valid','test']}
 
@@ -133,10 +142,29 @@ class Trainer(ABC):
         random.seed(self.seed)
 
     def init_train(self, dataset_dict=None):
-        self.model:nn.Module = GetModule.get_model(self.h_params.model.class_name)
+        self.init_model()
+        self.init_optimizer()
+        self.init_loss()
+        self.to_cuda()
+        
+        self.log_writer:LogWriter = LogWriter(model=self.model)
+        self.set_data_loader(dataset_dict)
+    
+    def init_model(self) -> None:
+        if isinstance(self.model_class_name, list):
+            self.model = nn.ModuleDict()
+            for class_name in self.model_class_name:
+                self.model[class_name] = GetModule.get_model(class_name)
+        else:   
+            self.model:nn.Module = GetModule.get_model(self.h_params.model.class_name)
+    
+    def init_optimizer(self) -> None:
         self.optimizer_control = GetModule.get_module_class('./Train/Optimizer',self.h_params.train.optimizer_control_config['class_name'])(**{"model":self.model})
-        self.loss_control = GetModule.get_module_class("./Train/Loss/LossControl",self.h_params.train.loss_control["class_name"])()
-
+    
+    def init_loss(self) -> None:
+        self.loss_control = GetModule.get_module_class("./Train/Loss/LossControl", self.loss_class_meta['name'])()
+    
+    def to_cuda(self):
         if self.h_params.resource.multi_gpu:
             from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
             self.model = DataParallelModel(self.model)
@@ -145,13 +173,15 @@ class Trainer(ABC):
                 self.loss_control.loss_function_dict[loss_name] = DataParallelCriterion(self.loss_control.loss_function_dict[loss_name])
         else:
             self.loss_control.to(self.h_params.resource.device)
-            self.model = self.model.to(self.h_params.resource.device)
-        
-        self.log_writer:LogWriter = LogWriter(model=self.model)
-        self.set_data_loader(dataset_dict)
+            if isinstance(self.model_class_name, list):
+                for class_name in self.model_class_name: 
+                    self.model[class_name] = self.model[class_name].to(self.device)
+            else:   
+                self.model = self.model.to(self.device)
+            
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_getter:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader',self.h_params.pytorch_data.class_name)()
+        data_loader_getter:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader', self.h_params.pytorch_data.class_meta['name'])()
 
         if dataset_dict is not None:
             pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)

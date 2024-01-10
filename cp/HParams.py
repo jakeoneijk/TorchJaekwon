@@ -20,7 +20,7 @@ class Mode:
 class Resource:
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     multi_gpu = False
-    preprocess:dict = { 'multi_processing':False,  'max_workers': None}
+    preprocess = { 'multi_processing':False,  'max_workers': None}
 
 @dataclass
 class Data:

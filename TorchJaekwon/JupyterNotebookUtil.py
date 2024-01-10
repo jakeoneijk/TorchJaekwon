@@ -9,6 +9,7 @@ class JupyterNotebookUtil():
     def __init__(self) -> None:
         self.lower_is_better_symbol:str = "↓"
         self.higher_is_better_symbol:str = "↑"
+        self.plus_minus_symbol:str = "±"
 
     @staticmethod
     def get_html_from_src_path(type:str,path:str,width:int=100) -> str:
@@ -44,8 +45,8 @@ class JupyterNotebookUtil():
     def html_table_from_dict_list(dict_list: List[dict]):
         '''
         dict_list = [
-        {'name':'model1','metric1':html_code, 'metric2':html_code, ...}
-        {'name':'model2','metric1':html_code, 'metric2':html_code, ...}
+        {'name':'model1','metric1':float, 'metric2':float, ...}
+        {'name':'model2','metric1':float, 'metric2':float, ...}
         ...
         ]
         '''

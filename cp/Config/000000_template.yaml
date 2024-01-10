@@ -78,4 +78,5 @@ inference:
 evaluate:
   class_meta:
     name: 'Evaluater'
-    args: {}
+    args: 
+      source_dir: ''

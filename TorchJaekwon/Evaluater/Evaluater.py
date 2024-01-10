@@ -2,7 +2,6 @@
 from typing import List,Dict,Union
 #package
 import os
-from abc import ABC,abstractmethod
 from tqdm import tqdm
 import numpy as np
 import copy
@@ -10,10 +9,12 @@ import copy
 from HParams import HParams
 from TorchJaekwon.Util.UtilData import UtilData
 
-class Evaluater(ABC):
-    def __init__(self):
-        self.source_dir:str = f"{HParams().inference.output_dir}/{HParams().evaluate.source_dir}"
-        self.evaluation_result_dir:str = f"{self.source_dir}/evaluation_result"
+class Evaluater():
+    def __init__(self,
+                 source_dir:str
+                 ) -> None:
+        self.source_dir:str = source_dir
+        self.evaluation_result_dir:str = f"{self.source_dir}/evaluation"
         os.makedirs(self.evaluation_result_dir,exist_ok=True)
     
     '''
@@ -21,11 +22,9 @@ class Evaluater(ABC):
     abstract method start
     ==============================================================
     '''
-    @abstractmethod
     def get_meta_data_list(self) -> Union[List[dict],Dict[str,list]]:
         pass
 
-    @abstractmethod
     def get_result_dict_from_one_meta_data(
         self,
         meta_data:dict
@@ -44,9 +43,7 @@ class Evaluater(ABC):
         return self.get_result_dict_from_meta_data_list(meta_data_list)
     
     def get_result_dict_from_meta_data_list(self,
-                                            meta_data_list:list,
-                                            save_dir:str):
-        os.makedirs(save_dir,exist_ok=True)
+                                            meta_data_list:list):
         result_dict_list:List[dict] = list()
         for meta_data in tqdm(meta_data_list,desc='get result'):
             result_dict_list.append(self.get_result_dict_from_one_meta_data(meta_data))
@@ -55,10 +52,10 @@ class Evaluater(ABC):
         metric_name_list.sort()
         mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict_list,metric_name_list)
         
-        UtilData.yaml_save(f'{save_dir}/mean_median_std.yaml',mean_median_std_dict)
+        UtilData.yaml_save(f'{self.evaluation_result_dir}/mean_median_std.yaml',mean_median_std_dict)
 
         for metric_name in metric_name_list:
-            UtilData.yaml_save(f'{save_dir}/sort_by_{metric_name}.yaml',UtilData.sort_dict_list_by_key(result_dict_list,metric_name))
+            UtilData.yaml_save(f'{self.evaluation_result_dir}/sort_by_{metric_name}.yaml',UtilData.sort_dict_list_by_key(result_dict_list,metric_name))
     
     def get_mean_median_std_from_dict_list(self,dict_list:List[dict],metric_name_list:List[str]):
         result_list_dict:dict = {metric_name: list() for metric_name in metric_name_list}
