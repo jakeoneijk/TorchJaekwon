@@ -27,7 +27,9 @@ class UtilData:
     
     @staticmethod
     def pickle_save(save_path:str, data:Union[ndarray,Tensor]) -> None:
-        assert(os.path.splitext(save_path)[1] == ".pkl") , "file extension should be '.pkl'"
+        if not (os.path.splitext(save_path)[1] == ".pkl"):
+            print("file extension should be '.pkl'")
+            save_path = f'{save_path}.pkl'
 
         os.makedirs(os.path.dirname(save_path),exist_ok=True)
         

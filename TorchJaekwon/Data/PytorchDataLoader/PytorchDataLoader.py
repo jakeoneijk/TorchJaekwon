@@ -18,8 +18,8 @@ class PytorchDataLoader:
     def get_pytorch_data_set_dict(self) -> Dict[str,Dataset]:
         pytorch_dataset_dict:Dict[str,Dataset] = dict()
         for subset in self.data_loader_config:
-            dataset_args:dict = self.data_loader_config[subset]['dataset']['dataset_args'] if 'dataset_args' in self.data_loader_config[subset]['dataset'] else dict()
-            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]["class_name"])(**dataset_args)
+            dataset_args:dict = self.data_loader_config[subset]["dataset"]['class_meta']['args']
+            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]['class_meta']["name"])(**dataset_args)
         return pytorch_dataset_dict
     
     def get_pytorch_data_loader_args(self,pytorch_dataset:dict) -> dict:

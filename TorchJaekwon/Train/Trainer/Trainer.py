@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, Literal
 
 import os
 from abc import ABC, abstractmethod
@@ -36,7 +36,7 @@ class Trainer(ABC):
 
         self.model_class_name:Union[str, list] = model_class_name
         self.model_class_meta_dict:dict = model_class_meta_dict
-        self.model:Union[nn.Module, nn.ModuleList, nn.ModuleDict] = None
+        self.model:Union[nn.Module, list, dict] = None
         
         self.optimizer_control:OptimizerControl = None
         self.loss_control: LossControl = None
@@ -152,7 +152,7 @@ class Trainer(ABC):
     
     def init_model(self) -> None:
         if isinstance(self.model_class_name, list):
-            self.model = nn.ModuleDict()
+            self.model = dict()
             for class_name in self.model_class_name:
                 self.model[class_name] = GetModule.get_model(class_name)
         else:   
@@ -232,10 +232,9 @@ class Trainer(ABC):
         assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
 
         if train_state == TrainState.TRAIN:
-            self.model.train()
+            self.set_model_train_valid_mode('train')
         else:
-            self.model.eval()
-            self.model.zero_grad()
+            self.set_model_train_valid_mode('valid')
 
         dataset_size = len(dataloader)
 
@@ -254,19 +253,8 @@ class Trainer(ABC):
             loss,metric = self.run_step(data,metric,train_state)
         
             if train_state == TrainState.TRAIN:
-                if self.max_norm_value_for_gradient_clip is not None:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
-
-                if getattr(self.h_params.train,'optimizer_step_unit',1) == 1:
-                    self.optimizer_control.optimizer_zero_grad()
-                    loss.backward()
-                    self.optimizer_control.optimizer_step()
-                else:
-                    loss.backward()
-                    if (self.global_step + 1) % self.h_params.train.optimizer_step_unit == 0:
-                        self.optimizer_control.step()
-                        self.optimizer_control.zero_grad()
-
+                self.backprop(loss)
+                
                 if self.local_step % self.h_params.log.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
@@ -282,6 +270,44 @@ class Trainer(ABC):
             self.save_checkpoint("train_checkpoint_backup.pth")
 
         return metric
+    
+    def backprop(self,loss):
+        if self.max_norm_value_for_gradient_clip is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
+
+        if getattr(self.h_params.train,'optimizer_step_unit',1) == 1:
+            self.optimizer_control.optimizer_zero_grad()
+            loss.backward()
+            self.optimizer_control.optimizer_step()
+        else:
+            loss.backward()
+            if (self.global_step + 1) % self.h_params.train.optimizer_step_unit == 0:
+                self.optimizer_control.step()
+                self.optimizer_control.zero_grad()
+    
+    def set_model_train_valid_mode(self, mode: Literal['train','valid']):
+        if mode == 'train':
+            if isinstance(self.model, dict):
+                for model_name in self.model:
+                    self.model[model_name].train()
+            elif isinstance(self.model, list):
+                for i in range(len(self.model)):
+                    self.model[i].train()
+            else:
+                self.model.train()
+        else:
+            if isinstance(self.model, dict):
+                for model_name in self.model:
+                    self.model[model_name].eval()
+                    self.model[model_name].zero_grad()
+            elif isinstance(self.model, list):
+                for i in range(len(self.model)):
+                    self.model[i].eval()
+                    self.model[i].zero_grad()
+            else:
+                self.model.eval()
+                self.model.zero_grad
+
     
     def metric_init(self):
         loss_name_list = self.loss_control.get_loss_function_name_list()

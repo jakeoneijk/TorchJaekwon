@@ -1,6 +1,7 @@
 from typing import Union, Dict
 from numpy import ndarray
 
+import time
 import random
 import numpy as np
 import torch
@@ -28,7 +29,10 @@ class IterablePytorchDataset(IterableDataset):
                 self.random_state_dict[data_name].shuffle(self.indexes_dict[data_name])
                 print("{}: {}".format(data_name, len(self.indexes_dict[data_name])))
         else:
+            print('make data list')
+            start = time.time()
             self.data_list = self.init_data_list()
+            print(f"make data list: took {time.time() - start:.5f} sec")
             self.index:int = 0
             random.shuffle(self.data_list)
     
@@ -42,10 +46,6 @@ class IterablePytorchDataset(IterableDataset):
         while True:
             data = self.get_data(self)
             yield data
-            self.index = self.index + 1
-            if self.index == len(self.meta_data_list):
-                self.index = 0
-                random.shuffle(self.meta_data_list)
     
     def get_data(self):
         if self.is_multiple_data_type:
