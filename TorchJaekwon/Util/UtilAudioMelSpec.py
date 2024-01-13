@@ -41,7 +41,8 @@ class UtilAudioMelSpec(UtilAudioSTFT):
     @staticmethod
     def get_default_mel_spec_config(sample_rate:int = 16000) -> dict:
         nfft:int = 1024 if sample_rate <= 24000 else 2048
-        return {'nfft': nfft, 'hop_size': nfft//4, 'sample_rate': sample_rate, 'mel_size': 80, 'frequency_max': sample_rate//2, 'frequency_min': 0}
+        mel_size:int = 80 if sample_rate <= 24000 else 128
+        return {'nfft': nfft, 'hop_size': nfft//4, 'sample_rate': sample_rate, 'mel_size': mel_size, 'frequency_max': sample_rate//2, 'frequency_min': 0}
     
     def spec_to_mel_spec(self,stft_mag):
         if type(stft_mag) == np.ndarray:

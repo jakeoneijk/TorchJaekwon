@@ -34,7 +34,7 @@ class LogWriter():
         if self.visualizer_type == 'wandb':
             wandb.init(project=self.h_params.log.project_name)
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.train.batch_size }
-            wandb.watch(model)
+            wandb.watch(model[list(model.keys())[0]] if isinstance(model, dict) else model[0] if isinstance(model, list) else model)
             wandb.run.name = self.experiment_name
             wandb.run.save()
         elif self.visualizer_type == 'tensorboard':
@@ -68,8 +68,17 @@ class LogWriter():
         file.write("========================================="+'\n')
         file.write(f'pid: {os.getpid()} / parent_pid: {psutil.Process(os.getpid()).ppid()} \n')
         file.write("========================================="+'\n')
-        file.write(f'''Model Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
-        file.write(f'''Model Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
+        if isinstance(model,dict):
+            for model_name in model:
+                file.write(f'''Model {model_name} Total parameters: {format(UtilTorch.get_param_num(model[model_name])['total'], ',d')}'''+'\n')
+                file.write(f'''Model {model_name} Trainable parameters: {format(UtilTorch.get_param_num(model[model_name])['trainable'], ',d')}'''+'\n')
+        elif isinstance(model,list):
+            for model_idx in range(len(model)):
+                file.write(f'''Model {model_idx} Total parameters: {format(UtilTorch.get_param_num(model[model_idx])['total'], ',d')}'''+'\n')
+                file.write(f'''Model {model_idx} Trainable parameters: {format(UtilTorch.get_param_num(model[model_idx])['trainable'], ',d')}'''+'\n')
+        else:
+            file.write(f'''Model Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
+            file.write(f'''Model Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
         file.write("========================================="+'\n')
         file.write("Epoch :" + str(self.h_params.train.epoch)+'\n')
         file.write("lr :" + str(self.h_params.train.lr)+'\n')

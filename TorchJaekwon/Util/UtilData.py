@@ -3,6 +3,7 @@ from numpy import ndarray
 from torch import Tensor
 
 import os
+from tqdm import tqdm
 import random
 import copy
 import numpy as np
@@ -166,11 +167,24 @@ class UtilData:
             return data[..., :length]
     
     @staticmethod
-    def listdir(dir_name:str, ext:Union[str,list] = None) -> list:
+    def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> list:
         if ext is None:
             return os.listdir(dir_name)
         elif isinstance(ext,list):
             return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext]
         else:
             return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
+    
+    @staticmethod
+    def walk(dir_name:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
+        file_meta_list:list = list()
+        for root, _, files in os.walk(dir_name):
+            for filename in tqdm(files, desc=f'walk {root}'):
+                if os.path.splitext(filename)[-1] in ext:
+                    file_meta_list.append({
+                        'file_path': f'{root}/{filename}',
+                        'file_name': UtilData.get_file_name_from_path(filename),
+                        'dir': root,
+                    })
+        return file_meta_list
         

@@ -29,7 +29,9 @@ class Trainer(ABC):
                  model_class_name:Union[str, list] = HParams().model.class_name,
                  model_class_meta_dict:dict = HParams().model.class_meta_dict,
                  loss_class_meta:dict = HParams().train.loss_control['class_meta'],
-                 device:torch.device = HParams().resource.device
+                 device:torch.device = HParams().resource.device,
+
+                 save_model_every_step:int = getattr(HParams().train, 'save_model_every_step', None),
                  ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
@@ -53,6 +55,8 @@ class Trainer(ABC):
         self.local_step:int = 0
         self.best_valid_metric:dict[str,AverageMeter] = None
         self.best_valid_epoch:int = 0
+
+        self.save_model_every_step:int = save_model_every_step
 
         self.max_norm_value_for_gradient_clip:float = getattr(self.h_params.train,'max_norm_value_for_gradient_clip',None)
     '''
@@ -126,6 +130,10 @@ class Trainer(ABC):
                 y_axis_value=val
             )
         self.log_writer.print_and_log(log)
+    
+    @torch.no_grad()
+    def log_media(self) -> None:
+        pass
 
     '''
     ==============================================================
@@ -145,7 +153,7 @@ class Trainer(ABC):
         self.init_model()
         self.init_optimizer()
         self.init_loss()
-        self.to_cuda()
+        self.model_to_device()
         
         self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
@@ -164,7 +172,7 @@ class Trainer(ABC):
     def init_loss(self) -> None:
         self.loss_control = GetModule.get_module_class("./Train/Loss/LossControl", self.loss_class_meta['name'])()
     
-    def to_cuda(self):
+    def model_to_device(self):
         if self.h_params.resource.multi_gpu:
             from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
             self.model = DataParallelModel(self.model)
@@ -178,7 +186,11 @@ class Trainer(ABC):
                     self.model[class_name] = self.model[class_name].to(self.device)
             else:   
                 self.model = self.model.to(self.device)
-            
+
+    def data_dict_to_device(self,data_dict:dict) -> dict:
+        for feature_name in data_dict:
+            data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
+        return data_dict
     
     def set_data_loader(self,dataset_dict=None):
         data_loader_getter:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader', self.h_params.pytorch_data.class_meta['name'])()
@@ -203,7 +215,7 @@ class Trainer(ABC):
                     self.log_writer.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
             
             self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
-            self.log_writer.print_and_log(f'current lr: {self.optimizer_control.get_lr()}')
+            self.log_writer.print_and_log(f'current lr: {self.get_current_lr()}')
             self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
             #Train
@@ -215,7 +227,7 @@ class Trainer(ABC):
 
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
-                self.optimizer_control.lr_scheduler_step(interval_type="epoch", args=valid_metric)
+                self.lr_scheduler_step(call_state='epoch', args=valid_metric)
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
@@ -260,16 +272,26 @@ class Trainer(ABC):
                 
                 self.global_step += 1
 
-                self.optimizer_control.lr_scheduler_step(interval_type="step")
+                self.lr_scheduler_step(call_state='step')
+            
+            if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0:
+                self.save_module(name=f"step{self.global_step}")
+                self.log_current_state()
         
         if train_state == TrainState.VALIDATE or train_state == TrainState.TEST:
             self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
 
-        if train_state == TrainState.TRAIN:
-            self.save_checkpoint()
-            self.save_checkpoint("train_checkpoint_backup.pth")
+        self.log_current_state(train_state)
 
         return metric
+    
+    def log_current_state(self,train_state:TrainState = None) -> None:
+        if train_state == TrainState.TRAIN or train_state == None:
+            self.save_checkpoint()
+            self.save_checkpoint("train_checkpoint_backup.pth")
+        if train_state == TrainState.VALIDATE or train_state == TrainState.TEST or train_state == None:
+            with torch.no_grad():
+                self.log_media()
     
     def backprop(self,loss):
         if self.max_norm_value_for_gradient_clip is not None:
@@ -307,7 +329,6 @@ class Trainer(ABC):
             else:
                 self.model.eval()
                 self.model.zero_grad
-
     
     def metric_init(self):
         loss_name_list = self.loss_control.get_loss_function_name_list()
@@ -319,25 +340,55 @@ class Trainer(ABC):
         return initialized_metric
 
     def save_module(self,name = 'pretrained_best_epoch'):
-        path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')
-        torch.save(self.model.state_dict() if not self.h_params.resource.multi_gpu else self.model.module.state_dict(), path)
+        if isinstance(self.model, dict):
+            for model_name in self.model:
+                path = os.path.join(self.log_writer.log_path["root"],f'{model_name}_{name}.pth')
+                torch.save(self.model[model_name].state_dict() if not self.h_params.resource.multi_gpu else self.model[model_name].module.state_dict(), path)
+        elif isinstance(self.model, list):
+            for i in range(len(self.model)):
+                path = os.path.join(self.log_writer.log_path["root"],f'model_{i}_{name}.pth')
+                torch.save(self.model[i].state_dict() if not self.h_params.resource.multi_gpu else self.model[i].module.state_dict(), path)
+        else:
+            path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')
+            torch.save(self.model.state_dict() if not self.h_params.resource.multi_gpu else self.model.module.state_dict(), path)
 
     def load_module(self,name = 'pretrained_best_epoch'):
         path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')
         best_model_load = torch.load(path)
         self.model.load_state_dict(best_model_load)
     
+    def get_current_lr(self):
+        return self.optimizer_control.get_lr()
+    
+    def lr_scheduler_step(self, call_state:Literal['step','epoch'], args = None):
+        if args is not None:
+            self.optimizer_control.lr_scheduler_step(interval_type=call_state,args=args)
+        else:
+            self.optimizer_control.lr_scheduler_step(interval_type=call_state)
+    
     def save_checkpoint(self,save_name:str = 'train_checkpoint.pth'):
         train_state = {
             'epoch': self.current_epoch,
             'step': self.global_step,
             'seed': self.seed,
-            'models': self.model.state_dict() if not self.h_params.resource.multi_gpu else self.model.module.state_dict(),
             'optimizers': self.optimizer_control.optimizer_state_dict(),
             'lr_scheduler': self.optimizer_control.lr_scheduler_state_dict(),
             'best_metric': self.best_valid_metric,
             'best_model_epoch' :  self.best_valid_epoch,
         }
+
+        model_dict = dict()
+        if isinstance(self.model, dict):
+            for model_name in self.model:
+                model_dict[f'model_{model_name}'] = self.model[model_name].state_dict() if not self.h_params.resource.multi_gpu else self.model[model_name].module.state_dict()
+        elif isinstance(self.model, list):
+            for i in range(len(self.model)):
+                model_dict[f'model_{i}'] = self.model[i].state_dict() if not self.h_params.resource.multi_gpu else self.model[i].module.state_dict()
+        else:
+            model_dict['model'] = self.model.state_dict() if not self.h_params.resource.multi_gpu else self.model.module.state_dict()
+        
+        train_state.update(model_dict)
+
         path = os.path.join(self.log_writer.log_path["root"],save_name)
         self.log_writer.print_and_log(save_name)
         torch.save(train_state,path)
