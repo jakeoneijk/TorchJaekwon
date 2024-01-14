@@ -26,11 +26,15 @@ class TrainState(Enum):
  
 class Trainer(ABC):
     def __init__(self,
+                 #resource
+                 device:torch.device = HParams().resource.device,
+                 #class_meta
                  model_class_name:Union[str, list] = HParams().model.class_name,
                  model_class_meta_dict:dict = HParams().model.class_meta_dict,
                  loss_class_meta:dict = HParams().train.loss_control['class_meta'],
-                 device:torch.device = HParams().resource.device,
-
+                 #train params
+                 max_norm_value_for_gradient_clip:float = getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
+                 #train setting
                  save_model_every_step:int = getattr(HParams().train, 'save_model_every_step', None),
                  ) -> None:
         self.h_params = HParams()
@@ -49,16 +53,17 @@ class Trainer(ABC):
         self.seed:int = (int)(torch.cuda.initial_seed() / (2**32)) if self.h_params.train.seed is None else self.h_params.train.seed
         self.set_seeds(self.h_params.train.seed_strict)
 
+        self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
+
         self.current_epoch:int = 1
         self.total_epoch:int = self.h_params.train.epoch
         self.global_step:int = 0
         self.local_step:int = 0
         self.best_valid_metric:dict[str,AverageMeter] = None
         self.best_valid_epoch:int = 0
-
         self.save_model_every_step:int = save_model_every_step
 
-        self.max_norm_value_for_gradient_clip:float = getattr(self.h_params.train,'max_norm_value_for_gradient_clip',None)
+        
     '''
     ==============================================================
     abstract method start

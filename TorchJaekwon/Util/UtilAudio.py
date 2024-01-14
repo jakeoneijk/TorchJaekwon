@@ -63,7 +63,7 @@ class UtilAudio:
                 audio_data = torchaudio.transforms.Resample(orig_freq = original_samplerate, new_freq = sample_rate)(audio_data)
                 
         if mono is not None:
-            if mono and audio_data.shape[0] == 2:
+            if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:
                 audio_data = np.mean(audio_data,axis=0)
             elif not mono and len(audio_data.shape) == 1:
                 stereo_audio = np.zeros((2,len(audio_data)))
@@ -71,7 +71,7 @@ class UtilAudio:
                 stereo_audio[1,...] = audio_data
                 audio_data = stereo_audio
         
-        assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'read audio shape problem: {audio_data.shape}'
+        assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'[read audio shape problem] path: {audio_path} shape: {audio_data.shape}'
             
         return audio_data, original_samplerate if sample_rate is None else sample_rate
     
