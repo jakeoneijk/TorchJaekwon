@@ -2,19 +2,23 @@
 from typing import Optional,Dict
 from torch import Tensor
 from numpy import ndarray
-
+#import
 import numpy as np
-try:
-    import pyworld as pw
-    import pysptk
-    import torch
-    from pesq import pesq
-    from fastdtw import fastdtw
-    from TorchJaekwon.DataProcess.Util.UtilAudioMelSpec import UtilAudioMelSpec
-    from TorchJaekwon.DataProcess.Util.UtilAudio import UtilAudio
-    from skimage.metrics import structural_similarity as ssim
-except:
-    pass
+import torch
+try: import pyworld as pw
+except: print('Warning: pyworld is not installed')
+try: import pysptk
+except: print('Warning: pysptk is not installed')
+try: from pesq import pesq
+except: print('Warning: pesq is not installed')
+try: from fastdtw import fastdtw
+except: print('Warning: fastdtw is not installed')
+try: from skimage.metrics import structural_similarity as ssim
+except: print('Warning: skimage is not installed')
+#torchjaekwon import
+from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
+from TorchJaekwon.Util.UtilAudio import UtilAudio
+#internal import
 
 class MetricVoice:
     def __init__(self,
@@ -25,7 +29,7 @@ class MetricVoice:
                  frequency_min:Optional[float] = None,
                  frequency_max:Optional[float] = None) -> None:
         
-        spec_config_of_sr:Dict[int,dict] = {
+        spec_config_of_sr_dict:Dict[int,dict] = {
             16000:{
                 nfft: 512,
                 hop_size: 256,
@@ -41,13 +45,15 @@ class MetricVoice:
                 frequency_max: float(sample_rate // 2)
             }
         }
+        spec_config_of_sr:dict = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate = sample_rate) if sample_rate not in spec_config_of_sr_dict else spec_config_of_sr_dict[sample_rate]
         
-        self.util_mel = UtilAudioMelSpec(nfft = spec_config_of_sr[sample_rate]['nfft'] if nfft is None else nfft, 
-                                         hop_size = spec_config_of_sr[sample_rate]['hop_size'] if hop_size is None else hop_size, 
+        self.util_mel = UtilAudioMelSpec(nfft = spec_config_of_sr['nfft'] if nfft is None else nfft, 
+                                         hop_size = spec_config_of_sr['hop_size'] if hop_size is None else hop_size, 
                                          sample_rate = sample_rate, 
-                                         mel_size = spec_config_of_sr[sample_rate]['mel_size'] if mel_size is None else mel_size, 
-                                         frequency_min = spec_config_of_sr[sample_rate]['frequency_min'] if frequency_min is None else frequency_min, 
-                                         frequency_max = spec_config_of_sr[sample_rate]['frequency_max'] if frequency_max is None else frequency_max)
+                                         mel_size = spec_config_of_sr['mel_size'] if mel_size is None else mel_size, 
+                                         frequency_min = spec_config_of_sr['frequency_min'] if frequency_min is None else frequency_min, 
+                                         frequency_max = spec_config_of_sr['frequency_max'] if frequency_max is None else frequency_max)
+        
     def get_spec_metrics_from_audio(self,
                                    source, #linear scale spectrogram [time]
                                    target):
@@ -71,13 +77,14 @@ class MetricVoice:
         
     
     def get_lsd_from_audio(self,
-                           source, #linear scale spectrogram [time]
-                           target):
-        source_spec_dict = self.get_spec_dict_of_audio(source)
+                           pred, # [time]
+                           target # [time]
+                           ) -> Dict[str,float] :
+        pred_spec_dict = self.get_spec_dict_of_audio(pred)
         target_spec_dict = self.get_spec_dict_of_audio(target)
         lsd_dict = dict()
-        for spec_name in source_spec_dict:
-            lsd_dict[spec_name] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
+        for spec_name in pred_spec_dict:
+            lsd_dict[spec_name] = MetricVoice.get_lsd_from_spec(pred_spec_dict[spec_name],target_spec_dict[spec_name])
         return lsd_dict
     
     def get_spec_dict_of_audio(self,audio):
@@ -86,11 +93,12 @@ class MetricVoice:
         return {'spec_mag':spectrogram_mag.squeeze().detach().cpu().numpy(), 'mel': mel_spec.squeeze().detach().cpu().numpy()}
 
     @staticmethod
-    def get_lsd_from_spec(source, #linear scale spectrogram [freq, time]
+    def get_lsd_from_spec(pred, #linear scale spectrogram [freq, time]
                           target,
                           eps = 1e-12):
+        #log_spectral_distance
         # in non-log scale
-        lsd = np.log10(((target+ eps)**2/((source + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
+        lsd = np.log10(((target+ eps)**2/((pred + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
         lsd = np.mean(np.mean(lsd,axis=0)**0.5,axis=0) #torch.mean(torch.mean(lsd,dim=3)**0.5,dim=2)
         return float(lsd)
     

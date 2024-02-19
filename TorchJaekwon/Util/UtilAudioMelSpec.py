@@ -83,10 +83,10 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         else:
             return log_scale_mel
     
-    def save_mel_spec_plot(self,
-                           save_path:str, #'*.png'
-                           mel_spec:ndarray, #[mel_size, time]
-                           dpi:int = 500) -> None:
+    def mel_spec_plot(self,
+                      save_path:str, #'*.png'
+                      mel_spec:ndarray, #[mel_size, time]
+                      dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
         try:
             fig, ax = plt.subplots()        

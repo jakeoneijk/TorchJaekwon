@@ -184,7 +184,24 @@ class UtilData:
                     file_meta_list.append({
                         'file_path': f'{root}/{filename}',
                         'file_name': UtilData.get_file_name_from_path(filename),
-                        'dir': root,
+                        'dir': root.replace(dir_name,''),
+                        'dir_path': root,
                     })
         return file_meta_list
+    
+    @staticmethod
+    def get_dir_name_list(root_dir:str) -> list:
+        return [dir_name for dir_name in os.listdir(root_dir) if os.path.isdir(f'{root_dir}/{dir_name}')]
+    
+    @staticmethod
+    def pretty_num(number:float) -> str:
+        if number < 1000:
+            return str(number)
+        elif number < 1000000:
+            return f'{round(number/1000,5)}K'
+        elif number < 1000000000:
+            return f'{round(number/1000000,5)}M'
+        else:
+            return f'{round(number/1000000000,5)}B'
+
         

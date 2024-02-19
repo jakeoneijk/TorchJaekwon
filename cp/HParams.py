@@ -52,12 +52,9 @@ class Train:
     class_meta = { 'name' : 'Trainer', 'args' : {}}
     seed_strict = False
     seed = (int)(torch.cuda.initial_seed() / (2**32))
-    batch_size:int = 32
     lr:int = 0.001
     lr_decay:float = 0.98
     lr_decay_step:float = 1.0E+3
-    lr_scheduler_after_valid = False
-    lr_scheduler_after_train_step = False
     epoch:int = 3000
     save_model_after_epoch:int = 200
     save_model_every_epoch:int = 100
@@ -87,10 +84,14 @@ class Singleton(object):
   def __new__(class_, *args, **kwargs):
     if not isinstance(class_._instance, class_):
         class_._instance = object.__new__(class_, *args, **kwargs)
+        class_._instance.__first_init__()
     return class_._instance
 
 class HParams(Singleton):
     def __init__(self) -> None:
+        pass
+    
+    def __first_init__(self) -> None:
         if os.path.abspath(TORCH_JAEKWON_PATH) not in sys.path: sys.path.append(os.path.abspath(TORCH_JAEKWON_PATH))
         self.mode = Mode()
         self.resource = Resource()

@@ -21,9 +21,28 @@ class Controller():
             help="",
         )
 
+        parser.add_argument(
+            '-r',
+            '--resume',
+            help='train resume',
+            action='store_true'
+        )
+
+        parser.add_argument(
+            "-lv",
+            "--log_visualizer",
+            type=str,
+            required=False,
+            default=None,
+            choices = ['tensorboard', 'wandb'],
+            help="",
+        )
+
         args = parser.parse_args()
 
         if args.stage is not None: self.h_params.mode.stage = args.stage
+        if args.log_visualizer is not None: self.h_params.log.visualizer_type = args.log_visualizer
+        if args.resume: self.h_params.mode.train = "resume"
 
         return args
 
@@ -53,8 +72,12 @@ class Controller():
 
     def train(self) -> None:
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
-        trainer_args = self.h_params.train.class_meta['args']
-        trainer:Trainer = GetModule.get_module_class('./Train/Trainer',self.h_params.train.class_meta['name'])(**trainer_args)
+        trainer_args:dict = self.h_params.train.class_meta['args']
+        trainer_args.update({
+            'loss_class_meta': HParams().train.loss_dict
+        })
+        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer',self.h_params.train.class_meta['name'])
+        trainer = trainer_class(**trainer_args)
         trainer.init_train()
         
         if self.h_params.mode.train == "resume":
@@ -64,10 +87,12 @@ class Controller():
 
     def inference(self):
         from TorchJaekwon.Inference.Inferencer.Inferencer import Inferencer
-        inferencer:Inferencer = GetModule.get_module_class("./Inference/Inferencer", self.h_params.inference.class_meta['name'])( **self.h_params.inference.class_meta['args'])
+        inferencer_class:Type[Inferencer] = GetModule.get_module_class("./Inference/Inferencer", self.h_params.inference.class_meta['name'])
+        inferencer = inferencer_class(**self.h_params.inference.class_meta['args'])
         inferencer.inference()
 
     def evaluate(self) -> None:
         from TorchJaekwon.Evaluater.Evaluater import Evaluater
-        evaluater:Evaluater = GetModule.get_module_class("./Evaluater", self.h_params.evaluate.class_meta['name'])(**self.h_params.evaluate.class_meta['args'])
+        evaluater_class:Type[Evaluater] = GetModule.get_module_class("./Evaluater", self.h_params.evaluate.class_meta['name'])
+        evaluater:Evaluater = evaluater_class(**self.h_params.evaluate.class_meta['args'])
         evaluater.evaluate()

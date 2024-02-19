@@ -16,7 +16,7 @@ class Inferencer():
     def __init__(self,
                  output_dir:str = HParams().inference.output_dir,
                  experiment_name:str = HParams().mode.config_name,
-                 model:Union[nn.Module,object] = GetModule.get_model(HParams().model.class_name),
+                 model:Union[nn.Module,object] =  None,
                  device:torch.device = HParams().resource.device
                  ) -> None:
         self.output_dir:str = output_dir
@@ -24,10 +24,9 @@ class Inferencer():
 
         self.get_module = GetModule()
 
-        self.model:Union[nn.Module,object] = model
-        self.infer_output_dir:str = None
-
         self.device:torch.device = device
+
+        self.model:Union[nn.Module,object] = self.get_model() if model is None else model
     
     '''
     ==============================================================
@@ -42,8 +41,8 @@ class Inferencer():
             meta_data_list += meta
         return meta_data_list
 
-    def set_output_dir_path_by_pretrained_name_and_meta_data(self, pretrained_name:str, meta_data:dict) -> None:
-        self.infer_output_dir = f"{self.output_dir}/{self.experiment_name}({pretrained_name})/{meta_data['name']}"
+    def get_output_dir_path(self, pretrained_name:str, test_name:str) -> None:
+        return f"{self.output_dir}/{self.experiment_name}({pretrained_name})/{test_name}"
     
     def read_data_dict_by_meta_data(self,meta_data:dict)->dict:
         '''
@@ -62,7 +61,7 @@ class Inferencer():
     def post_process(self,data_dict:dict)->dict:
         return data_dict
 
-    def save_data(self,data_dict:dict):
+    def save_data(self,output_dir_path,meta_data,data_dict)->None:
         pass
     
     '''
@@ -70,6 +69,9 @@ class Inferencer():
     abstract method end
     ==============================================================
     '''
+
+    def get_model(self) -> nn.Module:
+        return GetModule.get_model(HParams().model.class_name) if (HParams().model.class_name not in [None,'']) else None
 
     def inference(self,
                   pretrained_root_dir:str = HParams().inference.pretrain_root_dir,
@@ -87,15 +89,13 @@ class Inferencer():
             pretrained_name:str = UtilData.get_file_name_from_path(pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
-                self.set_output_dir_path_by_pretrained_name_and_meta_data(pretrained_name,meta_data)
-                    
-                os.makedirs(self.infer_output_dir,exist_ok=True)
+                output_dir_path:str = self.get_output_dir_path(pretrained_name=pretrained_name,test_name=meta_data["test_name"])
 
                 data_dict:dict = self.read_data_dict_by_meta_data(meta_data=meta_data)
                 data_dict = self.update_data_dict_by_model_inference(data_dict)
                     
                 data_dict:dict = self.post_process(data_dict)
-                self.save_data(data_dict)    
+                self.save_data(output_dir_path,meta_data,data_dict)    
     
     def update_data_dict_by_model_inference(self,data_dict):
         if type(data_dict["model_input"]) == Tensor:

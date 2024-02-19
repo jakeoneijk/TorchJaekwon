@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from numpy import ndarray
 
 import os
@@ -34,7 +34,10 @@ class LogWriter():
         if self.visualizer_type == 'wandb':
             wandb.init(project=self.h_params.log.project_name)
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.train.batch_size }
-            wandb.watch(model[list(model.keys())[0]] if isinstance(model, dict) else model[0] if isinstance(model, list) else model)
+            watched_model = model
+            while not isinstance(watched_model, nn.Module):
+                watched_model = watched_model[list(watched_model.keys())[0]]
+            wandb.watch(watched_model)
             wandb.run.name = self.experiment_name
             wandb.run.save()
         elif self.visualizer_type == 'tensorboard':
@@ -68,23 +71,21 @@ class LogWriter():
         file.write("========================================="+'\n')
         file.write(f'pid: {os.getpid()} / parent_pid: {psutil.Process(os.getpid()).ppid()} \n')
         file.write("========================================="+'\n')
-        if isinstance(model,dict):
-            for model_name in model:
-                file.write(f'''Model {model_name} Total parameters: {format(UtilTorch.get_param_num(model[model_name])['total'], ',d')}'''+'\n')
-                file.write(f'''Model {model_name} Trainable parameters: {format(UtilTorch.get_param_num(model[model_name])['trainable'], ',d')}'''+'\n')
-        elif isinstance(model,list):
-            for model_idx in range(len(model)):
-                file.write(f'''Model {model_idx} Total parameters: {format(UtilTorch.get_param_num(model[model_idx])['total'], ',d')}'''+'\n')
-                file.write(f'''Model {model_idx} Trainable parameters: {format(UtilTorch.get_param_num(model[model_idx])['trainable'], ',d')}'''+'\n')
-        else:
-            file.write(f'''Model Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
-            file.write(f'''Model Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
+        self.log_model_parameters(file, model)
         file.write("========================================="+'\n')
         file.write("Epoch :" + str(self.h_params.train.epoch)+'\n')
         file.write("lr :" + str(self.h_params.train.lr)+'\n')
-        file.write("Batch :" + str(self.h_params.train.batch_size)+'\n')
+        file.write("Batch :" + str(self.h_params.pytorch_data.dataloader['train']['batch_size'])+'\n')
         file.write("========================================="+'\n')
         file.close()
+    
+    def log_model_parameters(self,file, model: Union[nn.Module, dict], model_name:str = ''):
+        if isinstance(model, nn.Module):
+            file.write(f'''Model {model_name} Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
+            file.write(f'''Model {model_name} Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
+        else:
+            for model_name in model:
+                self.log_model_parameters(file, model[model_name], model_name)
 
     def log_write(self,log_message:str)->None:
         file = open(self.log_path["console"],'a')

@@ -1,8 +1,6 @@
-from typing import List
-try:    
-    import IPython.display as ipd
-except:
-    print('[error] there is no ipython package')
+from typing import List, Literal
+try: import IPython.display as ipd
+except:  print('[error] there is no IPython package')
 import pandas as pd
 
 class JupyterNotebookUtil():
@@ -12,17 +10,15 @@ class JupyterNotebookUtil():
         self.plus_minus_symbol:str = "±"
 
     @staticmethod
-    def get_html_from_src_path(type:str,path:str,width:int=100) -> str:
+    def get_html(type:Literal['audio','img'],
+                 src_path:str,
+                 width:int=100
+                 ) -> str: #html code
+        style:str = '' if width is None else f'style="width:{width}px"'
         if type == "audio":
-            if width is not None:
-                return f"""<audio controls style='width:{width}px'><source src="{path}" type="audio/wav"></audio></td>"""
-            else:
-                return f"""<audio controls><source src="{path}" type="audio/wav"></audio></td>"""
+            return f'''<audio controls {style}><source src="{src_path}" type="audio/wav" /></audio>''' #
         elif type == "img":
-            if width is not None:
-                return f"""<img src="{path}" style='width:{width}px'>"""
-            else:
-                return f"""<img src="{path}">"""
+            return f'''<img src="{src_path}" {style}/>'''
     
     @staticmethod
     def dict_list_to_html(dict_list: List[dict]) -> str:

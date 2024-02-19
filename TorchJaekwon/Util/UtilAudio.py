@@ -6,6 +6,7 @@ except: print('import error: torch')
 import numpy as np
 import soundfile as sf
 import librosa
+from scipy.signal import resample_poly
 
 try: import torch 
 except: print('import error: torch')
@@ -32,10 +33,16 @@ class UtilAudio:
     def resample_audio(audio:Union[ndarray, Tensor], #[shape=(channel, num_samples) or (num_samples)]
                        origin_sr:int,
                        target_sr:int,
+                       resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'librosa',
                        resample_type:str = "kaiser_fast"):
         if(origin_sr == target_sr): return audio
         print(f"resample audio {origin_sr} to {target_sr}")
-        return librosa.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type)
+        if resample_module == 'librosa':
+            return librosa.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type)
+        elif resample_module == 'resample_poly':
+            return resample_poly(x = audio, up = target_sr, down = origin_sr)
+        elif resample_module == 'torchaudio':
+            return torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr)(audio)
     
     @staticmethod
     def read(audio_path:str,

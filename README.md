@@ -13,3 +13,14 @@ This is my personal repository for the efficiency of my research.
         └── cp
     ```
 * (Optional) If you are a vscode user change dir name `vscode` to `.vscode`. 
+
+## Usage
+### Basic
+```shell
+> python Main.py [-s STAGE_NAME]
+
+arguments:
+    -s STAGE_NAME, --stage STAGE_NAME
+    #STAGE of the system. choices = ['preprocess', 'train', 'inference', 'evaluate']
+```
+

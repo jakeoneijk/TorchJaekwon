@@ -56,14 +56,11 @@ train:
       warm_up_steps: 1000
       reduce_lr_steps: 15000
 
-  loss_control:
-    class_meta: { 'name' : 'LossControl', 'args' : {}}
-
   loss_dict:
-    loss_name :
+    mel_l1_loss :
+      class_meta: { 'name' : 'L1Loss', 'args' : {}}
       pred_name: ''
       target_name: ''
-      lossfunction: l1
       weight: 1
     
   loss_list_for_performance_comparison: 
