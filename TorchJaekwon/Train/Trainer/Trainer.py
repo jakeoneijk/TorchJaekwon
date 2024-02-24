@@ -283,12 +283,12 @@ class Trainer(ABC):
 
 
         if metric_range == "epoch":
-            metric = self.metric_init()
+            metric = dict()
 
         for step,data in enumerate(dataloader):
 
             if metric_range == "step":
-                metric = self.metric_init()
+                metric = dict()
 
             if step >= len(dataloader):
                 break
@@ -358,14 +358,11 @@ class Trainer(ABC):
                 model.eval()
                 model.zero_grad()
     
-    def metric_init(self):
-        loss_name_list = self.loss_control.get_loss_function_name_list()
-        initialized_metric = dict()
-
-        for loss_name in loss_name_list:
-            initialized_metric[loss_name] = AverageMeter()
-
-        return initialized_metric
+    def metric_update(self, metric:Dict[str, AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
+        if loss_name not in metric:
+            metric[loss_name] = AverageMeter()
+        metric[loss_name].update(loss.item(),batch_size)
+        return metric
 
     def save_module(self, model, model_name = '', name = 'pretrained_best_epoch'):
         if isinstance(model, dict):
