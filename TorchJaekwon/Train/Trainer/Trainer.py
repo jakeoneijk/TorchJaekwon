@@ -314,11 +314,11 @@ class Trainer(ABC):
             self.save_module(self.model, name=f"step{self.global_step}")
             self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
 
-        self.log_current_state(train_state)
+        self.log_current_state(train_state, is_log_media=True if self.save_model_every_step is None else False)
 
         return metric
     
-    def log_current_state(self,train_state:TrainState = None) -> None:
+    def log_current_state(self,train_state:TrainState = None, is_log_media:bool = True) -> None:
         self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
         self.log_writer.print_and_log(f'save current state')
         self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
@@ -326,7 +326,7 @@ class Trainer(ABC):
         if train_state == TrainState.TRAIN or train_state == None:
             self.save_checkpoint()
             self.save_checkpoint("train_checkpoint_backup.pth")
-        if train_state == TrainState.VALIDATE or train_state == TrainState.TEST or train_state == None:
+        if is_log_media:
             with torch.no_grad():
                 self.log_media()
 
