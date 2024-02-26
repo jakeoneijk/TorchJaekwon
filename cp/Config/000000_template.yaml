@@ -32,29 +32,19 @@ model:
     model_class_name: {}
 #####################################################################################################
 train:
-  class_meta: { 'name' : 'Trainer', 'args' : {}}
+  class_meta: { 'name' : 'MelSRTrainer', 'args' : {}}
   log_writer_class_name: 'LogWriter'
-  save_model_after_epoch: 30
-  save_model_every_epoch: 5
-
-  optimizer_control_config:
-    class_meta: { 'name' : 'OptimizerControl', 'args' : {}}
 
   optimizer: 
-    name: "Adam"
-    config: 
-      lr: 1e-3
-      eps: 1e-08
-      weight_decay: 0.0
-      amsgrad: True
+    class_meta: { 'name' : 'AdamW', 'args' : {lr: 0.0008, betas: [0.9,0.98], weight_decay: 0.0}}
 
   scheduler:
-    name: "LambdaLR"
+    class_meta: { name: "StepLR", args: {step_size: 20000, gamma: 0.5}}
     interval: 'step' #epoch
     frequency: 1
-    config: 
-      warm_up_steps: 1000
-      reduce_lr_steps: 15000
+
+  loss_control:
+    class_meta: { 'name' : 'LossControl', 'args' : {}}
 
   loss_dict:
     mel_l1_loss :
