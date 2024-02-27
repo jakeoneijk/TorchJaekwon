@@ -73,9 +73,6 @@ class Controller():
     def train(self) -> None:
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
         trainer_args:dict = self.h_params.train.class_meta['args']
-        trainer_args.update({
-            'loss_class_meta': HParams().train.loss_dict
-        })
         trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer',self.h_params.train.class_meta['name'])
         trainer = trainer_class(**trainer_args)
         trainer.init_train()

@@ -32,7 +32,7 @@ class Trainer(ABC):
                  #class_meta
                  model_class_name:Union[str, list] = HParams().model.class_name,
                  model_class_meta_dict:dict = HParams().model.class_meta_dict,
-                 loss_class_meta:dict = HParams().train.loss_control['class_meta'],
+                 loss_class_meta:dict = HParams().train.loss_dict,
                  #train params
                  max_norm_value_for_gradient_clip:float = getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
                  #train setting
