@@ -313,8 +313,7 @@ class Trainer(ABC):
         if train_state == TrainState.VALIDATE or train_state == TrainState.TEST:
             self.save_module(self.model, name=f"step{self.global_step}")
             self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
-
-        self.log_current_state(train_state, is_log_media=True if self.save_model_every_step is None else False)
+            self.log_current_state(train_state)
 
         return metric
     

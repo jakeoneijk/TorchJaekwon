@@ -33,7 +33,7 @@ class LogWriter():
 
         if self.visualizer_type == 'wandb':
             wandb.init(project=self.h_params.log.project_name)
-            wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.train.batch_size }
+            wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
             watched_model = model
             while not isinstance(watched_model, nn.Module):
                 watched_model = watched_model[list(watched_model.keys())[0]]
