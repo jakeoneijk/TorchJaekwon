@@ -46,7 +46,7 @@ class GetModule:
         argument_getter:Callable[[],dict] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
         model_parameter:dict = argument_getter()
         if len(model_parameter) == 0:
-            model_parameter = HParams().model.class_meta_dict[model_name]
+            model_parameter = HParams().model.class_meta_dict.get(model_name,{})
         if not model_parameter: 
             model_parameter = getattr(HParams().model,model_name,dict())
             if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')

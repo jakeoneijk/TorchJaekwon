@@ -25,7 +25,7 @@ class DDPM(nn.Module):
                  loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
 
                  betas: Optional[ndarray] = None, 
-                 beta_schedule_type:Literal['linear','cosine'] = 'linear',
+                 beta_schedule_type:Literal['linear','cosine'] = 'cosine',
                  beta_arg_dict:dict = dict(),
 
                  unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance
