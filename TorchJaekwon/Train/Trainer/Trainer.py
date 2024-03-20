@@ -15,7 +15,6 @@ from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoa
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
 from TorchJaekwon.Train.Optimizer.OptimizerControl import OptimizerControl
 from TorchJaekwon.Train.AverageMeter import AverageMeter
-from TorchJaekwon.Train.Loss.LossControl.LossControl import LossControl
 #internal import
 from HParams import HParams
 
@@ -226,8 +225,8 @@ class Trainer(ABC):
         return data_dict
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_getter:PytorchDataLoader = GetModule.get_module_class('./Data/PytorchDataLoader', self.h_params.pytorch_data.class_meta['name'])()
-
+        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class('./Data/PytorchDataLoader', self.h_params.pytorch_data.class_meta['name'])
+        data_loader_getter = data_loader_getter_class(**self.h_params.pytorch_data.class_meta['args'])
         if dataset_dict is not None:
             pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)
             self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
