@@ -3,7 +3,10 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-TORCH_JAEKWON_PATH = '../000000_TorchJAEKWON'
+TORCH_JAEKWON_PATH = "/home/jakeoneijk/000000_TorchJAEKWON"
+if os.path.abspath(TORCH_JAEKWON_PATH) not in sys.path: sys.path.append(os.path.abspath(TORCH_JAEKWON_PATH))
+
+from TorchJaekwon.Util.UtilData import UtilData
 
 @dataclass
 class Mode:
@@ -92,7 +95,6 @@ class HParams(Singleton):
         pass
     
     def __first_init__(self) -> None:
-        if os.path.abspath(TORCH_JAEKWON_PATH) not in sys.path: sys.path.append(os.path.abspath(TORCH_JAEKWON_PATH))
         self.mode = Mode()
         self.resource = Resource()
         self.data = Data()
@@ -112,7 +114,9 @@ class HParams(Singleton):
         self.set_h_params_from_dict(config_dict)
     
     def set_config(self,config_path:str) -> None:
+        self.mode.config_name = UtilData.get_file_name_from_path(config_path)
         self.mode.config_path = config_path
+        self.mode.resume_path = f"./Train/Log/{self.mode.config_name}"
         self.load_config()
     
     def set_h_params_from_dict(self, h_params_dict:dict) -> None:

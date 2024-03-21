@@ -7,44 +7,6 @@ from TorchJaekwon.GetModule import GetModule
 class Controller():
     def __init__(self) -> None:
         self.h_params = HParams()
-    
-    def set_argparse(self) -> None:
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument(
-            "-s",
-            "--stage",
-            type=str,
-            required=False,
-            default=None,
-            choices = ['preprocess', 'train', 'inference', 'evaluate'],
-            help="",
-        )
-
-        parser.add_argument(
-            '-r',
-            '--resume',
-            help='train resume',
-            action='store_true'
-        )
-
-        parser.add_argument(
-            "-lv",
-            "--log_visualizer",
-            type=str,
-            required=False,
-            default=None,
-            choices = ['tensorboard', 'wandb'],
-            help="",
-        )
-
-        args = parser.parse_args()
-
-        if args.stage is not None: self.h_params.mode.stage = args.stage
-        if args.log_visualizer is not None: self.h_params.log.visualizer_type = args.log_visualizer
-        if args.resume: self.h_params.mode.train = "resume"
-
-        return args
 
     def run(self) -> None:
         print("=============================================")
@@ -93,3 +55,52 @@ class Controller():
         evaluater_class:Type[Evaluater] = GetModule.get_module_class("./Evaluater", self.h_params.evaluate.class_meta['name'])
         evaluater:Evaluater = evaluater_class(**self.h_params.evaluate.class_meta['args'])
         evaluater.evaluate()
+    
+    def set_argparse(self) -> None:
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument(
+            "-c",
+            "--config_path",
+            type=str,
+            required=False,
+            default=None,
+            help="",
+        )
+
+        parser.add_argument(
+            "-s",
+            "--stage",
+            type=str,
+            required=False,
+            default=None,
+            choices = ['preprocess', 'train', 'inference', 'evaluate'],
+            help="",
+        )
+
+        parser.add_argument(
+            '-r',
+            '--resume',
+            help='train resume',
+            action='store_true'
+        )
+
+        parser.add_argument(
+            "-lv",
+            "--log_visualizer",
+            type=str,
+            required=False,
+            default=None,
+            choices = ['tensorboard', 'wandb'],
+            help="",
+        )
+
+        args = parser.parse_args()
+        
+        if args.config_path is not None: self.h_params.set_config(args.config_path)
+        if args.stage is not None: self.h_params.mode.stage = args.stage
+        if args.log_visualizer is not None: self.h_params.log.visualizer_type = args.log_visualizer
+        if args.resume: self.h_params.mode.train = "resume"
+        
+
+        return args
