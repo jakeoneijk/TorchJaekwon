@@ -15,7 +15,6 @@ from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoa
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
 from TorchJaekwon.Train.Optimizer.OptimizerControl import OptimizerControl
 from TorchJaekwon.Train.AverageMeter import AverageMeter
-from TorchJaekwon.Train.Loss.LossControl.LossControl import LossControl
 #internal import
 from HParams import HParams
 
