@@ -94,9 +94,9 @@ class LogWriter():
 
     def visualizer_log(
         self,
-        x_axis_name:str,
+        x_axis_name:str, #epoch, step, ...
         x_axis_value:float,
-        y_axis_name:str,
+        y_axis_name:str, #metric name
         y_axis_value:float) -> None:
 
         if self.visualizer_type == 'tensorboard':
