@@ -14,16 +14,14 @@ from HParams import HParams
 
 class Inferencer():
     def __init__(self,
-                 output_dir:str = HParams().inference.output_dir,
-                 experiment_name:str = HParams().mode.config_name,
-                 model:Union[nn.Module,object] =  None,
-                 device:torch.device = HParams().resource.device
+                 output_dir:str,
+                 experiment_name:str,
+                 model:Union[nn.Module,object],
+                 device:torch.device,
                  ) -> None:
         self.output_dir:str = output_dir
         self.experiment_name:str = experiment_name
-
-        self.get_module = GetModule()
-
+        
         self.device:torch.device = device
 
         self.model:Union[nn.Module,object] = self.get_model() if model is None else model

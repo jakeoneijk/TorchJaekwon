@@ -16,7 +16,6 @@ class Controller():
         self.train_class_meta:dict = h_params.train.class_meta # {'name': 'Trainer', 'args': {}}
         self.train_mode: Literal['start', 'resume'] = h_params.mode.train
         self.train_resume_path: str = h_params.mode.resume_path
-        self.infer_class_meta:dict = h_params.inference.class_meta # {'name': 'Inferencer', 'args': {}}
         self.eval_class_meta:dict = h_params.evaluate.class_meta # {'name': 'Evaluater', 'args': {}}
 
     def run(self) -> None:
@@ -56,8 +55,18 @@ class Controller():
 
     def inference(self) -> None:
         from TorchJaekwon.Inference.Inferencer.Inferencer import Inferencer
-        inferencer_class:Type[Inferencer] = GetModule.get_module_class("./Inference/Inferencer", self.infer_class_meta['name'])
-        inferencer:Inferencer = inferencer_class(**self.infer_class_meta['args'])
+        
+        infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
+        inferencer_args:dict = {
+            'output_dir': HParams().inference.output_dir,
+            'experiment_name': HParams().mode.config_name,
+            'model':  None,
+            'device': HParams().resource.device
+        }
+        inferencer_args.update(infer_class_meta['args'])
+
+        inferencer_class:Type[Inferencer] = GetModule.get_module_class("./Inference/Inferencer", infer_class_meta['name'])
+        inferencer:Inferencer = inferencer_class(**inferencer_args)
         inferencer.inference()
 
     def evaluate(self) -> None:
