@@ -68,6 +68,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                              return_type:str=['ndarray','Tensor'][1]
                              ) -> Union[ndarray,Tensor]:
         if isinstance(audio,ndarray): audio = torch.FloatTensor(audio)
+        while len(audio.shape) < 2: audio = audio.unsqueeze(0)
 
         if torch.min(audio) < -1.:
             print('min value is ', torch.min(audio))
@@ -92,15 +93,16 @@ class UtilAudioMelSpec(UtilAudioSTFT):
             fig, ax = plt.subplots()        
                 
             img =   librosa.display.specshow(
-                    mel_spec, 
-                    y_axis='mel', 
-                    x_axis='time',
-                    sr=self.sample_rate, 
-                    hop_length=self.hop_size, 
-                    fmin=self.frequency_min, 
-                    fmax=self.frequency_max, 
-                    ax=ax,
-                    cmap='viridis')
+                        mel_spec, 
+                        y_axis='mel', 
+                        x_axis='time',
+                        sr=self.sample_rate, 
+                        hop_length=self.hop_size, 
+                        fmin=self.frequency_min, 
+                        fmax=self.frequency_max, 
+                        ax=ax,
+                        cmap='viridis'
+                    )
 
             ax.set(title='Mel spectrogram display')
             fig.colorbar(img, ax=ax, format="%+2.f dB")

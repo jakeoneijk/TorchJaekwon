@@ -8,14 +8,13 @@ class Controller():
     def __init__(self) -> None:
         self.set_argparse()
 
-        h_params = HParams()
-        self.config_name:str = h_params.mode.config_name
-        self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = h_params.mode.stage
+        self.config_name:str = HParams().mode.config_name
+        self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
 
-        self.config_per_dataset_dict: Dict[str, dict] = h_params.data.config_per_dataset_dict
-        self.train_mode: Literal['start', 'resume'] = h_params.mode.train
-        self.train_resume_path: str = h_params.mode.resume_path
-        self.eval_class_meta:dict = h_params.evaluate.class_meta # {'name': 'Evaluater', 'args': {}}
+        self.config_per_dataset_dict: Dict[str, dict] = HParams().data.config_per_dataset_dict
+        self.train_mode: Literal['start', 'resume'] = HParams().mode.train
+        self.train_resume_path: str = HParams().mode.resume_path
+        self.eval_class_meta:dict = HParams().evaluate.class_meta # {'name': 'Evaluater', 'args': {}}
 
     def run(self) -> None:
         print("=============================================")
@@ -75,13 +74,18 @@ class Controller():
             'output_dir': HParams().inference.output_dir,
             'experiment_name': HParams().mode.config_name,
             'model':  None,
+            'model_class_name': HParams().model.class_name,
             'device': HParams().resource.device
         }
         inferencer_args.update(infer_class_meta['args'])
 
         inferencer_class:Type[Inferencer] = GetModule.get_module_class("./Inference/Inferencer", infer_class_meta['name'])
         inferencer:Inferencer = inferencer_class(**inferencer_args)
-        inferencer.inference()
+        inferencer.inference(
+            pretrained_root_dir = HParams().inference.pretrain_root_dir,
+            pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
+            pretrain_module_name = HParams().inference.pretrain_module_name
+        )
 
     def evaluate(self) -> None:
         from TorchJaekwon.Evaluater.Evaluater import Evaluater
@@ -130,11 +134,9 @@ class Controller():
 
         args = parser.parse_args()
 
-        h_params = HParams()
-        if args.config_path is not None: h_params.set_config(args.config_path)
-        if args.stage is not None: h_params.mode.stage = args.stage
-        if args.log_visualizer is not None: h_params.log.visualizer_type = args.log_visualizer
-        if args.resume: h_params.mode.train = "resume"
-        
+        if args.config_path is not None: HParams().set_config(args.config_path)
+        if args.stage is not None: HParams().mode.stage = args.stage
+        if args.log_visualizer is not None: HParams().log.visualizer_type = args.log_visualizer
+        if args.resume: HParams().mode.train = "resume"
 
         return args

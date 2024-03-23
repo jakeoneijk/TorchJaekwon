@@ -1,5 +1,5 @@
 #type
-from typing import List,Union
+from typing import List, Tuple,Union
 from torch import Tensor
 #package
 import os
@@ -10,13 +10,13 @@ from tqdm import tqdm
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Util.UtilData import UtilData 
 #internal
-from HParams import HParams
 
 class Inferencer():
     def __init__(self,
                  output_dir:str,
                  experiment_name:str,
                  model:Union[nn.Module,object],
+                 model_class_name:str,
                  device:torch.device,
                  ) -> None:
         self.output_dir:str = output_dir
@@ -24,7 +24,9 @@ class Inferencer():
         
         self.device:torch.device = device
 
-        self.model:Union[nn.Module,object] = self.get_model() if model is None else model
+        assert model_class_name is not None or model is not None, "model_class_name or model must be not None"
+        self.model:Union[nn.Module,object] = self.get_model(model_class_name) if model is None else model
+        self.shared_dir_name:str = '0shared0'
     
     '''
     ==============================================================
@@ -39,10 +41,12 @@ class Inferencer():
             meta_data_list += meta
         return meta_data_list
 
-    def get_output_dir_path(self, pretrained_name:str, test_name:str) -> None:
-        return f"{self.output_dir}/{self.experiment_name}({pretrained_name})/{test_name}"
+    def get_output_dir_path(self, pretrained_name:str, test_name:str) -> Tuple[str,str]:
+        output_dir_path: str = f"{self.output_dir}/{self.experiment_name}({pretrained_name})/{test_name}"
+        shared_output_dir_path:str = f"{self.output_dir}/{self.shared_dir_name}/{test_name}"
+        return output_dir_path, shared_output_dir_path
     
-    def read_data_dict_by_meta_data(self,meta_data:dict)->dict:
+    def read_data_dict_by_meta_data(self, meta_data:dict) -> dict:
         '''
         {
             "model_input":
@@ -56,10 +60,10 @@ class Inferencer():
         data_dict["gt"] = dict()
         data_dict["pred"] = dict()
     
-    def post_process(self,data_dict:dict)->dict:
+    def post_process(self, data_dict: dict) -> dict:
         return data_dict
 
-    def save_data(self,output_dir_path,meta_data,data_dict)->None:
+    def save_data(self, output_dir_path:str, shared_output_dir_path:str, meta_data:dict, data_dict:dict) -> None:
         pass
     
     '''
@@ -68,13 +72,13 @@ class Inferencer():
     ==============================================================
     '''
 
-    def get_model(self) -> nn.Module:
-        return GetModule.get_model(HParams().model.class_name) if (HParams().model.class_name not in [None,'']) else None
+    def get_model(self, model_class_name:str) -> nn.Module:
+        return GetModule.get_model(model_class_name) if (model_class_name not in [None,'']) else None
 
     def inference(self,
-                  pretrained_root_dir:str = HParams().inference.pretrain_root_dir,
-                  pretrained_dir_name:str = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
-                  pretrain_module_name:str = HParams().inference.pretrain_module_name
+                  pretrained_root_dir:str,
+                  pretrained_dir_name:str,
+                  pretrain_module_name:str
                   ) -> None:
         pretrained_path_list:List[str] = self.get_pretrained_path_list(
             pretrain_root_dir= pretrained_root_dir,
@@ -87,18 +91,18 @@ class Inferencer():
             pretrained_name:str = UtilData.get_file_name_from_path(pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
-                output_dir_path:str = self.get_output_dir_path(pretrained_name=pretrained_name,test_name=meta_data["test_name"])
+                output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,test_name=meta_data["test_name"])
 
                 data_dict:dict = self.read_data_dict_by_meta_data(meta_data=meta_data)
                 data_dict = self.update_data_dict_by_model_inference(data_dict)
-                    
                 data_dict:dict = self.post_process(data_dict)
-                self.save_data(output_dir_path,meta_data,data_dict)    
+
+                self.save_data(output_dir_path, shared_output_dir_path, meta_data, data_dict)    
     
-    def update_data_dict_by_model_inference(self,data_dict):
+    @torch.no_grad()
+    def update_data_dict_by_model_inference(self, data_dict: dict) -> dict:
         if type(data_dict["model_input"]) == Tensor:
-            with torch.no_grad():
-                data_dict["pred"] = self.model(data_dict["model_input"].to(self.h_params.resource.device))
+            data_dict["pred"] = self.model(data_dict["model_input"].to(self.device))
         return data_dict
                     
     def get_pretrained_path_list(self,
