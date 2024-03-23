@@ -27,15 +27,18 @@ class TrainState(Enum):
 class Trainer(ABC):
     def __init__(self,
                  #resource
-                 device:torch.device = HParams().resource.device,
+                 device:torch.device,
                  #class_meta
-                 model_class_name:Union[str, list] = HParams().model.class_name,
-                 model_class_meta_dict:dict = HParams().model.class_meta_dict,
-                 loss_class_meta:dict = HParams().train.loss_dict,
+                 model_class_name:Union[str, list],
+                 model_class_meta_dict:dict,
+                 loss_class_meta:dict,
                  #train params
-                 max_norm_value_for_gradient_clip:float = getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
+                 max_norm_value_for_gradient_clip:float,
                  #train setting
-                 save_model_every_step:int = getattr(HParams().train, 'save_model_every_step', None),
+                 total_epoch:int,
+                 save_model_every_step:int,
+                 seed: float,
+                 seed_strict:bool
                  ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
@@ -52,13 +55,13 @@ class Trainer(ABC):
 
         self.data_loader_dict:dict = {subset: None for subset in ['train','valid','test']}
 
-        self.seed:int = (int)(torch.cuda.initial_seed() / (2**32)) if self.h_params.train.seed is None else self.h_params.train.seed
-        self.set_seeds(self.h_params.train.seed_strict)
+        self.seed:int = seed
+        self.set_seeds(self.seed, seed_strict)
 
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
 
         self.current_epoch:int = 1
-        self.total_epoch:int = self.h_params.train.epoch
+        self.total_epoch:int = total_epoch
         self.global_step:int = 0
         self.local_step:int = 0
         self.best_valid_metric:dict[str,AverageMeter] = None
@@ -149,14 +152,14 @@ class Trainer(ABC):
     abstract method end
     ==============================================================
     '''
-    def set_seeds(self,strict=False):
-        torch.manual_seed(self.seed)
+    def set_seeds(self, seed:float, strict=False):
+        torch.manual_seed(seed)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(self.seed)
+            torch.cuda.manual_seed_all(seed)
             if strict:
                 torch.backends.cudnn.deterministic = True
-        np.random.seed(self.seed)
-        random.seed(self.seed)
+        np.random.seed(seed)
+        random.seed(seed)
 
     def init_train(self, dataset_dict=None):
         self.init_model()

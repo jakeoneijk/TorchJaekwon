@@ -13,7 +13,6 @@ class Controller():
         self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = h_params.mode.stage
 
         self.config_per_dataset_dict: Dict[str, dict] = h_params.data.config_per_dataset_dict
-        self.train_class_meta:dict = h_params.train.class_meta # {'name': 'Trainer', 'args': {}}
         self.train_mode: Literal['start', 'resume'] = h_params.mode.train
         self.train_resume_path: str = h_params.mode.resume_path
         self.eval_class_meta:dict = h_params.evaluate.class_meta # {'name': 'Evaluater', 'args': {}}
@@ -42,9 +41,24 @@ class Controller():
                 preprocessor.preprocess_data()                           
 
     def train(self) -> None:
+        import torch
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
-        trainer_args:dict = self.train_class_meta['args']
-        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', self.train_class_meta['name'])
+        
+        train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
+        trainer_args:dict = {
+            'device': HParams().resource.device,
+            'model_class_name': HParams().model.class_name,
+            'model_class_meta_dict': HParams().model.class_meta_dict,
+            'loss_class_meta': HParams().train.loss_dict,
+            'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
+            'total_epoch': HParams().train.epoch,
+            'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
+            'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
+            'seed_strict': HParams().train.seed_strict
+        }
+        trainer_args.update(train_class_meta['args'])
+        
+        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', train_class_meta['name'])
         trainer:Trainer = trainer_class(**trainer_args)
         trainer.init_train()
         

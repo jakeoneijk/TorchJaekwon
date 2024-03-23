@@ -101,7 +101,7 @@ class DDPM(nn.Module):
                 cond:Optional[Union[dict,Tensor]] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
-            return self.infer(x_shape = x_shape)
+            return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack)
     
     def p_losses(self, 
                  x_start:Tensor,
