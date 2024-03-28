@@ -38,7 +38,7 @@ class Evaluater():
     def evaluate(self) -> None:
         eval_dir_list:List[str] = self.get_eval_dir_list()
 
-        evaluation_result_dir:str = f"{self.source_dir}/evaluation"
+        evaluation_result_dir:str = f"{self.source_dir}_evaluation"
         os.makedirs(evaluation_result_dir,exist_ok=True)
 
         for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):

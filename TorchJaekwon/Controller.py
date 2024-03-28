@@ -1,12 +1,14 @@
-from typing import Type, Literal, Dict
+from typing import Type, Literal, Dict, List, Union, Literal
 import argparse
 
 from HParams import HParams
 from TorchJaekwon.GetModule import GetModule
 
 class Controller():
-    def __init__(self) -> None:
-        self.set_argparse()
+    def __init__(self, 
+                 additional_args: List[Dict[Literal['args','kwargs','replace_var'], Union[list, dict, object]]] = list()
+                 ) -> None:
+        self.set_argparse(additional_args)
 
         self.config_name:str = HParams().mode.config_name
         self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
@@ -32,7 +34,11 @@ class Controller():
         for data_name in self.config_per_dataset_dict:
             for preprocessor_meta in self.config_per_dataset_dict[data_name]['preprocessor_class_meta_list']:
                 preprocessor_class_name:str = preprocessor_meta['name']
-                preprocessor_args:dict = {'data_name': data_name}
+                preprocessor_args:dict = {
+                    'data_name': data_name,
+                    'root_dir': HParams().data.root_path,
+                    'num_workers': HParams().resource.preprocess['num_workers']
+                }
                 preprocessor_args.update(preprocessor_meta['args'])
 
                 preprocessor_class:Type[Preprocessor] = GetModule.get_module_class( "./DataProcess/Preprocess", preprocessor_class_name )
@@ -93,7 +99,9 @@ class Controller():
         evaluater:Evaluater = evaluater_class(**self.eval_class_meta['args'])
         evaluater.evaluate()
     
-    def set_argparse(self) -> None:
+    def set_argparse(self,
+                     additional_args:List[Dict[Literal['args','kwargs','replace_var'], Union[list, dict, object]]] = list()
+                     ) -> None:
         parser = argparse.ArgumentParser()
 
         parser.add_argument(

@@ -6,18 +6,16 @@ import os
 import time
 from tqdm import tqdm
 
-from HParams import HParams
-
 class Preprocessor(ABC):
     def __init__(self,
                  data_name:str,
-                 root_dir:str = HParams().data.root_path,
-                 is_multi_processing:bool = HParams().resource.preprocess['multi_processing']
+                 root_dir:str,
+                 num_workers:int = 1
                  ) -> None:
         # args to class variable
         self.data_name:str = data_name
         self.root_dir:str = root_dir
-        self.is_multi_processing:bool = is_multi_processing
+        self.num_workers:int = num_workers
 
         self.output_dir = self.get_output_dir()
         os.makedirs(self.output_dir,exist_ok=True)
@@ -35,7 +33,7 @@ class Preprocessor(ABC):
             print('meta_param_list is None, So we skip preprocess data')
             return
         start_time:float = time.time()
-        if self.is_multi_processing:
+        if self.num_workers > 2:
             with ProcessPoolExecutor(max_workers=self.h_params.resource.preprocess['max_workers']) as pool:
                 pool.map(self.preprocess_one_data, meta_param_list)
         else:
@@ -46,7 +44,7 @@ class Preprocessor(ABC):
         print("{:.3f} s".format(time.time() - start_time))
 
     @abstractmethod
-    def get_meta_data_param(self) -> List[tuple]:
+    def get_meta_data_param(self) -> list:
         '''
         meta_data_param_list = list()
         '''

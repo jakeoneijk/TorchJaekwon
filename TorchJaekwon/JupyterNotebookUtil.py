@@ -3,12 +3,11 @@ try: import IPython.display as ipd
 except:  print('[error] there is no IPython package')
 import pandas as pd
 
-class JupyterNotebookUtil():
-    def __init__(self) -> None:
-        self.lower_is_better_symbol:str = "↓"
-        self.higher_is_better_symbol:str = "↑"
-        self.plus_minus_symbol:str = "±"
+LOWER_IS_BETTER_SYMBOL = "↓"
+HIGHER_IS_BETTER_SYMBOL = "↑"
+PLUS_MINUS_SYMBOL = "±"
 
+class JupyterNotebookUtil():
     @staticmethod
     def get_html(type:Literal['audio','img'],
                  src_path:str,
