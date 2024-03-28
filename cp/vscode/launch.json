@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Python: Main",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "Main.py",
             "console": "integratedTerminal",
@@ -15,7 +15,7 @@
         },
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
