@@ -34,7 +34,7 @@ class Preprocessor(ABC):
             return
         start_time:float = time.time()
         if self.num_workers > 2:
-            with ProcessPoolExecutor(max_workers=self.h_params.resource.preprocess['max_workers']) as pool:
+            with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
                 pool.map(self.preprocess_one_data, meta_param_list)
         else:
             for meta_param in tqdm(meta_param_list,desc='preprocess data'):
