@@ -1,6 +1,5 @@
 #type
 from typing import Dict, Union, Literal, Type
-from abc import ABC, abstractmethod
 from enum import Enum,unique
 #import
 import os
@@ -24,7 +23,7 @@ class TrainState(Enum):
     VALIDATE = "valid"
     TEST = "test"
  
-class Trainer(ABC):
+class Trainer():
     def __init__(self,
                  #resource
                  device:torch.device,
@@ -75,7 +74,6 @@ class Trainer(ABC):
     ==============================================================
     '''
     
-    @abstractmethod
     def run_step(self,data,metric,train_state:TrainState):
         """
         run 1 step
@@ -152,14 +150,16 @@ class Trainer(ABC):
     abstract method end
     ==============================================================
     '''
-    def set_seeds(self, seed:float, strict=False):
+    def set_seeds(self, seed:float, strict=False) -> None:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)
             if strict:
                 torch.backends.cudnn.deterministic = True
         np.random.seed(seed)
         random.seed(seed)
+        os.environ["PYTHONHASHSEED"] = str(seed)
 
     def init_train(self, dataset_dict=None):
         self.init_model()
@@ -182,7 +182,7 @@ class Trainer(ABC):
                 for class_name in self.model_class_name[type_name]:
                     self.model[type_name][class_name] = GetModule.get_model(class_name)
         else:
-            self.model:nn.Module = GetModule.get_model(self.h_params.model.class_name)
+            self.model:nn.Module = GetModule.get_model(self.model_class_name)
     
     def init_optimizer(self) -> None:
         optimizer_class = getattr(torch.optim, self.h_params.train.optimizer['class_meta']['name'])
@@ -236,7 +236,7 @@ class Trainer(ABC):
         else:
             self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders()
     
-    def fit(self):
+    def fit(self) -> None:
         if getattr(self.h_params.train,'check_evalstep_first',False):
             print("check evaluation step first whether there is no error")
             with torch.no_grad():
