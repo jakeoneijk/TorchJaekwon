@@ -14,6 +14,7 @@ except: print('Didnt import following packages: tensorboardX')
 
 from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 from TorchJaekwon.Util.UtilTorch import UtilTorch
+from TorchJaekwon.Util.UtilData import UtilData
 
 from HParams import HParams
 
@@ -32,7 +33,7 @@ class LogWriter():
         self.log_write_init(model=model)
 
         if self.visualizer_type == 'wandb':
-            wandb.init(project=self.h_params.log.project_name, resume = self.h_params.mode.train == 'resume')
+            wandb.init(project=self.h_params.log.project_name, resume = self.h_params.mode.train == 'resume') #wandb.init(id=run_id, resume="must")
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
             watched_model = model
             while not isinstance(watched_model, nn.Module):
@@ -40,6 +41,11 @@ class LogWriter():
             wandb.watch(watched_model)
             wandb.run.name = self.experiment_name
             wandb.run.save()
+
+            UtilData.yaml_save(f'''{self.log_path['root']}/wandb_meta.yaml''', data={
+                'id': wandb.run.id,
+                'name': wandb.run.name,
+            })
         elif self.visualizer_type == 'tensorboard':
             self.tensorboard_writer = SummaryWriter(log_dir=self.log_path["visualizer"])
         else:
