@@ -30,6 +30,8 @@ class Trainer():
                  #class_meta
                  model_class_name:Union[str, list],
                  model_class_meta_dict:dict,
+                 optimizer_class_meta_dict:dict,
+                 lr_scheduler_class_meta_dict:dict,
                  loss_class_meta:dict,
                  #train params
                  max_norm_value_for_gradient_clip:float,
@@ -46,7 +48,9 @@ class Trainer():
         self.model_class_meta_dict:dict = model_class_meta_dict
         self.model:Union[nn.Module, list, dict] = None
         
+        self.optimizer_class_meta_dict:dict = optimizer_class_meta_dict
         self.optimizer:torch.optim.Optimizer = None
+        self.lr_scheduler_class_meta_dict:dict = lr_scheduler_class_meta_dict
         self.lr_scheduler:torch.optim.lr_scheduler = None
 
         self.loss_function_dict:dict = dict()

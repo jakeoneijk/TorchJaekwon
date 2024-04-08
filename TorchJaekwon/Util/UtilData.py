@@ -203,5 +203,9 @@ class UtilData:
             return f'{round(number/1000000,5)}M'
         else:
             return f'{round(number/1000000000,5)}B'
+    
+    @staticmethod
+    def extract_num_from_str(string:str) -> float:
+        return float(''.join([c for c in string if c.isdigit() or c == '.']))
 
         

@@ -5,10 +5,8 @@ from HParams import HParams
 from TorchJaekwon.GetModule import GetModule
 
 class Controller():
-    def __init__(self, 
-                 additional_args: List[Dict[Literal['args','kwargs','replace_var'], Union[list, dict, object]]] = list()
-                 ) -> None:
-        self.set_argparse(additional_args)
+    def __init__(self) -> None:
+        self.set_argparse()
 
         self.config_name:str = HParams().mode.config_name
         self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
@@ -54,6 +52,8 @@ class Controller():
             'device': HParams().resource.device,
             'model_class_name': HParams().model.class_name,
             'model_class_meta_dict': HParams().model.class_meta_dict,
+            'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
+            'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
             'loss_class_meta': HParams().train.loss_dict,
             'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
             'total_epoch': HParams().train.epoch,
@@ -81,6 +81,8 @@ class Controller():
             'experiment_name': HParams().mode.config_name,
             'model':  None,
             'model_class_name': HParams().model.class_name,
+            'set_type': HParams().inference.set_type,
+            'set_meta_dict': HParams().inference.set_meta_dict,
             'device': HParams().resource.device
         }
         inferencer_args.update(infer_class_meta['args'])
@@ -99,9 +101,7 @@ class Controller():
         evaluater:Evaluater = evaluater_class(**self.eval_class_meta['args'])
         evaluater.evaluate()
     
-    def set_argparse(self,
-                     additional_args:List[Dict[Literal['args','kwargs','replace_var'], Union[list, dict, object]]] = list()
-                     ) -> None:
+    def set_argparse(self) -> None:
         parser = argparse.ArgumentParser()
 
         parser.add_argument(

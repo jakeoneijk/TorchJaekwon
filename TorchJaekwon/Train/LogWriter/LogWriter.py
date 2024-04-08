@@ -32,7 +32,7 @@ class LogWriter():
         self.log_write_init(model=model)
 
         if self.visualizer_type == 'wandb':
-            wandb.init(project=self.h_params.log.project_name)
+            wandb.init(project=self.h_params.log.project_name, resume = self.h_params.mode.train == 'resume')
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
             watched_model = model
             while not isinstance(watched_model, nn.Module):
@@ -67,7 +67,8 @@ class LogWriter():
         self.log_write(log_message_with_time_took)
     
     def log_write_init(self,model:nn.Module) -> None:
-        file = open(self.log_path["console"],'w')
+        write_mode:str = 'w' if self.h_params.mode.train != "resume" else 'a'
+        file = open(self.log_path["console"], write_mode)
         file.write("========================================="+'\n')
         file.write(f'pid: {os.getpid()} / parent_pid: {psutil.Process(os.getpid()).ppid()} \n')
         file.write("========================================="+'\n')

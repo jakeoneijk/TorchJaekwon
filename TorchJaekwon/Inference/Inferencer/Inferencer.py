@@ -1,5 +1,5 @@
 #type
-from typing import List, Tuple,Union
+from typing import List, Tuple,Union, Literal
 from torch import Tensor
 #package
 import os
@@ -17,6 +17,8 @@ class Inferencer():
                  experiment_name:str,
                  model:Union[nn.Module,object],
                  model_class_name:str,
+                 set_type:Literal[ 'single', 'dir', 'testset' ],
+                 set_meta_dict: dict,
                  device:torch.device,
                  ) -> None:
         self.output_dir:str = output_dir
@@ -27,6 +29,9 @@ class Inferencer():
         assert model_class_name is not None or model is not None, "model_class_name or model must be not None"
         self.model:Union[nn.Module,object] = self.get_model(model_class_name) if model is None else model
         self.shared_dir_name:str = '0shared0'
+
+        self.set_type:Literal[ 'single', 'dir', 'testset' ] = set_type
+        self.set_meta_dict:dict = set_meta_dict
     
     '''
     ==============================================================
@@ -116,7 +121,7 @@ class Inferencer():
             pretrain_name_list:List[str] = [
                 pretrain_module
                 for pretrain_module in os.listdir(pretrain_dir)
-                if pretrain_module.endswith("pth") and "checkpoint" not in pretrain_module
+                if os.path.splitext(pretrain_module)[-1] in [".pth"] and "checkpoint" not in pretrain_module
                 ]
             pretrain_name_list.sort()
 

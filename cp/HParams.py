@@ -66,8 +66,11 @@ class Train:
 @dataclass
 class Inference():
     class_meta = {'name': 'Inferencer'}
-    dataset_type:str = ["singledata","testset"][1]
-    singledata_path:str ="./Test/TestInput/commercial_song.wav"
+    set_type:str = [ 'single', 'dir', 'testset' ][0]
+    set_meta_dict = {
+        'single': "./Test/TestInput/commercial_song.wav",
+        'dir': ''
+    }
 
     pretrain_module_name:str = ["all","last_epoch"][0]
     pretrain_root_dir:str = "./Train/Log"
