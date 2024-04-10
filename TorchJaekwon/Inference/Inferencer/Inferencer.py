@@ -97,7 +97,7 @@ class Inferencer():
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
                 output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,test_name=meta_data["test_name"])
-
+                if output_dir_path is None: continue
                 data_dict:dict = self.read_data_dict_by_meta_data(meta_data=meta_data)
                 data_dict = self.update_data_dict_by_model_inference(data_dict)
                 data_dict:dict = self.post_process(data_dict)
