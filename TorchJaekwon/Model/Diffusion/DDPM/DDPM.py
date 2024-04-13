@@ -91,8 +91,8 @@ class DDPM(nn.Module):
         train diffusion model. 
         return diffusion loss
         '''
+        x_start, cond, additional_data_dict = self.preprocess(x_start, cond)
         if stage == 'train' and x_start is not None:
-            x_start = self.norm_x_start(x_start)
             if x_shape is None: x_shape = x_start.shape
             batch_size:int = x_shape[0] 
             input_device:device = x_start.device
@@ -122,6 +122,7 @@ class DDPM(nn.Module):
         else:
             print(f'''model output type is {self.model_output_type}. It should be in [x_start, noise]''')
             raise NotImplementedError()
+        if target.shape != model_output.shape: print(f'warning: target shape({target.shape}) and model shape({model_output.shape}) are different')
         return self.loss_func(target, model_output)
     
     def get_v(self, x, noise, t):
@@ -166,13 +167,13 @@ class DDPM(nn.Module):
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sample time step', total=self.timesteps):
             x = self.p_sample(x = x, t = torch.full((x_shape[0],), i, device= model_device, dtype=torch.long), cond = cond, is_cond_unpack = is_cond_unpack)
         
-        return self.denorm_x_start(x)
+        return self.postprocess(x)
     
     @torch.no_grad()
     def p_sample(self,
                  x:Tensor, 
                  t:Tensor, 
-                 cond:Optional[dict],
+                 cond:Optional[Union[dict,Tensor]],
                  is_cond_unpack:bool,
                  clip_denoised:bool = True,
                  repeat_noise:bool = False):
@@ -217,16 +218,16 @@ class DDPM(nn.Module):
         posterior_log_variance_clipped = DiffusionUtil.extract(self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
     
-    def norm_x_start(self, x:Tensor) -> Tensor:
-        return x
+    def preprocess(self, x_start:Tensor, cond:Optional[Union[dict,Tensor]] = None) -> Tuple[Tensor, Optional[Union[dict,Tensor]], dict]:
+        return x_start, cond, None
 
-    def denorm_x_start(self, x:Tensor) -> Tensor:
+    def postprocess(self, x:Tensor, additional_data_dict:dict) -> Tensor:
         return x
 
     def apply_model(self,
                     x:Tensor,
                     t:Tensor,
-                    cond:Optional[dict],
+                    cond:Optional[Union[dict,Tensor]],
                     is_cond_unpack:bool,
                     sampling_guidance_scale:Optional[float] = None
                     ) -> Tensor:
@@ -262,6 +263,9 @@ class DDPM(nn.Module):
         if cond_shape is None: cond_shape = cond.shape
         if cond is not None and isinstance(cond,Tensor): condition_device = cond.device
         return (-11.4981 + torch.zeros(cond_shape)).to(condition_device)
+    
+    def get_x_shape(self):
+        return None
 
     
     

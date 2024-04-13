@@ -21,6 +21,8 @@ class PNDM:
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               pndm_speedup:int = 10) -> Tensor:
+        if x_shape is None: x_shape = self.ddpm_module.get_x_shape()
+        _, cond, additional_data_dict = self.ddpm_module.preprocess(x_start = None, cond=cond)
         total_timesteps:int = self.ddpm_module.timesteps
         model_device:device = UtilTorch.get_model_device(self.ddpm_module)
         x:Tensor = torch.randn(x_shape, device = model_device)
@@ -29,7 +31,7 @@ class PNDM:
         for i in tqdm(reversed(range(0, total_timesteps, pndm_speedup)), desc='sample time step', total=total_timesteps // pndm_speedup):
             x = self.p_sample_plms(x, torch.full((x_shape[0],), i, device=model_device, dtype=torch.long), pndm_speedup, cond, is_cond_unpack)
 
-        return self.ddpm_module.denorm_x_start(x)
+        return self.ddpm_module.postprocess(x, additional_data_dict)
     
     @torch.no_grad()
     def p_sample_plms(self, x, t, interval, cond, is_cond_unpack):
