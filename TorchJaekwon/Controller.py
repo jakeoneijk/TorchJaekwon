@@ -98,7 +98,11 @@ class Controller():
     def evaluate(self) -> None:
         from TorchJaekwon.Evaluater.Evaluater import Evaluater
         evaluater_class:Type[Evaluater] = GetModule.get_module_class("./Evaluater", self.eval_class_meta['name'])
-        evaluater:Evaluater = evaluater_class(**self.eval_class_meta['args'])
+        evaluater_args:dict = self.eval_class_meta['args']
+        evaluater_args.update({
+            'device': HParams().resource.device
+        })
+        evaluater:Evaluater = evaluater_class(**evaluater_args)
         evaluater.evaluate()
     
     def set_argparse(self) -> None:

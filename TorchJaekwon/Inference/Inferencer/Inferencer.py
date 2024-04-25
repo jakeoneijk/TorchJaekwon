@@ -46,9 +46,9 @@ class Inferencer():
             meta_data_list += meta
         return meta_data_list
 
-    def get_output_dir_path(self, pretrained_name:str, test_name:str) -> Tuple[str,str]:
-        output_dir_path: str = f"{self.output_dir}/{self.experiment_name}({pretrained_name})/{test_name}"
-        shared_output_dir_path:str = f"{self.output_dir}/{self.shared_dir_name}/{test_name}"
+    def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> Tuple[str,str]:
+        output_dir_path: str = f'''{self.output_dir}/{self.experiment_name}({pretrained_name})/{meta_data["test_name"]}'''
+        shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
         return output_dir_path, shared_output_dir_path
     
     def read_data_dict_by_meta_data(self, meta_data:dict) -> dict:
@@ -96,7 +96,7 @@ class Inferencer():
             pretrained_name:str = UtilData.get_file_name_from_path(pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
-                output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,test_name=meta_data["test_name"])
+                output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,meta_data=meta_data)
                 if output_dir_path is None: continue
                 data_dict:dict = self.read_data_dict_by_meta_data(meta_data=meta_data)
                 data_dict = self.update_data_dict_by_model_inference(data_dict)

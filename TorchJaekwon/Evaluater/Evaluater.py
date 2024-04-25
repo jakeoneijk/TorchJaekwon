@@ -4,15 +4,18 @@ from typing import List,Dict,Union
 import os
 from tqdm import tqdm
 import numpy as np
+import torch
 #torchjaekwon import
 from TorchJaekwon.Util.UtilData import UtilData
 #internal import
 
 class Evaluater():
     def __init__(self,
-                 source_dir:str
+                 source_dir:str,
+                 device:torch.device
                  ) -> None:
         self.source_dir:str = source_dir
+        self.device:torch.device = device
     
     '''
     ==============================================================

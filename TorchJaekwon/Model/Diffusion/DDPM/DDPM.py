@@ -255,7 +255,7 @@ class DDPM(nn.Module):
             return False
     
     def get_unconditional_condition(self,
-                                    cond:Optional[Tensor] = None, 
+                                    cond:Optional[Union[dict,Tensor]] = None, 
                                     cond_shape:Optional[tuple] = None,
                                     condition_device:Optional[device] = None
                                     ) -> Tensor:
@@ -264,7 +264,7 @@ class DDPM(nn.Module):
         if cond is not None and isinstance(cond,Tensor): condition_device = cond.device
         return (-11.4981 + torch.zeros(cond_shape)).to(condition_device)
     
-    def get_x_shape(self):
+    def get_x_shape(self, cond:Optional[Union[dict,Tensor]] = None):
         return None
 
     

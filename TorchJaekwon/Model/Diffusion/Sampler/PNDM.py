@@ -21,7 +21,7 @@ class PNDM:
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               pndm_speedup:int = 10) -> Tensor:
-        if x_shape is None: x_shape = self.ddpm_module.get_x_shape()
+        if x_shape is None: x_shape = self.ddpm_module.get_x_shape(cond=cond)
         _, cond, additional_data_dict = self.ddpm_module.preprocess(x_start = None, cond=cond)
         total_timesteps:int = self.ddpm_module.timesteps
         model_device:device = UtilTorch.get_model_device(self.ddpm_module)
