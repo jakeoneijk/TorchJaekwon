@@ -33,7 +33,11 @@ class LogWriter():
         self.log_write_init(model=model)
 
         if self.visualizer_type == 'wandb':
-            wandb.init(project=self.h_params.log.project_name, resume = self.h_params.mode.train == 'resume') #wandb.init(id=run_id, resume="must")
+            if self.h_params.mode.train == 'resume':
+                wandb_meta_data:dict = UtilData.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
+                wandb.init(id=wandb_meta_data['id'], project=self.h_params.log.project_name, resume = 'must')
+            else: 
+                wandb.init(project=self.h_params.log.project_name)
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
             watched_model = model
             while not isinstance(watched_model, nn.Module):
