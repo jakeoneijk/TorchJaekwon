@@ -22,7 +22,7 @@ class GetModule:
                 if len(files) > 0:
                     for file in files:
                         if os.path.splitext(file)[0] == module_name:
-                            if torch_jaekwon_path in root:
+                            if TORCH_JAEKWON_PATH in root:
                                 return f'{root}/{os.path.splitext(file)[0]}'.replace(TORCH_JAEKWON_PATH+'/','').replace("/",".")
                             else:
                                 return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
