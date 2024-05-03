@@ -5,8 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name='TorchJaekwon',
     version='0.1',
-    package_dir={'': './'},
-    packages=find_packages( where = './'),
+    packages=find_packages(),
     install_requires=[
         # List your project's dependencies here.
         # They will be installed by pip when your project is installed.
