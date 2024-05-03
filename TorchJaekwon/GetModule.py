@@ -3,20 +3,19 @@ from typing import Optional, Callable
 import os
 import importlib
 
-try:
-    import torch.nn as nn
-except:
-    print('''Can't import torch.nn''')
+import TorchJaekwon
+TORCH_JAEKWON_PATH = os.path.dirname(TorchJaekwon.__file__)
 
-from HParams import HParams, TORCH_JAEKWON_PATH
+try: import torch.nn as nn
+except: print('''Can't import torch.nn''')
+try: from HParams import HParams
+except: print('There is no Hparams')
 
 class GetModule:
     @staticmethod
     def get_import_path_of_module(root_path:str, module_name:str) -> Optional[str]:
         root_path_list:list = [root_path]
-        torch_jaekwon_path = f'{TORCH_JAEKWON_PATH}/TorchJaekwon/'
-        if os.path.isdir(root_path.replace("./",torch_jaekwon_path)):
-            root_path_list.append(root_path.replace("./",torch_jaekwon_path))
+        root_path_list.append(root_path.replace("./",TORCH_JAEKWON_PATH))
         
         for root_path in root_path_list:
             for root,dirs,files in os.walk(root_path):

@@ -65,6 +65,11 @@ class UtilData:
         return row_result_list
     
     @staticmethod
+    def txt_load(data_path:str) -> list:
+        with open(data_path, 'r') as txtfile:
+            return txtfile.readlines()
+    
+    @staticmethod
     def csv_save(file_path:str,
                  data_dict_list:List[Dict[str,object]], #[ {key:object}, ... ]
                  order_of_key:list = None # [key1, key2, ...]

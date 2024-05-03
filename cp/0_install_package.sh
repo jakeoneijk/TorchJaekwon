@@ -1,1 +1,0 @@
-pip install -r 0_requirements.txt

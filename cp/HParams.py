@@ -3,9 +3,6 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-TORCH_JAEKWON_PATH = "/home/jakeoneijk/000000_TorchJAEKWON"
-if os.path.abspath(TORCH_JAEKWON_PATH) not in sys.path: sys.path.append(os.path.abspath(TORCH_JAEKWON_PATH))
-
 from TorchJaekwon.Util.UtilData import UtilData
 
 @dataclass

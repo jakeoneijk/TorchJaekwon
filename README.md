@@ -6,13 +6,18 @@ This is my personal repository for the efficiency of my research.
     ```
     git clone https://github.com/jakeoneijk/TorchJaekwon
     ```
+
+* Install TorchJaekwon
+    ```
+    source ./cp/Script/1_install_torchjk.sh
+    ```
+
 * Copy the files and directories in 'cp' to the new project directory.
     ```
     .
     └── TorchJaekwon
         └── cp
     ```
-* (Optional) If you are a vscode user change dir name `vscode` to `.vscode`. 
 
 ## Usage
 ### Basic
