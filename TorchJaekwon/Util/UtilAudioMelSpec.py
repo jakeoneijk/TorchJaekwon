@@ -87,32 +87,10 @@ class UtilAudioMelSpec(UtilAudioSTFT):
     def mel_spec_plot(self,
                       save_path:str, #'*.png'
                       mel_spec:ndarray, #[mel_size, time]
+                      fig_size:tuple=(12,4),
                       dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
-        try:
-            fig, ax = plt.subplots()        
-                
-            img =   librosa.display.specshow(
-                        mel_spec, 
-                        y_axis='mel', 
-                        x_axis='time',
-                        sr=self.sample_rate, 
-                        hop_length=self.hop_size, 
-                        fmin=self.frequency_min, 
-                        fmax=self.frequency_max, 
-                        ax=ax,
-                        cmap='viridis'
-                    )
-
-            ax.set(title='Mel spectrogram display')
-            fig.colorbar(img, ax=ax, format="%+2.f dB")
-            plt.savefig(save_path,dpi=dpi)
-            plt.close()
-        except:
-            print('there is some problem with matplotlib, so we will use alternative way')
-            plt.close()
-            self.spec_to_figure(spec=mel_spec,
-                                fig_size = None,
-                                dpi = dpi,
-                                transposed=False,
-                                save_path=save_path)
+        plt.figure(figsize=fig_size)
+        plt.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
+        plt.savefig(save_path,dpi=dpi)
+        plt.close()

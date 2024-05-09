@@ -71,7 +71,7 @@ class UtilAudio:
                 
         if mono is not None:
             if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:
-                audio_data = np.mean(audio_data,axis=0)
+                audio_data = torch.mean(audio_data,axis=0)  if isinstance(audio_data, torch.Tensor) else np.mean(audio_data,axis=0) 
             elif not mono and len(audio_data.shape) == 1:
                 stereo_audio = np.zeros((2,len(audio_data)))
                 stereo_audio[0,...] = audio_data
