@@ -1,4 +1,3 @@
-import sys,os
 import yaml
 import torch
 from dataclasses import dataclass

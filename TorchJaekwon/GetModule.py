@@ -15,7 +15,7 @@ class GetModule:
     @staticmethod
     def get_import_path_of_module(root_path:str, module_name:str) -> Optional[str]:
         root_path_list:list = [root_path]
-        root_path_list.append(root_path.replace("./",TORCH_JAEKWON_PATH))
+        root_path_list.append(root_path.replace("./",f'{TORCH_JAEKWON_PATH}/'))
         
         for root_path in root_path_list:
             for root,dirs,files in os.walk(root_path):
@@ -23,7 +23,8 @@ class GetModule:
                     for file in files:
                         if os.path.splitext(file)[0] == module_name:
                             if TORCH_JAEKWON_PATH in root:
-                                return f'{root}/{os.path.splitext(file)[0]}'.replace(TORCH_JAEKWON_PATH+'/','').replace("/",".")
+                                torch_jaekwon_parent_path:str = '/'.join(TORCH_JAEKWON_PATH.split('/')[:-1])
+                                return f'{root}/{os.path.splitext(file)[0]}'.replace(torch_jaekwon_parent_path+'/','').replace("/",".")
                             else:
                                 return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
         return None

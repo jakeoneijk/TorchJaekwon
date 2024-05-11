@@ -9,6 +9,8 @@ echo *.pt >> .gitignore
 echo *.pth >> .gitignore
 echo *.ckpt >> .gitignore
 
-source 1_git_add_all_ext.sh py
-source 1_git_add_all_ext.sh sh
-source 1_git_add_all_ext.sh yaml
+source ./Script/2_git_add_all_ext.sh py
+source ./Script/2_git_add_all_ext.sh sh
+source ./Script/2_git_add_all_ext.sh yaml
+source ./Script/2_git_add_all_ext.sh json
+source ./Script/2_git_add_all_ext.sh txt

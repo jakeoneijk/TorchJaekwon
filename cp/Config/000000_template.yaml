@@ -17,7 +17,10 @@ pytorch_data:
         dataset_load_on_memory: True
       batch_sampler:
         class_meta: { 'name' : '', 'args' : {}}
+      shuffle: True
       collate_fn: True
+      pin_memory: True
+      drop_last: True
     valid:
       batch_size: 16
       num_workers: 15
