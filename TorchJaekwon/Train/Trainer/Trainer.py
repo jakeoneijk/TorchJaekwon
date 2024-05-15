@@ -228,7 +228,10 @@ class Trainer():
 
     def data_dict_to_device(self,data_dict:dict) -> dict:
         for feature_name in data_dict:
-            data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
+            if isinstance(data_dict[feature_name],dict):
+                data_dict[feature_name] = self.data_dict_to_device(data_dict[feature_name])
+            else:
+                data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
         return data_dict
     
     def set_data_loader(self,dataset_dict=None):

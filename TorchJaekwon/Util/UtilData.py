@@ -16,11 +16,11 @@ from inspect import isfunction
 class UtilData:
 
     @staticmethod
-    def get_file_name_from_path(path:str, with_ext:bool = False) -> str:
-        if path is None:
+    def get_file_name(file_path:str, with_ext:bool = False) -> str:
+        if file_path is None:
             print("warning: path is None")
             return ""
-        path_pathlib = Path(path)
+        path_pathlib = Path(file_path)
         if with_ext:
             return path_pathlib.name
         else:
@@ -127,21 +127,8 @@ class UtilData:
         return feature
     
     @staticmethod
-    def list_of_dict_to_dict_batch(input_dict:List[Dict[str,ndarray]],output_type:str = ['numpy','torch'][1]) -> Dict[str,ndarray]:
-        batch_dict: Dict[str,list] = {feature_name: list() for feature_name in input_dict[0]}
-        for feature_dict in input_dict:
-            for feature_name in feature_dict:
-                batch_dict[feature_name].append(feature_dict[feature_name])
-        for feature_name in batch_dict:
-            if output_type == 'numpy':
-                batch_dict[feature_name] = np.array(batch_dict[feature_name])
-            elif output_type == 'torch':
-                batch_dict[feature_name] = torch.from_numpy(np.array(batch_dict[feature_name]))
-        return batch_dict
-    
-    @staticmethod
-    def sort_dict_list_by_key(dict_list:List[dict], key:str):
-        return sorted(dict_list, key=lambda dictionary: dictionary[key])
+    def sort_dict_list( dict_list: List[dict], key:str, reverse:bool = False):
+        return sorted(dict_list, key = lambda dictionary: dictionary[key], reverse=reverse)
     
     @staticmethod
     def random_segment(data:ndarray, data_length:int) -> ndarray:
@@ -176,9 +163,9 @@ class UtilData:
         if ext is None:
             return os.listdir(dir_name)
         elif isinstance(ext,list):
-            return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext]
+            return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext]
         else:
-            return [file_name for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
+            return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
     
     @staticmethod
     def walk(dir_name:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
@@ -187,9 +174,9 @@ class UtilData:
             for filename in tqdm(files, desc=f'walk {root}'):
                 if os.path.splitext(filename)[-1] in ext:
                     file_meta_list.append({
+                        'file_name': UtilData.get_file_name( file_path = filename ),
                         'file_path': f'{root}/{filename}',
-                        'file_name': UtilData.get_file_name_from_path(filename),
-                        'dir': root.replace(dir_name,''),
+                        'dir_name': root.replace(dir_name,'').replace('/',''),
                         'dir_path': root,
                     })
         return file_meta_list

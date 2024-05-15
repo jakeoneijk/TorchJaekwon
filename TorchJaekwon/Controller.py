@@ -35,7 +35,8 @@ class Controller():
                 preprocessor_args:dict = {
                     'data_name': data_name,
                     'root_dir': HParams().data.root_path,
-                    'num_workers': HParams().resource.preprocess['num_workers']
+                    'num_workers': HParams().resource.preprocess['num_workers'],
+                    'device': HParams().resource.device,
                 }
                 preprocessor_args.update(preprocessor_meta['args'])
 

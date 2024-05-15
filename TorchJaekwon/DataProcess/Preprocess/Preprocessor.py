@@ -4,18 +4,21 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 import os
 import time
+import torch
 from tqdm import tqdm
 
 class Preprocessor(ABC):
     def __init__(self,
                  data_name:str,
                  root_dir:str,
-                 num_workers:int = 1
+                 device:torch.device,
+                 num_workers:int = 1,
                  ) -> None:
         # args to class variable
         self.data_name:str = data_name
         self.root_dir:str = root_dir
         self.num_workers:int = num_workers
+        self.device:torch.device = device
 
         self.output_dir = self.get_output_dir()
         os.makedirs(self.output_dir,exist_ok=True)
