@@ -147,6 +147,7 @@ class UtilData:
                    length:int,
                    dim:int = -1
                    ) -> Tensor:
+        assert len(data.shape) in [2,3], "Error[UtilData.fix_length] only support when data.shape is 2 or 3"
         if data.shape[dim] < length:
             if isinstance(data,Tensor):
                 return F.pad(data, (0,length - data.shape[dim]), "constant", 0)

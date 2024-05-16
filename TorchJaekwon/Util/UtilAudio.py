@@ -1,8 +1,7 @@
 from typing import Optional, Literal, Union, Final, List
 from numpy import ndarray
-try: from torch import Tensor
-except: print('import error: torch')
 
+from tqdm import tqdm
 import numpy as np
 import soundfile as sf
 import librosa
@@ -10,10 +9,14 @@ from scipy.signal import resample_poly
 
 try: import torch 
 except: print('import error: torch')
+try: from torch import Tensor
+except: print('')
 try: import torchaudio
 except: print('import error: torch')
 try: from pydub import AudioSegment  
 except: print('import error: pydub')
+
+from TorchJaekwon.Util.UtilData import UtilData
 
 DATA_TYPE_MIN_MAX_DICT:Final[dict] = {'float32':(-1,1), 'float64':(-1,1), 'int16':(-2**15, 2**15-1), 'int32':(-2**31,2**31-1)}
 
@@ -159,4 +162,47 @@ class UtilAudio:
             audio_list[i][-overlap_length:] *= cross_fade_out
             output_audio[start_idx:start_idx+segment_length] += audio_list[i]
         return output_audio
+    
+    @staticmethod
+    def analyze_audio_dataset(data_dir:str, 
+                              result_save_dir:str,
+                              sanity_check_sr:Union[int,List[int]] = None,
+                              save_each_meta:bool = False
+                              ) -> None:
+        total_meta_dict:dict = {
+            'total_sample_length': 0,
+            'total_duration_second': 0,
+            'total_duration_minutes': 0,
+            'total_duration_hours': 0,
+
+            'longest_sample_meta': {
+                'file_name': '',
+                'sample_length':0
+            }
+        }
+        if sanity_check_sr is not None: total_meta_dict['sample_rate'] = sanity_check_sr
+        
+        audio_meta_data_list = UtilData.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
+        for meta_data in tqdm(audio_meta_data_list):
+            audio, sr = UtilAudio.read(meta_data['file_path'], mono=True)
+            if sanity_check_sr is not None: 
+                if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+                if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+            meta_data_of_this_file = {
+                'file_name': meta_data['file_name'],
+                'sample_length': len(audio),
+                'duration_second': len(audio) / sr
+            }
+            save_dir:str = meta_data['dir_path'].replace(data_dir, result_save_dir)
+            if save_each_meta: UtilData.pickle_save(f'''{save_dir}/{meta_data['file_name']}.pkl''', meta_data_of_this_file)
+
+            total_meta_dict['total_sample_length'] += meta_data_of_this_file['sample_length']
+            if total_meta_dict['longest_sample_meta']['sample_length'] < meta_data_of_this_file['sample_length']:
+                total_meta_dict['longest_sample_meta'] = meta_data_of_this_file
+        
+        total_meta_dict['total_duration_second'] = total_meta_dict['total_sample_length'] / sr
+        total_meta_dict['total_duration_minutes'] = total_meta_dict['total_duration_second'] / 60
+        total_meta_dict['total_duration_hours'] = total_meta_dict['total_duration_second'] / 3600
+        UtilData.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = total_meta_dict)
+        
 

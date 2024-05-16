@@ -71,6 +71,11 @@ class Inferencer():
     def save_data(self, output_dir_path:str, shared_output_dir_path:str, meta_data:dict, data_dict:dict) -> None:
         pass
     
+    @torch.no_grad()
+    def update_data_dict_by_model_inference(self, data_dict: dict) -> dict:
+        if type(data_dict["model_input"]) == Tensor:
+            data_dict["pred"] = self.model(data_dict["model_input"].to(self.device))
+        return data_dict
     '''
     ==============================================================
     abstract method end
@@ -93,7 +98,7 @@ class Inferencer():
 
         for pretrained_path in pretrained_path_list:
             self.pretrained_load(pretrained_path) 
-            pretrained_name:str = UtilData.get_file_name_from_path(pretrained_path)
+            pretrained_name:str = UtilData.get_file_name(file_path=pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
                 output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,meta_data=meta_data)
@@ -103,12 +108,6 @@ class Inferencer():
                 data_dict:dict = self.post_process(data_dict)
 
                 self.save_data(output_dir_path, shared_output_dir_path, meta_data, data_dict)    
-    
-    @torch.no_grad()
-    def update_data_dict_by_model_inference(self, data_dict: dict) -> dict:
-        if type(data_dict["model_input"]) == Tensor:
-            data_dict["pred"] = self.model(data_dict["model_input"].to(self.device))
-        return data_dict
                     
     def get_pretrained_path_list(self,
                                  pretrain_root_dir:str,
