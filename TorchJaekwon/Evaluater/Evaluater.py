@@ -50,7 +50,7 @@ class Evaluater():
             test_set_name:str = eval_dir.split('/')[-1]
             UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
             for metric_name in result_dict['metric_name_list']:
-                UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list_by_key(result_dict['result'],metric_name))
+                UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
         result_dict_list:List[dict] = list()

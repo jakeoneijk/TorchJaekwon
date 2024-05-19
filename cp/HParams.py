@@ -112,9 +112,10 @@ class HParams(Singleton):
             config_dict:dict = yaml.safe_load(yaml_file)
         self.set_h_params_from_dict(config_dict)
     
-    def set_config(self,config_path:str) -> None:
-        self.mode.config_name = UtilData.get_file_name_from_path(config_path)
-        self.mode.config_path = config_path
+    def set_config(self,config_path:str = None) -> None:
+        if config_path is not None:
+            self.mode.config_name = config_path.split('Config/')[-1]
+            self.mode.config_path = config_path
         self.mode.resume_path = f"./Train/Log/{self.mode.config_name}"
         self.load_config()
     

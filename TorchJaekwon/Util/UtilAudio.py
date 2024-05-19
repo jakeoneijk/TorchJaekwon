@@ -1,6 +1,7 @@
 from typing import Optional, Literal, Union, Final, List
 from numpy import ndarray
 
+import os
 from tqdm import tqdm
 import numpy as np
 import soundfile as sf
@@ -45,13 +46,15 @@ class UtilAudio:
         elif resample_module == 'resample_poly':
             return resample_poly(x = audio, up = target_sr, down = origin_sr)
         elif resample_module == 'torchaudio':
+            #transforms.Resample precomputes and caches the kernel used for resampling, while functional.resample computes it on the fly
+            #so using torchaudio.transforms.Resample will result in a speedup when resampling multiple waveforms using the same parameters
             return torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr)(audio)
     
     @staticmethod
     def read(audio_path:str,
              sample_rate:Optional[int] = None,
              mono:Optional[bool] = None,
-             module_name:Literal['soundfile','librosa', 'torchaudio'] = 'soundfile',
+             module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
              return_type:Union[ndarray, Tensor] = ndarray
             ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
         
@@ -70,7 +73,7 @@ class UtilAudio:
         elif module_name == 'torchaudio':
             audio_data, original_samplerate = torchaudio.load(audio_path) #[channel, time], int
             if sample_rate is not None and sample_rate != original_samplerate:
-                audio_data = torchaudio.transforms.Resample(orig_freq = original_samplerate, new_freq = sample_rate)(audio_data)
+                audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_samplerate, target_sr = sample_rate, resample_module='torchaudio')
                 
         if mono is not None:
             if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:
@@ -84,6 +87,17 @@ class UtilAudio:
         assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'[read audio shape problem] path: {audio_path} shape: {audio_data.shape}'
             
         return audio_data, original_samplerate if sample_rate is None else sample_rate
+    
+    @staticmethod
+    def write(audio_path:str,
+              audio:Union[ndarray, Tensor],
+              sample_rate:int,
+              ) -> None:
+        if isinstance(audio, Tensor):
+            audio = audio.squeeze().cpu().detach().numpy()
+        assert len(audio.shape) <= 2, f'[Error] shape of {audio_path}: {audio.shape}'
+        if audio.shape[0] < audio.shape[1]: audio = audio.T
+        sf.write(file = audio_path, data = audio, samplerate = sample_rate)
     
     @staticmethod
     def stereo_to_mono(audio_data:Union[ndarray, Tensor]) -> Union[ndarray, Tensor]:
@@ -170,37 +184,46 @@ class UtilAudio:
                               save_each_meta:bool = False
                               ) -> None:
         total_meta_dict:dict = {
-            'total_sample_length': 0,
             'total_duration_second': 0,
             'total_duration_minutes': 0,
             'total_duration_hours': 0,
 
             'longest_sample_meta': {
                 'file_name': '',
-                'sample_length':0
-            }
+                'duration_second':0
+            },
+
+            'error_file_list': list()
         }
         if sanity_check_sr is not None: total_meta_dict['sample_rate'] = sanity_check_sr
         
         audio_meta_data_list = UtilData.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
         for meta_data in tqdm(audio_meta_data_list):
-            audio, sr = UtilAudio.read(meta_data['file_path'], mono=True)
+            try:
+                audio, sr = UtilAudio.read(meta_data['file_path'], mono=True)
+            except:
+                print(f'Error: {meta_data["file_path"]}')
+                total_meta_dict['error_file_list'].append(meta_data['file_path'])
+                continue
             if sanity_check_sr is not None: 
                 if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
                 if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+            
             meta_data_of_this_file = {
                 'file_name': meta_data['file_name'],
+                'file_path': os.path.abspath(meta_data['file_path']),
                 'sample_length': len(audio),
-                'duration_second': len(audio) / sr
+                'duration_second': len(audio) / sr,
+                'sample_rate': sr,
             }
+            
             save_dir:str = meta_data['dir_path'].replace(data_dir, result_save_dir)
             if save_each_meta: UtilData.pickle_save(f'''{save_dir}/{meta_data['file_name']}.pkl''', meta_data_of_this_file)
 
-            total_meta_dict['total_sample_length'] += meta_data_of_this_file['sample_length']
-            if total_meta_dict['longest_sample_meta']['sample_length'] < meta_data_of_this_file['sample_length']:
+            total_meta_dict['total_duration_second'] += meta_data_of_this_file['duration_second']
+            if total_meta_dict['longest_sample_meta']['duration_second'] < meta_data_of_this_file['duration_second']:
                 total_meta_dict['longest_sample_meta'] = meta_data_of_this_file
         
-        total_meta_dict['total_duration_second'] = total_meta_dict['total_sample_length'] / sr
         total_meta_dict['total_duration_minutes'] = total_meta_dict['total_duration_second'] / 60
         total_meta_dict['total_duration_hours'] = total_meta_dict['total_duration_second'] / 3600
         UtilData.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = total_meta_dict)
