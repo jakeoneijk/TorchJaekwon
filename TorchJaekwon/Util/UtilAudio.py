@@ -54,6 +54,8 @@ class UtilAudio:
     def read(audio_path:str,
              sample_rate:Optional[int] = None,
              mono:Optional[bool] = None,
+             start_idx:int = 0,
+             end_idx:Optional[int] = None,
              module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
              return_type:Union[ndarray, Tensor] = ndarray
             ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
@@ -71,7 +73,11 @@ class UtilAudio:
             audio_data, original_samplerate = librosa.load( audio_path, sr=sample_rate, mono=mono)
         
         elif module_name == 'torchaudio':
-            audio_data, original_samplerate = torchaudio.load(audio_path) #[channel, time], int
+            if end_idx is not None: assert end_idx > start_idx, f'[Error] end_idx must be larger than start_idx'
+            #[channel, time], int
+            audio_data, original_samplerate = torchaudio.load(audio_path, 
+                                                              frame_offset = start_idx, 
+                                                              num_frames = -1 if end_idx is None else end_idx - start_idx)
             if sample_rate is not None and sample_rate != original_samplerate:
                 audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_samplerate, target_sr = sample_rate, resample_module='torchaudio')
                 
