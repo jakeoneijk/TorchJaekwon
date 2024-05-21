@@ -102,7 +102,7 @@ class UtilAudio:
         if isinstance(audio, Tensor):
             audio = audio.squeeze().cpu().detach().numpy()
         assert len(audio.shape) <= 2, f'[Error] shape of {audio_path}: {audio.shape}'
-        if audio.shape[0] < audio.shape[1]: audio = audio.T
+        if len(audio.shape) == 2 and audio.shape[0] < audio.shape[1]: audio = audio.T
         sf.write(file = audio_path, data = audio, samplerate = sample_rate)
     
     @staticmethod
@@ -218,10 +218,10 @@ class UtilAudio:
             meta_data_of_this_file = {
                 'file_name': meta_data['file_name'],
                 'file_path': os.path.abspath(meta_data['file_path']),
-                'sample_length': len(audio),
-                'duration_second': len(audio) / sr,
+                'sample_length': audio.shape[-1],
                 'sample_rate': sr,
             }
+            meta_data_of_this_file['duration_second'] = meta_data_of_this_file['sample_length'] / meta_data_of_this_file['sample_rate']
             
             save_dir:str = meta_data['dir_path'].replace(data_dir, result_save_dir)
             if save_each_meta: UtilData.pickle_save(f'''{save_dir}/{meta_data['file_name']}.pkl''', meta_data_of_this_file)
