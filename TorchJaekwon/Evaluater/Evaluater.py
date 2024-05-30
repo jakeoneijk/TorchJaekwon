@@ -47,6 +47,8 @@ class Evaluater():
         for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):
             meta_data_list: List[dict] = self.get_meta_data_list(eval_dir)
             result_dict:dict = self.get_result_dict(meta_data_list)
+            result_dict['statistic'].update(self.set_eval(eval_dir=eval_dir))
+
             test_set_name:str = eval_dir.split('/')[-1]
             UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
             for metric_name in result_dict['metric_name_list']:
@@ -75,3 +77,6 @@ class Evaluater():
             result_dict[metric_name]['median'] = float(np.median(result_list_dict[metric_name]))
             result_dict[metric_name]['std'] = float(np.std(result_list_dict[metric_name]))
         return result_dict
+    
+    def set_eval(self, eval_dir:str) -> dict: #key: metric_name
+        return dict()

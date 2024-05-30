@@ -38,6 +38,28 @@ class UtilTorch:
         return {'total':num_param, 'trainable':trainable_param}
     
     @staticmethod
+    def freeze_param(model:nn.Module) -> nn.Module:
+        model = model.eval()
+        model.train = lambda self: self #override train with useless function
+        for param in model.parameters():
+            param.requires_grad = False
+        return model
+    
+    @staticmethod
+    def update_ema(ema_model:nn.Module, model:nn.Module, decay:float=0.9999) -> None:
+        """
+        Step the EMA model towards the current model.
+        """
+        with torch.no_grad():
+            ema_params = OrderedDict(ema_model.named_parameters())
+            model_params = OrderedDict(model.named_parameters())
+
+            for name, param in model_params.items():
+                name = name.replace("module.", "")
+                # TODO: Consider applying only to params that require_grad to avoid small numerical changes of pos_embed
+                ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
+    
+    @staticmethod
     def get_model_device(model:nn.Module) -> device:
         return next(model.parameters()).device
     
@@ -55,14 +77,6 @@ class UtilTorch:
         elif len(input.shape) == 4:
             shape_after_interpolation = (input.shape[0],input.shape[1],*(size_after_interpolation))
         return F.interpolate(input, size = size_after_interpolation, mode=mode).view(shape_after_interpolation)
-    
-    @staticmethod
-    def freeze_param(model:nn.Module) -> nn.Module:
-        model = model.eval()
-        model.train = lambda self: self #override train with useless function
-        for param in model.parameters():
-            param.requires_grad = False
-        return model
     
     @staticmethod
     def tsne_plot(save_file_path:str,

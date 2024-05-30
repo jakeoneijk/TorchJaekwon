@@ -99,6 +99,7 @@ class UtilAudio:
               audio:Union[ndarray, Tensor],
               sample_rate:int,
               ) -> None:
+        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
         if isinstance(audio, Tensor):
             audio = audio.squeeze().cpu().detach().numpy()
         assert len(audio.shape) <= 2, f'[Error] shape of {audio_path}: {audio.shape}'
