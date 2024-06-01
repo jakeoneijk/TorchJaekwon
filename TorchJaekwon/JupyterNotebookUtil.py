@@ -10,7 +10,8 @@ except:  print('[error] there is no torch package')
 
 import re
 
-from TorchJaekwon.Util.UtilAudio import UtilAudio   
+from TorchJaekwon.Util.UtilAudio import UtilAudio  
+from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec 
 from TorchJaekwon.Util.UtilData import UtilData
 
 LOWER_IS_BETTER_SYMBOL = "↓"
@@ -20,13 +21,28 @@ PLUS_MINUS_SYMBOL = "±"
 class JupyterNotebookUtil():
     def __init__(self, output_dir:str = None) -> None:
         self.indent:str = '  '
-        self.media_idx_dict:dict = {'audio':0}
+        self.media_idx_dict:dict = {'audio':0, 'img':0}
         self.html_start_list:List[str] = [
             '<!DOCTYPE html>',
             '<head>',
             '<meta charset="utf-8" />',
             '<meta name="viewport" content="width=device-width, initial-scale=1" />',
             '<meta name="theme-color" content="#000000" />',
+            '<style>',
+            'h1, th, td {',
+            'font-family: Arial, sans-serif;',
+            '}',
+            'table {',
+            'border: 1px solid #444444;',
+            'border-collapse: collapse;',
+            '}',
+            '.table-data {',
+            'display: flex;',
+            'align-items: center;',
+            'justify-content: center;',
+            'border: 1px;',
+            '}',
+            '</style>',
             '</head>',
             '<body>',
             '<div id="root">',
@@ -65,7 +81,7 @@ class JupyterNotebookUtil():
         for html_dict in dict_list:
             html_list.append('<tr>')
             for table_head_item in table_head_item_list:
-                html_list.append(f'<td>{html_dict[table_head_item]}</td>')
+                html_list.append(f'''<td>{html_dict.get(table_head_item,'')}</td>''')
             html_list.append('</tr>')
         html_list.append('</tbody>')
         html_list.append('</table>')
@@ -78,10 +94,18 @@ class JupyterNotebookUtil():
                       ) -> str:
         return f'<{tag}>{text}</{tag}>'
     
+    def get_html_img(self,
+                     src_path:str = None,
+                     width:int=150
+                    ) -> str: #html code
+        style:str = '' if width is None else f'style="width:{width}px"'
+        return f'''<img src="{src_path}" {style}/>'''
+    
     def get_html_audio(self,
                        audio_path:str = None,
                        cp_to_html_dir:bool = True,
                        sample_rate:int = None,
+                       mel_spec_plot:bool = False,
                        width:int=200
                        ) -> str:
         style:str = '' if width is None else f'style="width:{width}px"'
@@ -91,7 +115,19 @@ class JupyterNotebookUtil():
             self.media_idx_dict["audio"] += 1
             UtilAudio.write(audio_path, audio, sample_rate)
             audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
-        return f'''<audio controls {style}><source src="{audio_path}" type="audio/wav" /></audio>'''
+
+        audio_html_code:str = f'''<audio controls {style}><source src="{audio_path}" type="audio/wav" /></audio>'''
+        if not mel_spec_plot:
+            return audio_html_code
+        else:
+            mel_spec_util = UtilAudioMelSpec(**UtilAudioMelSpec.get_default_mel_spec_config(sample_rate))
+            mel_spec = mel_spec_util.get_hifigan_mel_spec(audio)
+            if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
+            img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(3)}.png'
+            self.media_idx_dict["img"] += 1
+            mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
+            img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
+            return audio_html_code, self.get_html_img(img_path, width)
     
     def get_html_tag_list(self, html_str:str) -> List[str]:
         html_tag_list = re.findall(r'</?[^>]+>', html_str)
@@ -105,32 +141,29 @@ class JupyterNotebookUtil():
         final_html_list:list = self.html_start_list + html_list + self.html_end_list
         indent_depth:int = 0
         for idx in range(1, len(final_html_list)):
-            prev_tag_list = self.get_html_tag_list(final_html_list[idx - 1])
-            current_tag_list = self.get_html_tag_list(final_html_list[idx])
-            if prev_tag_list[0] != current_tag_list[0]:
-                if '</' in current_tag_list[0]:
-                    indent_depth -= 1
-                elif len(prev_tag_list) < 2 and not '</' in prev_tag_list[0]:
-                    indent_depth += 1
-                
+            indent_depth += self.get_indent_depth_changed(final_html_list[idx - 1], final_html_list[idx])
             final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
         UtilData.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
+    
+    def get_indent_depth_changed(self, prev_str:str, current_str:str) -> bool:
+        prev_tag_list = self.get_html_tag_list(prev_str)
+        current_tag_list = self.get_html_tag_list(current_str)
+        if len(current_tag_list) == 0 or len(prev_tag_list) == 0:
+            return 0
         
-    def get_html_media(type:Literal['audio','img'],
-                       src_path:str = None,
-                       data: dict = None, # {'data': Union[ndarray, Tensor], 'meta_data': { 'sample_rate': int }}
-                       width:int=150
-                       ) -> str: #html code
-        assert src_path is not None or data is not None, '[Error] src_path or data must be not None'
-        if data is not None:
-            if type == "audio":
-                return f'''<audio controls {style}><source src="data:audio/wav;base64,{data}" /></audio>'''
+        if prev_tag_list[0] == current_tag_list[0]:
+            return 0
 
-        style:str = '' if width is None else f'style="width:{width}px"'
-        if type == "audio":
-            return f'''<audio controls {style}><source src="{src_path}" type="audio/wav" /></audio>''' #
-        elif type == "img":
-            return f'''<img src="{src_path}" {style}/>'''
+        if '</' in current_tag_list[0]:
+            return -1
+        
+        for prev_tag in prev_tag_list: 
+            if '/' in prev_tag: 
+                return 0
+        
+        if len(prev_tag_list) < 2 and not '</' in prev_tag_list[0]:
+            return 1
+        return 0
     
     @staticmethod
     def display_html_list(html_list:list) -> None:
