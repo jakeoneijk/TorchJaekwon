@@ -36,11 +36,10 @@ class JupyterNotebookUtil():
             'border: 1px solid #444444;',
             'border-collapse: collapse;',
             '}',
-            '.table-data {',
+            '.media-div {',
             'display: flex;',
             'align-items: center;',
             'justify-content: center;',
-            'border: 1px;',
             '}',
             '</style>',
             '</head>',
@@ -99,7 +98,7 @@ class JupyterNotebookUtil():
                      width:int=150
                     ) -> str: #html code
         style:str = '' if width is None else f'style="width:{width}px"'
-        return f'''<img src="{src_path}" {style}/>'''
+        return f'''<div class="media-div"> <img src="{src_path}" {style}/> </div>'''
     
     def get_html_audio(self,
                        audio_path:str = None,
@@ -116,7 +115,7 @@ class JupyterNotebookUtil():
             UtilAudio.write(audio_path, audio, sample_rate)
             audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
 
-        audio_html_code:str = f'''<audio controls {style}><source src="{audio_path}" type="audio/wav" /></audio>'''
+        audio_html_code:str = f'''<div class="media-div"> <audio controls {style}><source src="{audio_path}" type="audio/wav" /></audio> </div>'''
         if not mel_spec_plot:
             return audio_html_code
         else:
