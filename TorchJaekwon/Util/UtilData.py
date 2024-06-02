@@ -70,6 +70,13 @@ class UtilData:
             return txtfile.readlines()
     
     @staticmethod
+    def txt_save(save_path:str, string_list:List[str], new_file:bool = True) -> list:
+         os.makedirs(os.path.dirname(save_path), exist_ok=True)
+         with open(save_path, 'w' if new_file else 'a') as file:
+            for line in string_list:
+                file.write(f'{line}\n')
+    
+    @staticmethod
     def csv_save(file_path:str,
                  data_dict_list:List[Dict[str,object]], #[ {key:object}, ... ]
                  order_of_key:list = None # [key1, key2, ...]
