@@ -267,6 +267,9 @@ class DDPM(nn.Module):
     def get_x_shape(self, cond:Optional[Union[dict,Tensor]] = None):
         return None
 
+if __name__ == '__main__':
+    DDPM(model = 'debug')
+
     
     
         
