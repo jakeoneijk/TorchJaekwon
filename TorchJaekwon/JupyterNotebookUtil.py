@@ -1,12 +1,8 @@
-from typing import List, Literal, Union
+from typing import List, Literal, Union, Tuple
 try: import IPython.display as ipd
 except:  print('[error] there is no IPython package')
 try: import pandas as pd
 except:  print('[error] there is no pandas package')
-try: import numpy as np
-except:  print('[error] there is no numpy package')
-try: import torch
-except:  print('[error] there is no torch package')
 
 import re
 
@@ -54,11 +50,18 @@ class JupyterNotebookUtil():
         self.output_dir:str = output_dir
         self.media_save_dir_name:str = 'media'
     
-    def dict_list_to_html_list(self, dict_list: List[dict], use_pandas:bool = False) -> List[str]:
+    def get_table_html_list(self,
+                            dict_list: List[dict],
+                            use_pandas:bool = False
+                            ) -> List[str]:
         '''
+        Keys will be the table head items
+        Values will be the table body items
+
         dict_list = [
-        {'name':'testaudio','audio1':html_code, 'audio2':html_code, 'image1':html_code ...}
-        {'name':'testaudio','audio1':html_code, 'audio2':html_code, 'image1':html_code ...}
+        {'name':'test_sample_name', 'model1': html_code/float/str, 'model2': html_code/float/str, ...},
+        /
+        {'name':'model_name', 'metric1': html_code/float/str, 'metric2': html_code/float/str, ...},
         ...
         ]
         '''
@@ -80,12 +83,20 @@ class JupyterNotebookUtil():
         for html_dict in dict_list:
             html_list.append('<tr>')
             for table_head_item in table_head_item_list:
-                html_list.append(f'''<td>{html_dict.get(table_head_item,'')}</td>''')
+                html_list.append(f'''<td><div class="media-div">{html_dict.get(table_head_item,'')}</div></td>''')
             html_list.append('</tr>')
         html_list.append('</tbody>')
         html_list.append('</table>')
 
         return html_list
+    
+    def save_html(self, html_list:List[str], file_name:str = 'plot.html') -> None:
+        final_html_list:list = self.html_start_list + html_list + self.html_end_list
+        indent_depth:int = 0
+        for idx in range(1, len(final_html_list)):
+            indent_depth += self.get_indent_depth_changed(final_html_list[idx - 1], final_html_list[idx])
+            final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
+        UtilData.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
     
     def get_html_text(self, 
                       text:str,
@@ -98,24 +109,24 @@ class JupyterNotebookUtil():
                      width:int=150
                     ) -> str: #html code
         style:str = '' if width is None else f'style="width:{width}px"'
-        return f'''<div class="media-div"> <img src="{src_path}" {style}/> </div>'''
+        return f'''<img src="{src_path}" {style}/>'''
     
     def get_html_audio(self,
                        audio_path:str = None,
                        cp_to_html_dir:bool = True,
                        sample_rate:int = None,
-                       mel_spec_plot:bool = False,
+                       mel_spec_plot:bool = True,
                        width:int=200
-                       ) -> str:
+                       ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
-            audio, _ = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
+            audio, sr = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
             audio_path = f'{self.output_dir}/{self.media_save_dir_name}/audio_{str(self.media_idx_dict["audio"]).zfill(3)}.wav'
             self.media_idx_dict["audio"] += 1
-            UtilAudio.write(audio_path, audio, sample_rate)
+            UtilAudio.write(audio_path=audio_path, audio=audio, sample_rate=sr)
             audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
 
-        audio_html_code:str = f'''<div class="media-div"> <audio controls {style}><source src="{audio_path}" type="audio/wav" /></audio> </div>'''
+        audio_html_code:str = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
         if not mel_spec_plot:
             return audio_html_code
         else:
@@ -135,14 +146,6 @@ class JupyterNotebookUtil():
             if len(html_str_split) > 1:
                 html_tag_list[idx] = html_str_split[0] + html_str_split[-1]
         return html_tag_list
-    
-    def save_html(self, html_list:List[str], file_name:str = 'plot.html') -> None:
-        final_html_list:list = self.html_start_list + html_list + self.html_end_list
-        indent_depth:int = 0
-        for idx in range(1, len(final_html_list)):
-            indent_depth += self.get_indent_depth_changed(final_html_list[idx - 1], final_html_list[idx])
-            final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
-        UtilData.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
     
     def get_indent_depth_changed(self, prev_str:str, current_str:str) -> bool:
         prev_tag_list = self.get_html_tag_list(prev_str)
@@ -169,29 +172,3 @@ class JupyterNotebookUtil():
         for html_result in html_list:
             ipd.display(ipd.HTML(html_result))
     
-    @staticmethod
-    def html_table_from_dict_list(dict_list: List[dict]):
-        '''
-        dict_list = [
-        {'name':'model1','metric1':float, 'metric2':float, ...}
-        {'name':'model2','metric1':float, 'metric2':float, ...}
-        ...
-        ]
-        '''
-        html:str = ''
-        new_line:str = '\n'
-        
-        html += '<table border="1">' + new_line
-
-        header_list = list(dict_list[0].keys())
-        for header_name in header_list:
-            html += f'<th>{header_name}</th>{new_line}'
-        
-        for body_dict in dict_list:
-            html += f'<tr>{new_line}'
-            for header_name in header_list:
-                html += f'<td>{body_dict[header_name]}</td>{new_line}'
-            html += f'</tr>{new_line}'
-
-        html+= '</table>'
-        return html
