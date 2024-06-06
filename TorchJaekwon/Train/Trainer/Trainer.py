@@ -309,6 +309,7 @@ class Trainer():
                 path = os.path.join(self.log_writer.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
                 UtilData.pickle_save(path,data)
                 self.save_module(self.model, name=f"nan_loss_step{self.global_step}")
+                self.save_checkpoint(f"nan_loss_step{self.global_step}.pth")
                 raise ValueError(f'loss is nan at step {self.global_step}')
         
             if train_state == TrainState.TRAIN:
