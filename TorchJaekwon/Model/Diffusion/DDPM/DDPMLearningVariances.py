@@ -33,7 +33,6 @@ class DDPMLearningVariances(DDPM):
             cond = cond, 
             is_cond_unpack = is_cond_unpack,
             clip_denoised=clip_denoised,
-            clip_denoised = clip_denoised,
         )
         noise = DiffusionUtil.noise_like(x.shape, device, repeat_noise)
         # no noise when t == 0
@@ -56,7 +55,7 @@ class DDPMLearningVariances(DDPM):
         model_output, model_var_values = torch.split(model_output, channel_size, dim=1)
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         mean_frozen_output = torch.cat([model_output.detach(), model_var_values], dim=1)
-        vlb_loss = self._vb_terms_bpd(x_start=x_start,
+        vlb_loss = self.vb_terms_bpd(x_start=x_start,
                                       x_t=x_noisy,
                                       t=t,
                                       cond=cond,
@@ -77,15 +76,15 @@ class DDPMLearningVariances(DDPM):
         if target.shape != model_output.shape: print(f'warning: target shape({target.shape}) and model shape({model_output.shape}) are different')
         return (self.loss_func(target, model_output) + vlb_loss).mean()
     
-    def _vb_terms_bpd(self,
-                      x_start, 
-                      x_t, 
-                      t,
-                      cond:Optional[Union[dict,Tensor]],
-                      is_cond_unpack:bool,
-                      model_output:Optional[Tensor] = None,
-                      clip_denoised=True, 
-                      ):
+    def vb_terms_bpd(self,
+                     x_start, 
+                     x_t, 
+                     t,
+                     cond:Optional[Union[dict,Tensor]],
+                     is_cond_unpack:bool,
+                     model_output:Optional[Tensor] = None,
+                     clip_denoised=True, 
+                    ):
         """
         Get a term for the variational lower-bound. 
         bits per dimension (bpd).
@@ -104,11 +103,11 @@ class DDPMLearningVariances(DDPM):
             model_output = model_output,
             clip_denoised=clip_denoised, 
         )
-        kl = UtilTorch.kl_div_gaussian( true_mean, true_log_variance_clipped, out["mean"], out["log_variance"])
+        kl = UtilTorch.kl_div_gaussian( true_mean, true_log_variance_clipped, out["pred_mean"], out["pred_log_variance"])
         kl = UtilTorch.mean_flat(kl) / np.log(2.0)
 
         decoder_nll = -DiffusionUtil.discretized_gaussian_log_likelihood(
-            x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
+            x_start, means=out["pred_mean"], log_scales=0.5 * out["pred_log_variance"]
         )
         assert decoder_nll.shape == x_start.shape
         decoder_nll = UtilTorch.mean_flat(decoder_nll) / np.log(2.0)
@@ -116,7 +115,7 @@ class DDPMLearningVariances(DDPM):
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = torch.where((t == 0), decoder_nll, kl)
-        return {"output": output, "pred_xstart": out["pred_xstart"]}
+        return {"output": output, "pred_x_start": out["pred_x_start"]}
     
     def p_mean_variance(self,
                         x:Tensor,
@@ -126,7 +125,7 @@ class DDPMLearningVariances(DDPM):
                         model_output:Optional[Tensor] = None,
                         denoised_fn:callable = None,
                         clip_denoised: bool = True, 
-                        ) -> Dict[Tensor]:
+                        ) -> Dict[str,Tensor]:
         B, C = x.shape[:2]
         assert t.shape == (B,)
         if model_output is None: model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack)
@@ -136,7 +135,7 @@ class DDPMLearningVariances(DDPM):
         #model learn variance
         model_output, model_var_values = torch.split(model_output, C, dim=1)
         min_log = DiffusionUtil.extract(self.posterior_log_variance_clipped, t, x.shape)
-        max_log = DiffusionUtil.extract(np.log(self.betas), t, x.shape)
+        max_log = DiffusionUtil.extract(torch.log(self.betas), t, x.shape)
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log

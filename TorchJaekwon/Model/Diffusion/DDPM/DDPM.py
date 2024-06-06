@@ -101,7 +101,7 @@ class DDPM(nn.Module):
                 cond:Optional[Union[dict,Tensor]] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
-            return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack)
+            return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, additional_data_dict = additional_data_dict)
     
     def p_losses(self, 
                  x_start:Tensor,
@@ -161,13 +161,15 @@ class DDPM(nn.Module):
     def infer(self,
               x_shape:tuple,
               cond:Optional[Union[dict,Tensor]],
-              is_cond_unpack:bool):
+              is_cond_unpack:bool,
+              additional_data_dict:dict):
+        if x_shape is None: x_shape = self.get_x_shape(cond)
         model_device:device = UtilTorch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sample time step', total=self.timesteps):
             x = self.p_sample(x = x, t = torch.full((x_shape[0],), i, device= model_device, dtype=torch.long), cond = cond, is_cond_unpack = is_cond_unpack)
         
-        return self.postprocess(x)
+        return self.postprocess(x, additional_data_dict = additional_data_dict)
     
     @torch.no_grad()
     def p_sample(self,
