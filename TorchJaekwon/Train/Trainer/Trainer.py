@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
-from TorchJaekwon.Train.Optimizer.OptimizerControl import OptimizerControl
+from TorchJaekwon.Util.UtilData import UtilData
 from TorchJaekwon.Train.AverageMeter import AverageMeter
 #internal import
 from HParams import HParams
@@ -304,6 +304,12 @@ class Trainer():
 
             self.local_step = step
             loss,metric = self.run_step(data,metric,train_state)
+
+            if torch.isnan(loss).any():
+                path = os.path.join(self.log_writer.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
+                UtilData.pickle_save(path,data)
+                self.save_module(self.model, name=f"nan_loss_step{self.global_step}")
+                raise ValueError(f'loss is nan at step {self.global_step}')
         
             if train_state == TrainState.TRAIN:
                 self.backprop(loss)
