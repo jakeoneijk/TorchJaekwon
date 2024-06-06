@@ -130,7 +130,7 @@ class JupyterNotebookUtil():
         if not mel_spec_plot:
             return audio_html_code
         else:
-            mel_spec_util = UtilAudioMelSpec(**UtilAudioMelSpec.get_default_mel_spec_config(sample_rate))
+            mel_spec_util = UtilAudioMelSpec(**UtilAudioMelSpec.get_default_mel_spec_config(sr))
             mel_spec = mel_spec_util.get_hifigan_mel_spec(audio)
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
             img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(3)}.png'

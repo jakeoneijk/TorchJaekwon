@@ -3,17 +3,43 @@
 Code Reference: https://github.com/facebookresearch/DiT
 '''
 #type
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 from torch import Tensor
 #package
 import torch
+import numpy as np
 #torchjaekwon
+from TorchJaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
+from TorchJaekwon.Util.UtilTorch import UtilTorch
 from TorchJaekwon.Util.UtilData import UtilData
 from TorchJaekwon.Model.Diffusion.DDPM.DDPM import DDPM
 
 class DDPMLearningVariances(DDPM):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+    
+    @torch.no_grad()
+    def p_sample(self,
+                 x:Tensor, 
+                 t:Tensor, 
+                 cond:Optional[Union[dict,Tensor]],
+                 is_cond_unpack:bool,
+                 clip_denoised:bool = True,
+                 repeat_noise:bool = False):
+        b, *_, device = *x.shape, x.device
+        out = self.p_mean_variance(
+            x = x,
+            t = t,
+            cond = cond, 
+            is_cond_unpack = is_cond_unpack,
+            clip_denoised=clip_denoised,
+            clip_denoised = clip_denoised,
+        )
+        noise = DiffusionUtil.noise_like(x.shape, device, repeat_noise)
+        # no noise when t == 0
+        nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
+
+        return out["pred_mean"] + nonzero_mask * torch.exp(0.5 * out["pred_log_variance"]) * noise
     
     def p_losses(self, 
                  x_start:Tensor,
@@ -30,10 +56,12 @@ class DDPMLearningVariances(DDPM):
         model_output, model_var_values = torch.split(model_output, channel_size, dim=1)
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         mean_frozen_output = torch.cat([model_output.detach(), model_var_values], dim=1)
-        vlb_loss = self._vb_terms_bpd(model=lambda *args, fixed_return_value = mean_frozen_output: fixed_return_value,
-                                      x_start=x_start,
-                                      x_t=x_t,
+        vlb_loss = self._vb_terms_bpd(x_start=x_start,
+                                      x_t=x_noisy,
                                       t=t,
+                                      cond=cond,
+                                      is_cond_unpack=is_cond_unpack,
+                                      model_output=mean_frozen_output,
                                       clip_denoised=False,
                                       )["output"]
 
@@ -47,11 +75,17 @@ class DDPMLearningVariances(DDPM):
             print(f'''model output type is {self.model_output_type}. It should be in [x_start, noise]''')
             raise NotImplementedError()
         if target.shape != model_output.shape: print(f'warning: target shape({target.shape}) and model shape({model_output.shape}) are different')
-        return self.loss_func(target, model_output) + vlb_loss
+        return (self.loss_func(target, model_output) + vlb_loss).mean()
     
-    def _vb_terms_bpd(
-            self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None
-    ):
+    def _vb_terms_bpd(self,
+                      x_start, 
+                      x_t, 
+                      t,
+                      cond:Optional[Union[dict,Tensor]],
+                      is_cond_unpack:bool,
+                      model_output:Optional[Tensor] = None,
+                      clip_denoised=True, 
+                      ):
         """
         Get a term for the variational lower-bound. 
         bits per dimension (bpd).
@@ -61,24 +95,68 @@ class DDPMLearningVariances(DDPM):
                  - 'output': a shape [N] tensor of NLLs or KLs.
                  - 'pred_xstart': the x_0 predictions.
         """
-        true_mean, _, true_log_variance_clipped = self.q_posterior_mean_variance(
-            x_start=x_start, x_t=x_t, t=t
-        )
+        true_mean, _, true_log_variance_clipped = self.q_posterior( x_start=x_start, x_t=x_t, t=t )
         out = self.p_mean_variance(
-            model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
+            x = x_t, 
+            t = t, 
+            cond = cond,
+            is_cond_unpack=is_cond_unpack,
+            model_output = model_output,
+            clip_denoised=clip_denoised, 
         )
-        kl = normal_kl(
-            true_mean, true_log_variance_clipped, out["mean"], out["log_variance"]
-        )
-        kl = mean_flat(kl) / np.log(2.0)
+        kl = UtilTorch.kl_div_gaussian( true_mean, true_log_variance_clipped, out["mean"], out["log_variance"])
+        kl = UtilTorch.mean_flat(kl) / np.log(2.0)
 
-        decoder_nll = -discretized_gaussian_log_likelihood(
+        decoder_nll = -DiffusionUtil.discretized_gaussian_log_likelihood(
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
         )
         assert decoder_nll.shape == x_start.shape
-        decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+        decoder_nll = UtilTorch.mean_flat(decoder_nll) / np.log(2.0)
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = torch.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
+    
+    def p_mean_variance(self,
+                        x:Tensor,
+                        t:Tensor,
+                        cond:Optional[Union[dict,Tensor]],
+                        is_cond_unpack:bool,
+                        model_output:Optional[Tensor] = None,
+                        denoised_fn:callable = None,
+                        clip_denoised: bool = True, 
+                        ) -> Dict[Tensor]:
+        B, C = x.shape[:2]
+        assert t.shape == (B,)
+        if model_output is None: model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack)
+
+        assert model_output.shape == (B, C * 2, *x.shape[2:])
+
+        #model learn variance
+        model_output, model_var_values = torch.split(model_output, C, dim=1)
+        min_log = DiffusionUtil.extract(self.posterior_log_variance_clipped, t, x.shape)
+        max_log = DiffusionUtil.extract(np.log(self.betas), t, x.shape)
+        # The model_var_values is [-1, 1] for [min_var, max_var].
+        frac = (model_var_values + 1) / 2
+        model_log_variance = frac * max_log + (1 - frac) * min_log
+        model_variance = torch.exp(model_log_variance)
+
+        if self.model_output_type == "noise":
+            x_recon = self.predict_start_from_noise(x, t=t, noise=model_output)
+        elif self.model_output_type == 'x_start':
+            x_recon = model_output
+
+        if denoised_fn is not None:
+            x = denoised_fn(x)
+        if clip_denoised:
+            x_recon.clamp_(-1., 1.)
+
+        model_mean, _, _ = self.q_posterior(x_start=x_recon, x_t=x, t=t)
+        assert model_mean.shape == model_log_variance.shape == x_recon.shape == x.shape
+        return {
+            "pred_mean": model_mean,
+            "pred_variance": model_variance,
+            "pred_log_variance": model_log_variance,
+            "pred_x_start": x_recon,
+        }

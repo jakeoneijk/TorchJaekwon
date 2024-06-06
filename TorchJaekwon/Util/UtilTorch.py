@@ -3,6 +3,7 @@ from torch import Tensor, dtype, device
 from numpy import ndarray
 
 import os
+from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -44,20 +45,6 @@ class UtilTorch:
         for param in model.parameters():
             param.requires_grad = False
         return model
-    
-    @staticmethod
-    def update_ema(ema_model:nn.Module, model:nn.Module, decay:float=0.9999) -> None:
-        """
-        Step the EMA model towards the current model.
-        """
-        with torch.no_grad():
-            ema_params = OrderedDict(ema_model.named_parameters())
-            model_params = OrderedDict(model.named_parameters())
-
-            for name, param in model_params.items():
-                name = name.replace("module.", "")
-                # TODO: Consider applying only to params that require_grad to avoid small numerical changes of pos_embed
-                ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
     
     @staticmethod
     def get_model_device(model:nn.Module) -> device:
@@ -110,3 +97,34 @@ class UtilTorch:
         plt.ylabel('')
 
         plt.savefig(save_file_path, bbox_inches='tight')
+    
+    @staticmethod
+    def update_ema(ema_model:nn.Module, model:nn.Module, decay:float=0.9999) -> None:
+        """
+        Step the EMA model towards the current model.
+        """
+        with torch.no_grad():
+            ema_params = OrderedDict(ema_model.named_parameters())
+            model_params = OrderedDict(model.named_parameters())
+
+            for name, param in model_params.items():
+                name = name.replace("module.", "")
+                # TODO: Consider applying only to params that require_grad to avoid small numerical changes of pos_embed
+                ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
+    
+    @staticmethod
+    def mean_flat(tensor):
+        """
+        Take the mean over all non-batch dimensions.
+        """
+        return tensor.mean(dim=list(range(1, len(tensor.shape))))
+
+    @staticmethod
+    def kl_div_gaussian(mean1:Tensor, logvar1:Tensor, mean2:Tensor, logvar2:Tensor) -> Tensor:
+        """
+        Compute KL(N(mean1, var1) || N(mean2, var2))
+        """
+        var1 = torch.exp(logvar1)
+        var2 = torch.exp(logvar2)
+        kl = 0.5 * (logvar2 - logvar1 + (var1 + (mean1 - mean2) ** 2) / var2 - 1)
+        return kl
