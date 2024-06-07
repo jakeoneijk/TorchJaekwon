@@ -55,14 +55,16 @@ class DDPMLearningVariances(DDPM):
         model_output, model_var_values = torch.split(model_output, channel_size, dim=1)
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         mean_frozen_output = torch.cat([model_output.detach(), model_var_values], dim=1)
+        
+
         vlb_loss = self.vb_terms_bpd(x_start=x_start,
-                                      x_t=x_noisy,
-                                      t=t,
-                                      cond=cond,
-                                      is_cond_unpack=is_cond_unpack,
-                                      model_output=mean_frozen_output,
-                                      clip_denoised=False,
-                                      )["output"]
+                                     x_t=x_noisy,
+                                     t=t,
+                                     cond=cond,
+                                     is_cond_unpack=is_cond_unpack,
+                                     model_output=mean_frozen_output,
+                                     clip_denoised=False,
+                                     )["output"]
 
         if self.model_output_type == 'x_start':
             target:Tensor = x_start
@@ -74,6 +76,7 @@ class DDPMLearningVariances(DDPM):
             print(f'''model output type is {self.model_output_type}. It should be in [x_start, noise]''')
             raise NotImplementedError()
         if target.shape != model_output.shape: print(f'warning: target shape({target.shape}) and model shape({model_output.shape}) are different')
+
         return (self.loss_func(target, model_output) + vlb_loss).mean()
     
     def vb_terms_bpd(self,

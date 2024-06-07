@@ -122,9 +122,9 @@ class UtilTorch:
     @staticmethod
     def kl_div_gaussian(mean1:Tensor, logvar1:Tensor, mean2:Tensor, logvar2:Tensor) -> Tensor:
         """
-        Compute KL(N(mean1, var1) || N(mean2, var2))
+        Compute the KL divergence between two gaussians.
+        Shapes are automatically broadcasted, so batches can be compared to
+        scalars, among other use cases.
         """
-        var1 = torch.exp(logvar1)
-        var2 = torch.exp(logvar2)
-        kl = 0.5 * (logvar2 - logvar1 + (var1 + (mean1 - mean2) ** 2) / var2 - 1)
-        return kl
+
+        return 0.5 * ( -1.0 + logvar2 - logvar1 + torch.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * torch.exp(-logvar2))

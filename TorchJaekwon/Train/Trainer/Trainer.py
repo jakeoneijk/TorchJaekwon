@@ -39,7 +39,8 @@ class Trainer():
                  total_epoch:int,
                  save_model_every_step:int,
                  seed: float,
-                 seed_strict:bool
+                 seed_strict:bool,
+                 debug_mode:bool = False
                  ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
@@ -70,6 +71,9 @@ class Trainer():
         self.best_valid_metric:dict[str,AverageMeter] = None
         self.best_valid_epoch:int = 0
         self.save_model_every_step:int = save_model_every_step
+        
+        if debug_mode:
+            torch.autograd.set_detect_anomaly(True)
 
         
     '''
@@ -396,6 +400,8 @@ class Trainer():
         return self.optimizer.param_groups[0]['lr']
     
     def lr_scheduler_step(self, call_state:Literal['step','epoch'], args = None):
+        if self.lr_scheduler is None:
+            return
         if self.h_params.train.scheduler['interval'] == call_state:
             if args is not None:
                 self.lr_scheduler.step(**args)
@@ -408,10 +414,12 @@ class Trainer():
             'step': self.global_step,
             'seed': self.seed,
             'optimizers': self.optimizer.state_dict(),
-            'lr_scheduler': self.lr_scheduler.state_dict(),
             'best_metric': self.best_valid_metric,
             'best_model_epoch' :  self.best_valid_epoch,
         }
+
+        if self.lr_scheduler is not None:
+            train_state['lr_scheduler'] = self.lr_scheduler.state_dict()
         
         train_state.update(self.get_model_state_dict(self.model))
 
@@ -439,6 +447,7 @@ class Trainer():
         self.model = self.model.to(self.device)
 
         self.optimizer.load_state_dict(cpt['optimizers'])
-        self.lr_scheduler.load_state_dict(cpt['lr_scheduler'])
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.load_state_dict(cpt['lr_scheduler'])
         self.best_valid_result = cpt['best_metric']
         self.best_valid_epoch = cpt['best_model_epoch']
