@@ -33,6 +33,8 @@ class DDPMLearningVariances(DDPM):
             cond = cond, 
             is_cond_unpack = is_cond_unpack,
             clip_denoised=clip_denoised,
+            cfg_scale=self.cfg_scale
+            
         )
         noise = DiffusionUtil.noise_like(x.shape, device, repeat_noise)
         # no noise when t == 0
@@ -128,10 +130,11 @@ class DDPMLearningVariances(DDPM):
                         model_output:Optional[Tensor] = None,
                         denoised_fn:callable = None,
                         clip_denoised: bool = True, 
+                        cfg_scale = None
                         ) -> Dict[str,Tensor]:
         B, C = x.shape[:2]
         assert t.shape == (B,)
-        if model_output is None: model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack)
+        if model_output is None: model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack, cfg_scale)
 
         assert model_output.shape == (B, C * 2, *x.shape[2:])
 

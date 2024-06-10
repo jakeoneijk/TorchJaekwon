@@ -38,8 +38,8 @@ class DpmSolverForDDPM:
         args:dict = {'model': self.ddpm_module.model, 'noise_schedule':noise_schedule, 'model_type': model_type_dict[self.ddpm_module.model_output_type], 'model_kwargs':{}}
         if cond is not None:
             args['model_kwargs'] = cond
-        if self.ddpm_module.sampling_guidance_scale is not None:
+        if self.ddpm_module.cfg_scale is not None:
             args['guidance_type'] = 'classifier-free'
             args['unconditional_condition'] = self.ddpm_module.get_unconditional_condition()
-            args['guidance_scale'] = self.ddpm_module.sampling_guidance_scale
+            args['guidance_scale'] = self.ddpm_module.cfg_scale
         return args

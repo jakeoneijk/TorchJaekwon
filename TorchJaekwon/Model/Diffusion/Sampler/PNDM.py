@@ -40,7 +40,7 @@ class PNDM:
         """
 
         noise_list = self.noise_list
-        noise_pred = self.ddpm_module.apply_model(x, t, cond, is_cond_unpack, self.ddpm_module.sampling_guidance_scale)
+        noise_pred = self.ddpm_module.apply_model(x, t, cond, is_cond_unpack, self.ddpm_module.cfg_scale)
 
         if len(noise_list) == 0:
             x_pred = self.get_x_pred(x, noise_pred, t, interval)
