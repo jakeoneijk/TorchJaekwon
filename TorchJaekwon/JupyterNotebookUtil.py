@@ -15,7 +15,10 @@ HIGHER_IS_BETTER_SYMBOL = "↑"
 PLUS_MINUS_SYMBOL = "±"
 
 class JupyterNotebookUtil():
-    def __init__(self, output_dir:str = None) -> None:
+    def __init__(self,
+                 output_dir:str = None,
+                 table_data_width:int = None
+                 ) -> None:
         self.indent:str = '  '
         self.media_idx_dict:dict = {'audio':0, 'img':0}
         self.html_start_list:List[str] = [
@@ -25,8 +28,12 @@ class JupyterNotebookUtil():
             '<meta name="viewport" content="width=device-width, initial-scale=1" />',
             '<meta name="theme-color" content="#000000" />',
             '<style>',
-            'h1, th, td {',
+            'h1, th {',
             'font-family: Arial, sans-serif;',
+            '}',
+            'td {',
+            'font-family: Arial, sans-serif;',
+            f'''width: {'fit-content' if table_data_width is None else table_data_width+'px'};''',
             '}',
             'table {',
             'border: 1px solid #444444;',
