@@ -121,7 +121,7 @@ class JupyterNotebookUtil():
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
             audio, sr = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
-            audio_path = f'{self.output_dir}/{self.media_save_dir_name}/audio_{str(self.media_idx_dict["audio"]).zfill(3)}.wav'
+            audio_path = f'{self.output_dir}/{self.media_save_dir_name}/audio_{str(self.media_idx_dict["audio"]).zfill(5)}.wav'
             self.media_idx_dict["audio"] += 1
             UtilAudio.write(audio_path=audio_path, audio=audio, sample_rate=sr)
             audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
@@ -133,7 +133,7 @@ class JupyterNotebookUtil():
             mel_spec_util = UtilAudioMelSpec(**UtilAudioMelSpec.get_default_mel_spec_config(sr))
             mel_spec = mel_spec_util.get_hifigan_mel_spec(audio)
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
-            img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(3)}.png'
+            img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
             self.media_idx_dict["img"] += 1
             mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
             img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'

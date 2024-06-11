@@ -165,3 +165,30 @@ class DDPMLearningVariances(DDPM):
             "pred_log_variance": model_log_variance,
             "pred_x_start": x_recon,
         }
+    
+    def apply_model(self,
+                    x:Tensor,
+                    t:Tensor,
+                    cond:Optional[Union[dict,Tensor]],
+                    is_cond_unpack:bool,
+                    cfg_scale:Optional[float] = None
+                    ) -> Tensor:
+        if cfg_scale is None or cfg_scale == 1.0:
+            if cond is None:
+                return self.model(x, t)
+            elif is_cond_unpack:
+                return self.model(x, t, **cond)
+            else:
+                return self.model(x, t, cond)
+        else:
+            unconditional_conditioning = self.get_unconditional_condition(cond=cond)
+            cond_and_uncond = torch.cat([cond, unconditional_conditioning], dim=0)
+            x_for_cond_and_uncond = torch.cat([x, x], dim=0)
+            model_output = self.model(x_for_cond_and_uncond, t, **cond_and_uncond) if is_cond_unpack else self.model(x_for_cond_and_uncond, t, cond_and_uncond)
+            
+            eps, var = torch.split(model_output, model_output.shape[1] // 2, dim=1)
+            cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
+            cond_var, _ = torch.split(var, len(var) // 2, dim=0)
+
+            cfg_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+            return torch.cat([cfg_eps, cond_var], dim=1)
