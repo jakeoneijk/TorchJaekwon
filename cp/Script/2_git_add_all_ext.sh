@@ -1,9 +1,1 @@
-git add *.$1
-git add */*.$1
-git add */*/*.$1
-git add */*/*/*.$1
-git add */*/*/*/*.$1
-git add */*/*/*/*/*.$1
-git add */*/*/*/*/*/*.$1
-git add */*/*/*/*/*/*/*.$1
-git add */*/*/*/*/*/*/*/*.$1
+find . -type f -name "*."$1 | xargs git add
