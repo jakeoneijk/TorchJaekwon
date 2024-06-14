@@ -9,7 +9,7 @@ class UtilAudio:
         tmp_max = np.abs(audio).max()
         assert tmp_max <= 2.5, "The maximum value of the audio is too high."
         
-        tmp_audio = (tmp_audio / tmp_max * (max * alpha)) + (
+        audio = (audio / tmp_max * (max * alpha)) + (
             1 - alpha
-        ) * tmp_audio
-        return tmp_audio.astype(np.float32)
+        ) * audio
+        return audio.astype(np.float32)
