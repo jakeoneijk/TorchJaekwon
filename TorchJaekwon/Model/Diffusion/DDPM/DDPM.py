@@ -177,7 +177,7 @@ class DDPM(nn.Module):
                  t:Tensor, 
                  cond:Optional[Union[dict,Tensor]],
                  is_cond_unpack:bool,
-                 clip_denoised:bool = True,
+                 clip_denoised:bool = False, # dangerous if True
                  repeat_noise:bool = False):
         b, *_, device = *x.shape, x.device
         model_mean, _, model_log_variance = self.p_mean_variance(x = x, t = t, cond = cond, is_cond_unpack = is_cond_unpack, clip_denoised = clip_denoised)
@@ -193,11 +193,13 @@ class DDPM(nn.Module):
                         is_cond_unpack:bool,
                         clip_denoised: bool) -> Tuple[Tensor]:
         
-        model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack)
+        model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack, cfg_scale=self.cfg_scale)
         if self.model_output_type == "noise":
-            x_recon = self.predict_start_from_noise(x, t=t, noise=model_output)
+            x_recon = self.predict_x_start_from_noise(x, t=t, noise=model_output)
         elif self.model_output_type == 'x_start':
             x_recon = model_output
+        elif self.model_output_type == 'v_prediction':
+            x_recon = self.predict_x_start_from_v(x, t=t, v=model_output)
 
         if clip_denoised:
             x_recon.clamp_(-1., 1.)
@@ -205,10 +207,25 @@ class DDPM(nn.Module):
         model_mean, posterior_variance, posterior_log_variance = self.q_posterior(x_start=x_recon, x_t=x, t=t)
         return model_mean, posterior_variance, posterior_log_variance
     
-    def predict_start_from_noise(self, x_t, t, noise):
+    def predict_x_start_from_noise(self, x_t, t, noise):
         return (
             DiffusionUtil.extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
             DiffusionUtil.extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
+        )
+    
+    def predict_x_start_from_v(self, x_t, t, v):
+        # self.register_buffer('sqrt_alphas_cumprod', to_torch(np.sqrt(alphas_cumprod)))
+        # self.register_buffer('sqrt_one_minus_alphas_cumprod', to_torch(np.sqrt(1. - alphas_cumprod)))
+        return (
+            DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t
+            - DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
+        )
+
+    def predict_noise_from_v(self, x_t, t, v):
+        return (
+            DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x_t.shape) * v
+            + DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape)
+            * x_t
         )
     
     def q_posterior(self, x_start, x_t, t):

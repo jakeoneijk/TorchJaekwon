@@ -7,12 +7,13 @@ from collections import deque
 
 from TorchJaekwon.Util.UtilTorch import UtilTorch
 from TorchJaekwon.Model.Diffusion.DDPM.DDPM import DDPM
+
 from TorchJaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
 
 class PNDM:
     #Pseudo Numerical methods for Diffusion Models on manifolds (PNDM) is by Luping Liu, Yi Ren, Zhijie Lin and Zhou Zhao
 
-    def __init__(self,ddpm_module:DDPM) -> None:
+    def __init__(self, ddpm_module:DDPM) -> None:
         self.ddpm_module = ddpm_module
 
     @torch.no_grad()
@@ -21,8 +22,8 @@ class PNDM:
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               pndm_speedup:int = 10) -> Tensor:
-        if x_shape is None: x_shape = self.ddpm_module.get_x_shape(cond=cond)
         _, cond, additional_data_dict = self.ddpm_module.preprocess(x_start = None, cond=cond)
+        if x_shape is None: x_shape = self.ddpm_module.get_x_shape(cond=cond)
         total_timesteps:int = self.ddpm_module.timesteps
         model_device:device = UtilTorch.get_model_device(self.ddpm_module)
         x:Tensor = torch.randn(x_shape, device = model_device)
@@ -41,6 +42,8 @@ class PNDM:
 
         noise_list = self.noise_list
         noise_pred = self.ddpm_module.apply_model(x, t, cond, is_cond_unpack, self.ddpm_module.cfg_scale)
+        if self.ddpm_module.model_output_type == 'v_prediction':
+            noise_pred = self.ddpm_module.predict_noise_from_v(x, t, noise_pred)
 
         if len(noise_list) == 0:
             x_pred = self.get_x_pred(x, noise_pred, t, interval)

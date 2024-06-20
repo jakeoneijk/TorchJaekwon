@@ -14,7 +14,7 @@ class UtilF0(object):
         self.fs = samplerate
         self.hop = hop_size
 
-        self.f0_bin = 256
+        self.f0_mel_bin = 256
         self.f0_max = 1100.0
         self.f0_min = 50.0
         self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
@@ -76,15 +76,15 @@ class UtilF0(object):
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
         return f0
 
-    def coarse_f0(self, f0):
+    def get_f0_mel_index(self, f0):
         f0_mel = 1127 * np.log(1 + f0 / 700)
         f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * (
-            self.f0_bin - 2
+            self.f0_mel_bin - 2
         ) / (self.f0_mel_max - self.f0_mel_min) + 1
 
         # use 0 or 1
         f0_mel[f0_mel <= 1] = 1
-        f0_mel[f0_mel > self.f0_bin - 1] = self.f0_bin - 1
+        f0_mel[f0_mel > self.f0_mel_bin - 1] = self.f0_mel_bin - 1
         f0_coarse = np.rint(f0_mel).astype(int)
         assert f0_coarse.max() <= 255 and f0_coarse.min() >= 1, (
             f0_coarse.max(),
