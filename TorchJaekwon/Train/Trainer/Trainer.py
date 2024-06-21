@@ -30,7 +30,7 @@ class Trainer():
                  #class_meta
                  model_class_name:Union[str, list],
                  model_class_meta_dict:dict,
-                 optimizer_class_meta_dict:dict,
+                 optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
                  lr_scheduler_class_meta_dict:dict,
                  loss_class_meta:dict,
                  #train params
@@ -170,41 +170,62 @@ class Trainer():
         os.environ["PYTHONHASHSEED"] = str(seed)
 
     def init_train(self, dataset_dict=None):
-        self.init_model()
-        self.init_optimizer()
+        self.model = self.init_model(self.model_class_name)
+        self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
+        self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
         self.init_loss()
         self.model_to_device()
         
         self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
     
-    def init_model(self) -> None:
-        if isinstance(self.model_class_name, list):
-            self.model = dict()
-            for class_name in self.model_class_name:
-                self.model[class_name] = GetModule.get_model(class_name)
-        elif isinstance(self.model_class_name, dict):   
-            self.model = dict()
-            for type_name in self.model_class_name:
-                self.model[type_name] = dict()
-                for class_name in self.model_class_name[type_name]:
-                    self.model[type_name][class_name] = GetModule.get_model(class_name)
+    def init_model(self, model_class_name:Union[str, list, dict]) -> None:
+        if isinstance(model_class_name, list):
+            raise NotImplementedError
+        elif isinstance(model_class_name, dict):
+            model = dict()
+            for name in model_class_name:
+                model[name] = self.init_model(model_class_name[name])
         else:
-            self.model:nn.Module = GetModule.get_model(self.model_class_name)
+            model:nn.Module = GetModule.get_model(model_class_name)
+        return model
     
-    def init_optimizer(self) -> None:
-        optimizer_class = getattr(torch.optim, self.h_params.train.optimizer['class_meta']['name'])
-        optimizer_args:dict = {"params":self.model.parameters()}
-        optimizer_args.update(self.h_params.train.optimizer['class_meta']['args'])
-        optimizer_args['lr'] = float(optimizer_args['lr'])
-        self.optimizer = optimizer_class(**optimizer_args)
-        scheduler_name = self.h_params.train.scheduler['class_meta']['name']
-        if scheduler_name is not None:
-            lr_scheduler_class = getattr(torch.optim.lr_scheduler, scheduler_name)
-            lr_scheduler_args:dict = self.h_params.train.scheduler['class_meta']['args']
-            lr_scheduler_args.update({'optimizer': self.optimizer})
-            self.lr_scheduler = lr_scheduler_class(**lr_scheduler_args)
-    
+    def init_optimizer(self, optimizer_class_meta_dict:dict) -> None:
+        optimizer_class_name = optimizer_class_meta_dict.get('name',None)
+        if optimizer_class_name is None:
+            optimizer = dict()
+            for key in optimizer_class_meta_dict:
+                optimizer[key] = self.init_optimizer(optimizer_class_meta_dict[key])
+        else:
+            optimizer_class = getattr(torch.optim, optimizer_class_name)
+            model_name_list:list = optimizer_class_meta_dict.get('model_name_list', None)
+            if model_name_list is None:
+                params = self.model.parameters()
+            else:
+                params = list()
+                for model_name in self.model:
+                    if model_name in model_name_list:
+                        params += list(self.model[model_name].parameters())
+
+            optimizer_args:dict = {"params": params}
+            optimizer_args.update(optimizer_class_meta_dict['args'])
+            optimizer_args['lr'] = float(optimizer_args['lr'])
+            optimizer = optimizer_class(**optimizer_args)
+        return optimizer
+
+    def init_lr_scheduler(self, optimizer, lr_scheduler_class_meta_dict) -> None:
+        if isinstance(optimizer, dict):
+            lr_scheduler = dict()
+            for key in optimizer:
+                lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], self.lr_scheduler_class_meta_dict[key])
+        else:
+            lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
+            lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name)
+            lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
+            lr_scheduler_args.update({'optimizer': optimizer})
+            lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
+        return lr_scheduler
+
     def init_loss(self) -> None:
         for loss_name in self.loss_class_meta:
             loss_class: Type[torch.nn.Module] = getattr(torch.nn, self.loss_class_meta[loss_name]['class_meta']['name']) # loss_name:Literal['L1Loss']
