@@ -1,23 +1,76 @@
-from typing import Literal
-from torch import Tensor
-
 import os
-import numpy as np
-from tqdm import tqdm
 import torch
-import itertools
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
-from TorchJaekwon.GetModule import GetModule
+from TorchJaekwon.Util.UtilData import UtilData
 from TorchJaekwon.Train.Trainer.Trainer import Trainer, TrainState
 
 from TorchJaekwon.Train.AverageMeter import AverageMeter
-from TorchJaekwon.Util.UtilAudio import UtilAudio
-from TorchJaekwon.Util.UtilData import UtilData 
-from TorchJaekwon.Util.UtilTorch import UtilTorch   
-from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
-from DataProcess.Util.UtilAudioLowPassFilter import UtilAudioLowPassFilterNVSR
+#from TorchJaekwon.Util.UtilAudio import UtilAudio
+#from TorchJaekwon.Util.UtilData import UtilData 
+#from TorchJaekwon.Util.UtilTorch import UtilTorch   
+#from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
+#from DataProcess.Util.UtilAudioLowPassFilter import UtilAudioLowPassFilterNVSR
+class GANTrainer(Trainer):
+    def __init__(self, discriminator_freeze_step:int = 0, **kwargs):
+        super().__init__(**kwargs)
+        self.discriminator_freeze_step:int = discriminator_freeze_step
+    
+    def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step"):
+        if self.discriminator_freeze_step < self.global_step:
+            self.log_writer.print_and_log('discriminator training')
+        else:
+            self.log_writer.print_and_log('only generator training')
+            
+        assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
 
+        if train_state == TrainState.TRAIN:
+            self.set_model_train_valid_mode(self.model, 'train')
+        else:
+            self.set_model_train_valid_mode(self.model, 'valid')
+
+        try: dataset_size = len(dataloader)
+        except: dataset_size = dataloader.dataset.__len__()
+
+
+        if metric_range == "epoch":
+            metric = dict()
+
+        for step,data in enumerate(dataloader):
+
+            if metric_range == "step":
+                metric = dict()
+
+            if step >= len(dataloader):
+                break
+
+            self.local_step = step
+            metric = self.run_step(data,metric,train_state)
+        
+            if train_state == TrainState.TRAIN:
+                
+                if self.local_step % self.h_params.log.log_every_local_step == 0:
+                    self.log_metric(metrics=metric,data_size=dataset_size)
+                
+                self.global_step += 1
+
+                self.lr_scheduler_step(call_state='step')
+            
+            if train_state == TrainState.TRAIN and self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0:
+                self.save_module(self.model, name=f"step{self.global_step}")
+                self.log_current_state()
+        
+        if train_state == TrainState.VALIDATE or train_state == TrainState.TEST:
+            self.save_module(self.model, name=f"step{self.global_step}")
+            self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
+            self.log_current_state(train_state)
+
+        return metric
+    
+    def run_generator_step(self, data, metric, train_state):
+        raise NotImplementedError
+'''
 class GANTrainer(Trainer):
 
     def __init__(self, discriminator_freeze_step:int = 0):
@@ -226,3 +279,4 @@ class GANTrainer(Trainer):
             better metric
         """
         return None
+'''

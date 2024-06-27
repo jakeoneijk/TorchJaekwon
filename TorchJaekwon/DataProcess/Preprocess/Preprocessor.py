@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 class Preprocessor(ABC):
     def __init__(self,
-                 data_name:str,
-                 root_dir:str,
-                 device:torch.device,
+                 data_name:str = None,
+                 root_dir:str = None,
+                 device:torch.device = None,
                  num_workers:int = 1,
                  ) -> None:
         # args to class variable
@@ -19,9 +19,11 @@ class Preprocessor(ABC):
         self.root_dir:str = root_dir
         self.num_workers:int = num_workers
         self.device:torch.device = device
-
-        self.output_dir = self.get_output_dir()
-        os.makedirs(self.output_dir,exist_ok=True)
+        if self.root_dir is not None and self.data_name is not None:
+            self.output_dir = self.get_output_dir()
+            os.makedirs(self.output_dir,exist_ok=True)
+        else:
+            print('Warning: root_dir or data_name is None')
     
     def get_output_dir(self) -> str:
         return os.path.join(self.root_dir, self.data_name)

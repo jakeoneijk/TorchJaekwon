@@ -120,6 +120,13 @@ class Trainer():
         """
         return None
     
+    def update_metric(self, metric:Dict[str,AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
+        if loss_name not in metric:
+            metric[loss_name] = AverageMeter()
+        metric[loss_name].update(loss.item(), batch_size)
+        return metric
+
+    
     def log_metric(
         self, 
         metrics:Dict[str,AverageMeter],
@@ -136,7 +143,7 @@ class Trainer():
             x_axis_name:str = "epoch"
             x_axis_value:int = self.current_epoch
 
-        log:str = f'Epoch ({train_state.value}): {self.current_epoch:03} ({self.local_step}/{data_size}) global_step: {self.global_step} lr: {self.get_current_lr()}\n'
+        log:str = f'Epoch ({train_state.value}): {self.current_epoch:03} ({self.local_step}/{data_size}) global_step: {self.global_step} lr: {self.get_current_lr(self.optimizer)}\n'
         
         for metric_name in metrics:
             val:float = metrics[metric_name].avg
@@ -174,7 +181,7 @@ class Trainer():
         self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
         self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
         self.init_loss()
-        self.model_to_device()
+        self.model_to_device(self.model)
         
         self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
@@ -231,7 +238,13 @@ class Trainer():
             loss_class: Type[torch.nn.Module] = getattr(torch.nn, self.loss_class_meta[loss_name]['class_meta']['name']) # loss_name:Literal['L1Loss']
             self.loss_function_dict[loss_name] = loss_class()
     
-    def model_to_device(self):
+    def model_to_device(self, model:Union[nn.Module, dict]):
+        if isinstance(model, dict):
+            for model_name in model:
+                self.model_to_device(model[model_name])
+        else:
+            model = model.to(self.device)
+        '''
         if self.h_params.resource.multi_gpu:
             from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
             self.model = DataParallelModel(self.model)
@@ -250,13 +263,17 @@ class Trainer():
                         self.model[type_name][class_name] = self.model[type_name][class_name].to(self.device)
             else:   
                 self.model = self.model.to(self.device)
+        '''
 
     def data_dict_to_device(self,data_dict:dict) -> dict:
         for feature_name in data_dict:
             if isinstance(data_dict[feature_name],dict):
                 data_dict[feature_name] = self.data_dict_to_device(data_dict[feature_name])
             else:
-                data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
+                if data_dict[feature_name].dtype in [torch.int64, torch.int32]:
+                    data_dict[feature_name] = data_dict[feature_name].to(self.device)
+                else:
+                    data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
         return data_dict
     
     def set_data_loader(self,dataset_dict=None):
@@ -291,7 +308,7 @@ class Trainer():
 
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
-                self.lr_scheduler_step(call_state='epoch', args=valid_metric)
+                self.lr_scheduler_step(call_state='epoch') #args=valid_metric)
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
@@ -417,44 +434,57 @@ class Trainer():
         best_model_load = torch.load(path)
         self.model.load_state_dict(best_model_load)
     
-    def get_current_lr(self):
-        return self.optimizer.param_groups[0]['lr']
+    def get_current_lr(self, optimizer:Union[ dict, torch.optim.Optimizer]):
+        if isinstance(optimizer, dict):
+            return self.get_current_lr(optimizer[list(optimizer.keys())[0]])
+        else:
+            return optimizer.param_groups[0]['lr']
     
     def lr_scheduler_step(self, call_state:Literal['step','epoch'], args = None):
         if self.lr_scheduler is None:
             return
         if self.h_params.train.scheduler['interval'] == call_state:
             if args is not None:
-                self.lr_scheduler.step(**args)
+                if isinstance(self.lr_scheduler, dict):
+                    for key in self.lr_scheduler:
+                        self.lr_scheduler[key].step(**args)
+                else:
+                    self.lr_scheduler.step(**args)
             else:
-                self.lr_scheduler.step()
+                if isinstance(self.lr_scheduler, dict):
+                    for key in self.lr_scheduler:
+                        self.lr_scheduler[key].step()
+                else:
+                    self.lr_scheduler.step()
     
     def save_checkpoint(self,save_name:str = 'train_checkpoint.pth'):
         train_state = {
             'epoch': self.current_epoch,
             'step': self.global_step,
             'seed': self.seed,
-            'optimizers': self.optimizer.state_dict(),
+            'model': self.get_state_dict(self.model),
+            'optimizers': self.get_state_dict(self.optimizer),
             'best_metric': self.best_valid_metric,
             'best_model_epoch' :  self.best_valid_epoch,
         }
 
         if self.lr_scheduler is not None:
-            train_state['lr_scheduler'] = self.lr_scheduler.state_dict()
-        
-        train_state.update(self.get_model_state_dict(self.model))
+            train_state['lr_scheduler'] = self.get_state_dict(self.lr_scheduler)
 
         path = os.path.join(self.log_writer.log_path["root"],save_name)
         self.log_writer.print_and_log(save_name)
         torch.save(train_state,path)
     
-    def get_model_state_dict(self, model, model_name = '', state_dict = dict()):
-        if isinstance(model, dict):
-            for model_type in model:
-                state_dict.update(self.get_model_state_dict(model[model_type], model_name + f'_{model_type}', state_dict))
+    def get_state_dict(self, module:Union[dict, nn.Module]):
+        if hasattr(module, 'state_dict'):
+            return module.state_dict()
+        elif isinstance(module, dict):
+            state_dict = dict()
+            for key in module:
+                state_dict[key] = self.get_state_dict(module[key])
+            return state_dict
         else:
-            state_dict[f'model{model_name}'] = model.state_dict() if not self.h_params.resource.multi_gpu else model.module.state_dict()
-        return state_dict
+            raise ValueError(f'Cannot get state_dict from {module}')
 
     def load_train(self, filename:str) -> None:
         cpt:dict = torch.load(filename,map_location='cpu')

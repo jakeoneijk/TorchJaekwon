@@ -60,7 +60,8 @@ class Controller():
             'total_epoch': HParams().train.epoch,
             'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
-            'seed_strict': HParams().train.seed_strict
+            'seed_strict': HParams().train.seed_strict,
+            'debug_mode': getattr(HParams().train, 'debug_mode', False),
         }
         trainer_args.update(train_class_meta['args'])
         
