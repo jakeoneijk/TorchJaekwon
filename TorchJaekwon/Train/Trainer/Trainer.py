@@ -188,7 +188,9 @@ class Trainer():
     
     def init_model(self, model_class_name:Union[str, list, dict]) -> None:
         if isinstance(model_class_name, list):
-            raise NotImplementedError
+            model = dict()
+            for name in model_class_name:
+                model[name] = self.init_model(name)
         elif isinstance(model_class_name, dict):
             model = dict()
             for name in model_class_name:
