@@ -240,12 +240,15 @@ class Trainer():
             loss_class: Type[torch.nn.Module] = getattr(torch.nn, self.loss_class_meta[loss_name]['class_meta']['name']) # loss_name:Literal['L1Loss']
             self.loss_function_dict[loss_name] = loss_class()
     
-    def model_to_device(self, model:Union[nn.Module, dict]):
+    def model_to_device(self, model:Union[nn.Module, dict], device = None) -> None:
         if isinstance(model, dict):
             for model_name in model:
                 self.model_to_device(model[model_name])
         else:
-            model = model.to(self.device)
+            if device is None:
+                model = model.to(self.device)
+            else:
+                model = model.to(device)
         '''
         if self.h_params.resource.multi_gpu:
             from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
@@ -373,7 +376,7 @@ class Trainer():
         if train_state == TrainState.VALIDATE or train_state == TrainState.TEST:
             self.save_module(self.model, name=f"step{self.global_step}")
             self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
-            self.log_current_state(train_state)
+            self.log_current_state()
 
         return metric
     
@@ -477,7 +480,7 @@ class Trainer():
         self.log_writer.print_and_log(save_name)
         torch.save(train_state,path)
     
-    def get_state_dict(self, module:Union[dict, nn.Module]):
+    def get_state_dict(self, module:Union[dict, nn.Module]) -> Union[dict, nn.Module]:
         if hasattr(module, 'state_dict'):
             return module.state_dict()
         elif isinstance(module, dict):
@@ -487,20 +490,32 @@ class Trainer():
             return state_dict
         else:
             raise ValueError(f'Cannot get state_dict from {module}')
+    
+    def load_state_dict(self, module:Union[dict, nn.Module], state_dict:dict) -> Union[dict, nn.Module]:
+        if hasattr(module, 'load_state_dict'):
+            module.load_state_dict(state_dict)
+            return module
+        elif isinstance(module, dict):
+            for key in module:
+                module[key] = self.load_state_dict(module[key], state_dict[key])
+            return module
+        else:
+            raise ValueError(f'Cannot load state_dict to {module}')
 
     def load_train(self, filename:str) -> None:
+        self.log_writer.print_and_log(f'load train from {filename}')
         cpt:dict = torch.load(filename,map_location='cpu')
         self.seed = cpt['seed']
         self.set_seeds(self.h_params.train.seed_strict)
         self.current_epoch = cpt['epoch']
         self.global_step = cpt['step']
 
-        self.model = self.model.to(torch.device('cpu'))
-        self.model.load_state_dict(cpt['model'])
-        self.model = self.model.to(self.device)
+        self.model_to_device(self.model, torch.device('cpu'))
+        self.model = self.load_state_dict(self.model, cpt['model'])
+        self.model_to_device(self.model)
 
-        self.optimizer.load_state_dict(cpt['optimizers'])
+        self.optimizer = self.load_state_dict(self.optimizer, cpt['optimizers'])
         if self.lr_scheduler is not None:
-            self.lr_scheduler.load_state_dict(cpt['lr_scheduler'])
+            self.lr_scheduler = self.load_state_dict(self.lr_scheduler, cpt['lr_scheduler'])
         self.best_valid_result = cpt['best_metric']
         self.best_valid_epoch = cpt['best_model_epoch']
