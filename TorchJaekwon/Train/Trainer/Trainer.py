@@ -179,7 +179,8 @@ class Trainer():
     def init_train(self, dataset_dict=None):
         self.model = self.init_model(self.model_class_name)
         self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
-        self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
+        if self.lr_scheduler_class_meta_dict is not None:
+            self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
         self.init_loss()
         self.model_to_device(self.model)
         
