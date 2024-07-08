@@ -1,8 +1,23 @@
 from typing import Literal, Tuple
+
+import os
 import subprocess
+import numpy as np
 from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip
+try: from pydub import AudioSegment
+except: print('pydub is not installed. Please install it using `pip install pydub`')
 
 class UtilVideo:
+    @staticmethod
+    def extract_audio_from_video(video_path:str,
+                                 output_path:str = './tmp/tmp.wav',
+                                 ) -> str:
+        video = VideoFileClip(video_path)
+        audio = video.audio
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        audio.write_audiofile(output_path, codec='pcm_s16le')
+        return output_path
+
     @staticmethod
     def attach_audio_to_video(video_path:str, 
                               audio_path:str, 
@@ -10,6 +25,7 @@ class UtilVideo:
                               fps:int=30, 
                               video_duration_sec:float = None
                               ) -> VideoFileClip:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         video_clip = VideoFileClip(video_path).set_fps(fps)
         if video_duration_sec is not None:
             video_clip = video_clip.subclip(0, video_duration_sec)
