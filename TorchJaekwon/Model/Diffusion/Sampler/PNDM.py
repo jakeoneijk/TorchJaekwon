@@ -18,7 +18,7 @@ class PNDM:
 
     @torch.no_grad()
     def infer(self,
-              x_shape:tuple,
+              x_shape:Optional[tuple],
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               pndm_speedup:int = 10) -> Tensor:
