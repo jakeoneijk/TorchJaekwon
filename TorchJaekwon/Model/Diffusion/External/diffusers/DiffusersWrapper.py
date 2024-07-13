@@ -6,19 +6,22 @@ from tqdm import tqdm
 from TorchJaekwon.Util.UtilTorch import UtilTorch
 from TorchJaekwon.Model.Diffusion.DDPM import DDPM
 
-class Infer:
+class DiffusersWrapper:
     @staticmethod
-    def get_diffuser_scheduler_config(ddpm_module: DDPM, scheduler_args: dict):
+    def get_diffusers_output_type_name(ddpm_module: DDPM) -> str:
         output_type_dict = {
             'v_prediction': 'v_prediction',
             'noise': 'epsilon',
             'x_start': 'sample'
         }
-
+        return output_type_dict[ddpm_module.model_output_type]
+    
+    @staticmethod
+    def get_diffusers_scheduler_config(ddpm_module: DDPM, scheduler_args: dict):
         config:dict = {
             'num_train_timesteps': ddpm_module.timesteps,
             'trained_betas': ddpm_module.betas.to('cpu'),
-            'prediction_type': output_type_dict[ddpm_module.model_output_type],
+            'prediction_type': DiffusersWrapper.get_diffusers_output_type_name(ddpm_module),
         }
         config.update(scheduler_args)
         return config
@@ -31,7 +34,7 @@ class Infer:
               is_cond_unpack:bool = False,
               num_steps: int = 20,
               scheduler_args: dict = {'timestep_spacing': 'trailing'}):
-        noise_scheduler = diffusers_scheduler_class(**Infer.get_diffuser_scheduler_config(ddpm_module, scheduler_args))
+        noise_scheduler = diffusers_scheduler_class(**DiffusersWrapper.get_diffusers_scheduler_config(ddpm_module, scheduler_args))
         _, cond, additional_data_dict = ddpm_module.preprocess(x_start = None, cond=cond)
         if x_shape is None: x_shape = ddpm_module.get_x_shape(cond=cond)
         noise_scheduler.set_timesteps(num_steps)
