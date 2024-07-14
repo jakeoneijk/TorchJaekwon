@@ -36,15 +36,23 @@ class UtilVideo:
     @staticmethod
     def attach_audio_to_img(image_path:str,
                             audio_path:str,
-                            output_path:str = 'output.mp4',
+                            output_path:str = 'output.mkv',
+                            audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = 'pcm_s32le',
+                            audio_fps:int=44100,
                             video_size:Tuple[int,int]=(1920,1080),
                             module:Literal['moviepy', 'ffmpeg'] = 'moviepy'
                             ):
         if module == 'moviepy':
+            import PIL
+            PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
             audio = AudioFileClip(audio_path)
-            image_clip = ImageClip(image_path).set_duration(audio.duration).resize(newsize=video_size)
+            image_clip:ImageClip = ImageClip(image_path).set_duration(audio.duration).resize(newsize=video_size)
             video = image_clip.set_audio(audio)
-            video.write_videofile(output_path, codec='libx264', audio_codec='aac', fps=24)
+            video.write_videofile(output_path, 
+                                  codec='libx264', 
+                                  audio_fps = audio_fps,
+                                  audio_codec=audio_codec, 
+                                  fps=24)
         elif module == 'ffmpeg':
             subprocess.run([
                 'ffmpeg', '-loop', '1', '-i', image_path, '-i', audio_path,
