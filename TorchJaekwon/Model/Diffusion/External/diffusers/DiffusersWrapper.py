@@ -33,7 +33,8 @@ class DiffusersWrapper:
               cond:Optional[dict] = None,
               is_cond_unpack:bool = False,
               num_steps: int = 20,
-              scheduler_args: dict = {'timestep_spacing': 'trailing'}):
+              scheduler_args: dict = {'timestep_spacing': 'trailing'},
+              cfg_scale: float = None):
         noise_scheduler = diffusers_scheduler_class(**DiffusersWrapper.get_diffusers_scheduler_config(ddpm_module, scheduler_args))
         _, cond, additional_data_dict = ddpm_module.preprocess(x_start = None, cond=cond)
         if x_shape is None: x_shape = ddpm_module.get_x_shape(cond=cond)
@@ -47,7 +48,7 @@ class DiffusersWrapper:
                                                    torch.full((x_shape[0],), t, device=model_device, dtype=torch.long), 
                                                    cond, 
                                                    is_cond_unpack, 
-                                                   cfg_scale = ddpm_module.cfg_scale)
+                                                   cfg_scale = ddpm_module.cfg_scale if cfg_scale is None else cfg_scale)
             x = noise_scheduler.step( model_output, t, x, return_dict=False)[0]
         
         return ddpm_module.postprocess(x, additional_data_dict)
