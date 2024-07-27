@@ -165,23 +165,47 @@ class UtilAudio:
         return segment_index_list
     
     @staticmethod
-    def merge_audio_w_cross_fade(audio_list:List[ndarray],
+    def audio_to_batch(audio:Tensor, #[Length]
+                       segment_length:int,
+                       overlap_length:int = 48000 #recommend: int(sr * 0.5)
+                       ):
+        assert len(audio.shape) == 1, f'[Error] audio shape must be 1, but {audio.shape}'
+        start_idx:int = 0
+        audio_list = list()
+        while start_idx < len(audio):
+            audio_segment = audio[start_idx:start_idx+segment_length]
+            audio_segment = UtilData.fix_length(audio_segment, segment_length)
+            audio_list.append(audio_segment)
+            start_idx += segment_length - overlap_length
+        return torch.stack(audio_list)
+    
+    @staticmethod
+    def merge_batch_w_cross_fade(batch_audio:Union[List[ndarray],ndarray,Tensor],
                                  segment_length:int,
-                                 overlap_length:int
+                                 overlap_length:int = 48000 #recommend: int(sr * 0.5)
                                  ) -> ndarray:
         '''
         reference from https://github.com/nkandpa2/music_enhancement/blob/master/scripts/generate_from_wav.py
         '''
-        output_audio:ndarray = np.zeros(len(audio_list) * segment_length - (len(audio_list) - 1) * overlap_length)
+        if isinstance(batch_audio, ndarray) and len(batch_audio.shape) == 1:
+            batch_audio = [batch_audio]
+        output_audio_length:int = len(batch_audio) * segment_length - (len(batch_audio) - 1) * overlap_length
+        output_audio:Union[ndarray,Tensor] = torch.zeros(output_audio_length) if isinstance(batch_audio, torch.Tensor) else np.zeros(output_audio_length)
         hop_length:int = segment_length - overlap_length
+        
         cross_fade_in:ndarray = np.linspace(0, 1, overlap_length)
         cross_fade_out:ndarray = 1 - cross_fade_in
+        if isinstance(batch_audio, torch.Tensor):
+            cross_fade_in = torch.tensor(cross_fade_in, device = batch_audio.device)
+            cross_fade_out = torch.tensor(cross_fade_out, device = batch_audio.device)
         
-        for i in range(0,len(audio_list)):
+        for i in range(0,len(batch_audio)):
             start_idx:int = i * hop_length
-            audio_list[i][:overlap_length] *= cross_fade_in
-            audio_list[i][-overlap_length:] *= cross_fade_out
-            output_audio[start_idx:start_idx+segment_length] += audio_list[i]
+            if i != 0:
+                batch_audio[i][:overlap_length] *= cross_fade_in
+            if i != len(batch_audio) - 1:
+                batch_audio[i][-overlap_length:] *= cross_fade_out
+            output_audio[start_idx:start_idx+segment_length] += batch_audio[i]
         return output_audio
     
     @staticmethod

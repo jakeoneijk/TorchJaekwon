@@ -5,6 +5,7 @@ try: import pandas as pd
 except:  print('[error] there is no pandas package')
 
 import re
+import librosa
 
 from TorchJaekwon.Util.UtilAudio import UtilAudio  
 from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec 
@@ -118,11 +119,21 @@ class JupyterNotebookUtil():
         style:str = '' if width is None else f'style="width:{width}px"'
         return f'''<img src="{src_path}" {style}/>'''
     
+    def get_media_path(self, type:Literal['audio','img']) -> str:
+        ext_dict = {'audio':'wav', 'img':'png'}
+        path_dict = dict()
+        path_dict['abs'] = f'{self.output_dir}/{self.media_save_dir_name}/{type}_{str(self.media_idx_dict[type]).zfill(5)}.{ext_dict[type]}'
+        path_dict['relative'] = f'''./{self.media_save_dir_name}{path_dict['abs'].split(self.media_save_dir_name)[-1]}'''
+        self.media_idx_dict[type] += 1
+        return path_dict
+    
     def get_html_audio(self,
                        audio_path:str = None,
                        cp_to_html_dir:bool = True,
                        sample_rate:int = None,
                        mel_spec_plot:bool = True,
+                       mel_spec_config:dict = None,
+                       spec_plot:bool = False,
                        width:int=200
                        ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
@@ -133,18 +144,30 @@ class JupyterNotebookUtil():
             UtilAudio.write(audio_path=audio_path, audio=audio, sample_rate=sr)
             audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
 
-        audio_html_code:str = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
-        if not mel_spec_plot:
-            return audio_html_code
-        else:
-            mel_spec_util = UtilAudioMelSpec(**UtilAudioMelSpec.get_default_mel_spec_config(sr))
+        html_code_dict = dict()
+        html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
+        if mel_spec_plot:
+            if mel_spec_config is None:
+                mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(sr)
+            mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
             mel_spec = mel_spec_util.get_hifigan_mel_spec(audio)
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
             img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
             self.media_idx_dict["img"] += 1
             mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
             img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
-            return audio_html_code, self.get_html_img(img_path, width)
+            html_code_dict['mel'] = self.get_html_img(img_path, width)
+        
+        if spec_plot:
+            mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(sr)
+            mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
+            stft_mag = mel_spec_util.stft_torch(audio)["mag"].squeeze()
+            stft_db = librosa.amplitude_to_db(stft_mag)
+            path_dict = self.get_media_path('img')
+            mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)
+            html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
+        
+        return html_code_dict
     
     def get_html_tag_list(self, html_str:str) -> List[str]:
         html_tag_list = re.findall(r'</?[^>]+>', html_str)

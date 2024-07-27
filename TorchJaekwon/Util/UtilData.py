@@ -124,12 +124,14 @@ class UtilData:
                 UtilData.pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
     
     @staticmethod
-    def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int) -> Tensor:
+    def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0) -> Tensor:
         if type(feature) != torch.Tensor:
             feature = torch.from_numpy(feature)
+        
+        feature = torch.squeeze(feature)
 
         for _ in range(shape_length - len(feature.shape)):
-            feature = torch.unsqueeze(feature, 0)
+            feature = torch.unsqueeze(feature, dim=dim)
         
         return feature
     
