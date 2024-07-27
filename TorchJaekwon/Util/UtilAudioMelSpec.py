@@ -14,6 +14,7 @@ except:
     print('matplotlib is uninstalled')
 #torchjaekwon
 from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
+from TorchJaekwon.Util.UtilTorch import UtilTorch
 
 class UtilAudioMelSpec(UtilAudioSTFT):
     def __init__(self, 
@@ -37,6 +38,9 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                                                    fmin = self.frequency_min, 
                                                    fmax = self.frequency_max)
         self.mel_basis_tensor:Tensor = torch.from_numpy(self.mel_basis_np).float()
+        self.mel_frequncies = librosa.mel_frequencies(n_mels = self.mel_size,
+                                                      fmin = self.frequency_min, 
+                                                      fmax = self.frequency_max)
     
     @staticmethod
     def get_default_mel_spec_config(sample_rate:int = 16000) -> dict:
@@ -90,7 +94,18 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                       fig_size:tuple=(12,4),
                       dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
+        if isinstance(mel_spec, Tensor):
+            mel_spec = UtilTorch.to_np(mel_spec)
         plt.figure(figsize=fig_size)
         plt.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
         plt.savefig(save_path,dpi=dpi)
         plt.close()
+    
+    def f0_to_melbin(self, 
+                     f0:Tensor # 1d f0 tensor
+                     ) -> Tensor:
+        mel_frequencies = torch.FloatTensor(self.mel_frequncies).repeat(f0.shape[0]).reshape(f0.shape[0],-1).to(f0.device)
+        mel_frequencies[((mel_frequencies - f0.unsqueeze(-1)) < 0)] = np.inf
+        all_inf_value = torch.all(torch.isinf(mel_frequencies), dim = 1)
+        mel_frequencies[all_inf_value,-1] = 0
+        return torch.argmin(mel_frequencies, dim=1)

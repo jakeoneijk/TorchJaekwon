@@ -212,16 +212,29 @@ class Trainer():
             if model_name_list is None:
                 params = self.model.parameters()
             else:
-                params = list()
-                for model_name in self.model:
-                    if model_name in model_name_list:
-                        params += list(self.model[model_name].parameters())
+                params = self.get_params(self.model, model_name_list)
 
             optimizer_args:dict = {"params": params}
             optimizer_args.update(optimizer_class_meta_dict['args'])
             optimizer_args['lr'] = float(optimizer_args['lr'])
             optimizer = optimizer_class(**optimizer_args)
         return optimizer
+    
+    def get_params(self, 
+                   model:dict, 
+                   model_name_list:list
+                   ) -> dict:
+        params = list()
+        for model_name in model:
+            if isinstance(model[model_name], nn.Module):
+                if model_name in model_name_list:
+                    params += list(model[model_name].parameters())
+            else:
+                #model[model_name] is dict
+                params += self.get_params(model[model_name], model_name_list)
+        return params
+
+
 
     def init_lr_scheduler(self, optimizer, lr_scheduler_class_meta_dict) -> None:
         if isinstance(optimizer, dict):
