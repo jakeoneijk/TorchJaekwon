@@ -77,6 +77,8 @@ class FlashDiffusion(nn.Module):
                 "No discriminator provided. Adversarial loss will be ignored."
             )
             self.use_adversarial_loss = False
+        else:
+            self.use_adversarial_loss = True
 
         self.disc_backbone = self.teacher_denoiser
 
@@ -265,9 +267,7 @@ class FlashDiffusion(nn.Module):
                 student_output,
                 student_conditioning,
                 conditioning,
-                #unconditional_conditioning,
                 is_cond_unpack,
-                down_intrablock_additional_residuals,
                 K,
                 K_step,
             )
@@ -280,7 +280,6 @@ class FlashDiffusion(nn.Module):
                 teacher_output,
                 conditioning,
                 is_cond_unpack,
-                down_intrablock_additional_residuals,
                 train_stage=train_stage,
             )
             print("GAN loss", gan_loss)
@@ -349,7 +348,6 @@ class FlashDiffusion(nn.Module):
         conditioning,
         #unconditional_conditioning,
         is_cond_unpack,
-        down_intrablock_additional_residuals,
         K,
         K_step,
     ):
@@ -373,29 +371,6 @@ class FlashDiffusion(nn.Module):
         )
 
         with torch.no_grad():
-            '''
-            cond_real_noise_pred = self.teacher_denoiser(
-                sample=noisy_student,
-                timestep=timestep,
-                conditioning=conditioning,
-                down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            )
-
-            uncond_real_noise_pred = self.teacher_denoiser(
-                sample=noisy_student,
-                timestep=timestep,
-                conditioning=unconditional_conditioning,
-                down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            )
-            
-
-            cond_fake_noise_pred = self.student_denoiser(
-                sample=noisy_student,
-                timestep=timestep,
-                conditioning=student_conditioning,
-                down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            )
-            '''
             cond_fake_noise_pred = self.student_denoiser.apply_model(x=noisy_student,
                                                                      t = timestep,
                                                                      cond=student_conditioning,
@@ -411,29 +386,25 @@ class FlashDiffusion(nn.Module):
                 * (self.guidance_scale_max[K_step] - self.guidance_scale_min[K_step])
                 + self.guidance_scale_min[K_step]
             )
-            with torch.no_grad():
-                real_noise_pred = self.teacher_denoiser.apply_model(x=noisy_student, 
-                                                                    t = timestep,
-                                                                    cond=conditioning,
-                                                                    is_cond_unpack = is_cond_unpack,
-                                                                    cfg_scale = guidance_scale)
+            
+            real_noise_pred = self.teacher_denoiser.apply_model(
+                x=noisy_student, 
+                t = timestep,
+                cond=conditioning,
+                is_cond_unpack = is_cond_unpack,
+                cfg_scale = guidance_scale
+            )
             if self.teacher_denoiser.model_output_type == "v_prediction":
                 real_noise_pred = self.teacher_denoiser.predict_noise_from_v(x_t=noisy_student,
                                                                              t=timestep,
                                                                              v=real_noise_pred)
-        '''
-        real_noise_pred = (
-            guidance_scale * cond_real_noise_pred
-            + (1 - guidance_scale) * uncond_real_noise_pred
-        )
-        '''
 
         fake_noise_pred = cond_fake_noise_pred
 
         score_real = -real_noise_pred
         score_fake = -fake_noise_pred
 
-        alpha_prod_t = self.teacher_denoiser.alphas_cumprod.to(
+        alpha_prod_t = self.teacher_noise_scheduler.alphas_cumprod.to(
             device=student_output.device, dtype=student_output.dtype
         )[timestep]
         beta_prod_t = 1.0 - alpha_prod_t
@@ -511,35 +482,12 @@ class FlashDiffusion(nn.Module):
         # Concatenate conditionings
         if conditioning is not None:
             conditioning = torch.cat([conditioning, conditioning], dim=0)
-            '''
-            conditioning = {
-                "cond": {
-                    k: torch.cat([v, v], dim=0) for k, v in conditioning["cond"].items()
-                }
-            }
-            '''
 
         # Concatenate timesteps
         timestep = torch.cat([timesteps, timesteps], dim=0)
-    
-        if False: #self.adapter:
-            for k, v in enumerate(down_intrablock_additional_residuals):
-                down_intrablock_additional_residuals[k] = torch.cat([v, v], dim=0)
-
-        else:
-            down_intrablock_additional_residuals = None
 
         # Predict noise level using denoiser
         denoised_sample = self.disc_backbone.apply_model(noisy_sample, timestep, conditioning, is_cond_unpack)
-        '''
-        denoised_sample = self.disc_backbone(
-            sample=noisy_sample,
-            timestep=timestep,
-            conditioning=conditioning,
-            down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            return_intermediate=True,
-        )
-        '''
 
         denoised_sample_fake, denoised_sample_real = denoised_sample.chunk(2, dim=0)
 
@@ -560,7 +508,7 @@ class FlashDiffusion(nn.Module):
         elif self.gan_loss_type == "lsgan":
             valid = torch.ones(student_output.size(0), 1, device=noise.device)
             fake = torch.zeros(noise.size(0), 1, device=noise.device)
-            if step % 2 == 0:
+            if train_stage == "generator":
                 loss_G = F.mse_loss(
                     torch.sigmoid(self.discriminator(denoised_sample_fake)), valid
                 )
@@ -657,29 +605,6 @@ class FlashDiffusion(nn.Module):
                 device=device,
             )
 
-    def _get_conditioning(
-        self,
-        batch: Dict[str, Any],
-        ucg_keys: List[str] = None,
-        set_ucg_rate_zero=False,
-        *args,
-        **kwargs,
-    ):
-        """
-        Get the conditionings
-        """
-        if self.conditioner is not None:
-            return self.conditioner(
-                batch,
-                ucg_keys=ucg_keys,
-                set_ucg_rate_zero=set_ucg_rate_zero,
-                vae=self.vae,
-                *args,
-                **kwargs,
-            )
-        else:
-            return None
-
     def _scalings_for_boundary_conditions(self, timestep, sigma_data=0.5):
         """
         Compute the scalings for boundary conditions
@@ -729,262 +654,3 @@ class FlashDiffusion(nn.Module):
         self.eval()
         for param in self.parameters():
             param.requires_grad = False
-
-    @torch.no_grad()
-    def sample(
-        self,
-        z: torch.Tensor,
-        num_steps: int = 20,
-        guidance_scale: float = 1.0,
-        teacher_guidance_scale: float = 5.0,
-        conditioner_inputs: Dict[str, Any] = None,
-        uncond_conditioner_inputs: Dict[str, Any] = None,
-        max_samples: int = None,
-        verbose: bool = False,
-        log_teacher_samples: bool = False,
-        adapter_conditioning_scale: float = 1.0,
-    ):
-        """
-        Sample from the model
-        Args:
-            z (torch.Tensor): Noisy latent vector
-            num_steps: (int): Number of steps to sample
-            guidance_scale (float): Guidance scale for classiffier-free guidance. If 1, no guidance. Default: 1.0
-            conditioner_inputs (Dict[str, Any]): inputs to the conditioners
-            uncond_conditioner_inputs (Dict[str, Any]): inputs to the conditioner for CFG e.g. negative prompts.
-            max_samples (Optional[int]): Maximum number of samples to generate. Default: None, all samples are generated
-            verbose (bool): Whether to print progress bar. Default: True
-            adapter_conditioning_scale (float): Adapter conditioning scale. Default: 1.0
-        """
-
-        self.teacher_noise_scheduler.set_timesteps(num_steps)
-
-        # Set the sampling noise scheduler to the right number of timesteps for inference
-        try:
-            self.sampling_noise_scheduler.set_timesteps(
-                timesteps=self.teacher_noise_scheduler.timesteps
-            )
-        except:
-            self.sampling_noise_scheduler.set_timesteps(num_steps)
-
-        sample = z
-
-        # Get conditioning
-        conditioning = self._get_conditioning(
-            conditioner_inputs, set_ucg_rate_zero=True, device=z.device
-        )
-
-        # Get unconditional conditioning
-        if uncond_conditioner_inputs is not None:
-            unconditional_conditioning = self._get_conditioning(
-                uncond_conditioner_inputs, set_ucg_rate_zero=True, device=z.device
-            )
-        else:
-            unconditional_conditioning = self._get_conditioning(
-                conditioner_inputs, ucg_keys=self.ucg_keys, device=z.device
-            )
-
-        if max_samples is not None:
-            sample = sample[:max_samples]
-
-            if conditioning:
-                conditioning["cond"] = {
-                    k: v[:max_samples] for k, v in conditioning["cond"].items()
-                }
-                unconditional_conditioning["cond"] = {
-                    k: v[:max_samples]
-                    for k, v in unconditional_conditioning["cond"].items()
-                }
-
-        # Compute the T2I adapter features
-        down_intrablock_additional_residuals = None
-
-        sample_init = sample
-        sample = sample * self.sampling_noise_scheduler.init_noise_sigma
-        for i, t in tqdm(
-            enumerate(self.sampling_noise_scheduler.timesteps), disable=not verbose
-        ):
-            denoiser_input = self.sampling_noise_scheduler.scale_model_input(sample, t)
-
-            # Predict noise level using denoiser using conditionings
-            cond_noise_pred = self.student_denoiser(
-                sample=denoiser_input,
-                timestep=t.to(z.device).repeat(denoiser_input.shape[0]),
-                conditioning=conditioning,
-                down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            )
-
-            # Predict noise level using denoiser using unconditional conditionings
-            uncond_noise_pred = self.student_denoiser(
-                sample=denoiser_input,
-                timestep=t.to(z.device).repeat(denoiser_input.shape[0]),
-                conditioning=unconditional_conditioning,
-                down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-            )
-
-            # Make CFG
-            noise_pred = (
-                guidance_scale * cond_noise_pred
-                + (1 - guidance_scale) * uncond_noise_pred
-            )
-
-            # Make one step on the reverse diffusion process
-            sample = self.sampling_noise_scheduler.step(
-                noise_pred, t, sample, return_dict=False
-            )[0]
-
-        if self.vae is not None:
-            decoded_sample = self.vae.decode(sample)
-        else:
-            decoded_sample = sample
-
-        decoded_sample_ref = None
-
-        if log_teacher_samples:
-            self.teacher_sampling_noise_scheduler.set_timesteps(num_steps)
-
-            sample_ref = (
-                sample_init * self.teacher_sampling_noise_scheduler.init_noise_sigma
-            )
-
-            for i, t in tqdm(
-                enumerate(self.teacher_sampling_noise_scheduler.timesteps),
-                disable=not verbose,
-            ):
-                denoiser_input_ref = (
-                    self.teacher_sampling_noise_scheduler.scale_model_input(
-                        sample_ref, t
-                    )
-                )
-
-                cond_noise_pred_ref = self.teacher_denoiser(
-                    sample=denoiser_input_ref,
-                    timestep=t.to(z.device).repeat(denoiser_input_ref.shape[0]),
-                    conditioning=conditioning,
-                    down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-                )
-                uncond_noise_pred_ref = self.teacher_denoiser(
-                    sample=denoiser_input_ref,
-                    timestep=t.to(z.device).repeat(denoiser_input_ref.shape[0]),
-                    conditioning=unconditional_conditioning,
-                    down_intrablock_additional_residuals=down_intrablock_additional_residuals,
-                )
-
-                noise_pred_ref = (
-                    teacher_guidance_scale * cond_noise_pred_ref
-                    + (1 - teacher_guidance_scale) * uncond_noise_pred_ref
-                )
-                sample_ref = self.teacher_sampling_noise_scheduler.step(
-                    noise_pred_ref, t, sample_ref, return_dict=False
-                )[0]
-
-                if self.vae is not None:
-                    decoded_sample_ref = self.vae.decode(sample_ref)
-                else:
-                    decoded_sample_ref = sample_ref
-
-        return decoded_sample, decoded_sample_ref
-
-    def log_samples(
-        self,
-        batch: Dict[str, Any],
-        input_shape: Tuple[int, int, int] = None,
-        guidance_scale: float = 1.0,
-        teacher_guidance_scale: float = 5.0,
-        max_samples: int = 8,
-        num_steps: Union[int, List[int]] = 20,
-        device="cpu",
-        log_teacher_samples=False,
-        conditioner_inputs: Dict = None,
-        conditioner_uncond_inputs: Dict = None,
-        adapter_conditioning_scale: float = 1.0,
-    ):
-
-        if isinstance(num_steps, int):
-            num_steps = [num_steps]
-
-        logs = {}
-
-        N = max_samples
-
-        if batch is not None:
-            max_conditioning_samples = min([len(batch[key]) for key in batch])
-            N = min(N, max_conditioning_samples)
-
-        if conditioner_inputs is not None:
-            max_conditioning_samples = min(
-                [len(conditioner_inputs[key]) for key in conditioner_inputs]
-            )
-            conditioner_inputs_ = {
-                k: v.to(device)
-                for k, v in conditioner_inputs.items()
-                if isinstance(v, torch.Tensor)
-            }
-            conditioner_inputs.update(conditioner_inputs_)
-            batch.update(conditioner_inputs)
-            N = min(N, max_conditioning_samples)
-
-        if conditioner_uncond_inputs is not None:
-            max_conditioning_samples = min(
-                [
-                    len(conditioner_uncond_inputs[key])
-                    for key in conditioner_uncond_inputs
-                ]
-            )
-            conditioner_uncond_inputs_ = {
-                k: v.to(device)
-                for k, v in conditioner_uncond_inputs.items()
-                if isinstance(v, torch.Tensor)
-            }
-            conditioner_uncond_inputs.update(conditioner_uncond_inputs_)
-            batch_uncond = deepcopy(batch)
-            batch_uncond.update(conditioner_uncond_inputs)
-            N = min(N, max_conditioning_samples)
-        else:
-            batch_uncond = None
-
-        # infer input shape based on VAE configuration if not passed
-        if input_shape is None:
-            if self.vae is not None:
-                # get input pixel size of the vae
-                input_shape = batch[self.vae.config.input_key].shape[2:]
-                # rescale to latent size
-                input_shape = (
-                    self.vae.latent_channels,
-                    input_shape[0] // self.vae.downsampling_factor,
-                    input_shape[1] // self.vae.downsampling_factor,
-                )
-            else:
-                raise ValueError(
-                    "input_shape must be passed when no VAE is used in the model"
-                )
-
-        for num_step in num_steps:
-            # Log samples
-            z = torch.randn(N, *input_shape).to(device)
-
-            logging.debug(
-                f"Sampling {N} samples: steps={num_step}, guidance_scale={guidance_scale}"
-            )
-            samples, samples_ref = self.sample(
-                z,
-                num_steps=num_step,
-                conditioner_inputs=batch,
-                uncond_conditioner_inputs=batch_uncond,
-                guidance_scale=guidance_scale,
-                teacher_guidance_scale=teacher_guidance_scale,
-                max_samples=N,
-                log_teacher_samples=log_teacher_samples,
-                adapter_conditioning_scale=adapter_conditioning_scale,
-            )
-
-            logs[
-                f"samples_{num_step}_steps/{self.sampling_noise_scheduler.__class__.__name__}_{guidance_scale}_cfg/student"
-            ] = samples
-
-            if samples_ref is not None:
-                logs[
-                    f"samples_{num_step}_steps/{self.teacher_sampling_noise_scheduler.__class__.__name__}_{teacher_guidance_scale}_cfg/teacher"
-                ] = samples_ref
-
-        return logs
