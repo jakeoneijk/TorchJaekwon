@@ -23,14 +23,22 @@ class UtilVideo:
                               audio_path:str, 
                               output_path:str, 
                               fps:int=30, 
-                              video_duration_sec:float = None
+                              video_duration_sec:float = None,
+                              audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = 'aac',
                               ) -> VideoFileClip:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         video_clip = VideoFileClip(video_path).set_fps(fps)
         if video_duration_sec is not None:
             video_clip = video_clip.subclip(0, video_duration_sec)
         video_clip = video_clip.set_audio(AudioFileClip(audio_path))
-        video_clip.write_videofile(output_path, audio=True, fps=fps, verbose=False, logger=None)
+        video_clip.write_videofile(
+            output_path, 
+            audio=True, 
+            audio_codec = audio_codec,
+            fps=fps, 
+            verbose=False, 
+            logger=None
+        )
         return video_clip
     
     @staticmethod
