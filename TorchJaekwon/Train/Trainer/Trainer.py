@@ -38,6 +38,7 @@ class Trainer():
                  #train setting
                  total_epoch:int,
                  save_model_every_step:int,
+                 do_log_every_epoch:bool,
                  seed: float,
                  seed_strict:bool,
                  debug_mode:bool = False
@@ -71,6 +72,7 @@ class Trainer():
         self.best_valid_metric:dict[str,AverageMeter] = None
         self.best_valid_epoch:int = 0
         self.save_model_every_step:int = save_model_every_step
+        self.do_log_every_epoch:bool = do_log_every_epoch
         
         if debug_mode:
             torch.autograd.set_detect_anomaly(True)
@@ -331,7 +333,7 @@ class Trainer():
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
-            if self.current_epoch > self.h_params.train.save_model_after_epoch and self.current_epoch % self.h_params.train.save_model_every_epoch == 0:
+            if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.h_params.train.save_model_every_epoch == 0:
                 self.save_module(self.model, name=f"pretrained_epoch{str(self.current_epoch).zfill(8)}")
             
             self.current_epoch += 1

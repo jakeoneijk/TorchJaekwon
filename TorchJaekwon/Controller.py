@@ -66,6 +66,7 @@ class Controller():
             'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
             'total_epoch': HParams().train.epoch,
             'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
+            'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
             'seed_strict': HParams().train.seed_strict,
             'debug_mode': getattr(HParams().train, 'debug_mode', False),
