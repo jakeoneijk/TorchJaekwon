@@ -1,8 +1,15 @@
+#type
 from typing import Type, Literal, Dict, List, Union, Literal
+
+#package
+import os
 import argparse
 
-from HParams import HParams
+#torchjaekwon
 from TorchJaekwon.GetModule import GetModule
+
+#internal
+from HParams import HParams
 
 class Controller():
     def __init__(self) -> None:
@@ -105,6 +112,13 @@ class Controller():
         evaluater_args.update({
             'device': HParams().resource.device
         })
+        if evaluater_args.get('source_dir','') == '':
+            source_dir_prefix:str = f'{HParams().inference.output_dir}/{HParams().mode.config_name}'
+            source_dir_parent:str = '/'.join(source_dir_prefix.split('/')[:-1])
+            source_dir_tag:str = source_dir_prefix.split('/')[-1]
+            source_dir_name_candidate = [dir_name for dir_name in os.listdir(source_dir_parent) if source_dir_tag in dir_name]
+            source_dir_name_candidate.sort()
+            evaluater_args['source_dir'] = f'{source_dir_parent}/{source_dir_name_candidate[-1]}'
         evaluater:Evaluater = evaluater_class(**evaluater_args)
         evaluater.evaluate()
     

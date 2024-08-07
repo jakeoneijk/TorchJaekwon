@@ -12,9 +12,11 @@ from TorchJaekwon.Util.UtilData import UtilData
 class Evaluater():
     def __init__(self,
                  source_dir:str,
-                 device:torch.device
+                 reference_dir:str = None,
+                 device:torch.device = torch.device('cpu')
                  ) -> None:
         self.source_dir:str = source_dir
+        self.reference_dir:str = reference_dir
         self.device:torch.device = device
     
     '''
@@ -41,7 +43,7 @@ class Evaluater():
     def evaluate(self) -> None:
         eval_dir_list:List[str] = self.get_eval_dir_list()
 
-        evaluation_result_dir:str = f"{self.source_dir}_evaluation"
+        evaluation_result_dir:str = f"{self.source_dir}/_evaluation"
         os.makedirs(evaluation_result_dir,exist_ok=True)
 
         for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):
