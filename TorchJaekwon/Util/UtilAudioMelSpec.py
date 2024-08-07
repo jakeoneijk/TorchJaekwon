@@ -29,7 +29,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         self.sample_rate:int = sample_rate
         self.mel_size:int = mel_size
         self.frequency_min:float = frequency_min
-        self.frequency_max:float = frequency_max
+        self.frequency_max:float = frequency_max if frequency_max is not None else sample_rate//2
 
         #[self.mel_size, self.nfft//2 + 1]
         self.mel_basis_np:ndarray = librosa_mel_fn(sr = self.sample_rate,
