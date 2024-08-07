@@ -139,10 +139,9 @@ class JupyterNotebookUtil():
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
             audio, sr = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
-            audio_path = f'{self.output_dir}/{self.media_save_dir_name}/audio_{str(self.media_idx_dict["audio"]).zfill(5)}.wav'
-            self.media_idx_dict["audio"] += 1
-            UtilAudio.write(audio_path=audio_path, audio=audio, sample_rate=sr)
-            audio_path = f'./{self.media_save_dir_name}{audio_path.split(self.media_save_dir_name)[-1]}'
+            path_dict = self.get_media_path('audio')
+            UtilAudio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
+            audio_path = path_dict['relative']
 
         html_code_dict = dict()
         html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''

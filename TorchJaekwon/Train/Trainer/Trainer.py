@@ -368,7 +368,7 @@ class Trainer():
             self.local_step = step
             loss,metric = self.run_step(data,metric,train_state)
 
-            if torch.isnan(loss).any():
+            if isinstance(loss, torch.Tensor) and torch.isnan(loss).any():
                 path = os.path.join(self.log_writer.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
                 UtilData.pickle_save(path,data)
                 self.save_module(self.model, name=f"nan_loss_step{self.global_step}")
