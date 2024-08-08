@@ -37,6 +37,7 @@ class Trainer():
                  max_norm_value_for_gradient_clip:float,
                  #train setting
                  total_epoch:int,
+                 total_step:int,
                  save_model_every_step:int,
                  do_log_every_epoch:bool,
                  seed: float,
@@ -67,6 +68,7 @@ class Trainer():
 
         self.current_epoch:int = 1
         self.total_epoch:int = total_epoch
+        self.total_step:int = total_step
         self.global_step:int = 0
         self.local_step:int = 0
         self.best_valid_metric:dict[str,AverageMeter] = None
@@ -102,24 +104,6 @@ class Trainer():
         raise NotImplementedError
 
     def save_best_model(self,prev_best_metric, current_metric):
-        """
-        compare what is the best metric
-        If current_metric is better, 
-            1.save best model
-            2. self.best_valid_epoch = self.current_epoch
-        Return
-            better metric
-        
-        if prev_best_metric is None:
-            return current_metric
-        
-        if prev_best_metric[self.loss_control.final_loss_name].avg > current_metric[self.loss_control.final_loss_name].avg:
-            self.save_module(self.model)
-            self.best_valid_epoch = self.current_epoch
-            return current_metric
-        else:
-            return prev_best_metric
-        """
         return None
     
     def update_metric(self, metric:Dict[str,AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
@@ -334,15 +318,19 @@ class Trainer():
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
             if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.h_params.train.save_model_every_epoch == 0:
-                self.save_module(self.model, name=f"pretrained_epoch{str(self.current_epoch).zfill(8)}")
+                self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch.zfill(8)}")
+                self.log_current_state()
             
             self.current_epoch += 1
             self.log_writer.log_every_epoch(model=self.model)
 
+            if self.global_step >= self.total_step:
+                break
+
         self.log_writer.print_and_log(f'best_epoch: {self.best_valid_epoch}')
         self.log_writer.print_and_log('Training complete')
     
-    def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step"):
+    def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step") -> dict:
         assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
 
         if train_state == TrainState.TRAIN:
@@ -352,7 +340,6 @@ class Trainer():
 
         try: dataset_size = len(dataloader)
         except: dataset_size = dataloader.dataset.__len__()
-
 
         if metric_range == "epoch":
             metric = dict()
@@ -377,23 +364,22 @@ class Trainer():
         
             if train_state == TrainState.TRAIN:
                 self.backprop(loss)
+                self.lr_scheduler_step(call_state='step')
                 
                 if self.local_step % self.h_params.log.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
-                self.global_step += 1
+                if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0:
+                    self.save_module(self.model, name=f"step{self.global_step}")
+                    self.log_current_state()
 
-                self.lr_scheduler_step(call_state='step')
-            
-            if train_state == TrainState.TRAIN and self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0:
-                self.save_module(self.model, name=f"step{self.global_step}")
-                self.log_current_state()
+                self.global_step += 1
+                if self.global_step >= self.total_step:
+                    return metric
         
         if train_state == TrainState.VALIDATE or train_state == TrainState.TEST:
-            self.save_module(self.model, name=f"step{self.global_step}")
             self.log_metric(metrics=metric,data_size=dataset_size,train_state=train_state)
-            self.log_current_state()
-
+            
         return metric
     
     def log_current_state(self,train_state:TrainState = None, is_log_media:bool = True) -> None:

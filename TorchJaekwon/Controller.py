@@ -4,6 +4,7 @@ from typing import Type, Literal, Dict, List, Union, Literal
 #package
 import os
 import argparse
+import numpy as np
 
 #torchjaekwon
 from TorchJaekwon.GetModule import GetModule
@@ -64,7 +65,8 @@ class Controller():
             'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
             'loss_class_meta': HParams().train.loss_dict,
             'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
-            'total_epoch': HParams().train.epoch,
+            'total_epoch': getattr(HParams().train, 'total_epoch', np.inf),
+            'total_step': getattr(HParams().train, 'total_step', np.inf),
             'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
             'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
