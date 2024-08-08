@@ -318,7 +318,7 @@ class Trainer():
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
             if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.h_params.train.save_model_every_epoch == 0:
-                self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch.zfill(8)}")
+                self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch}")
                 self.log_current_state()
             
             self.current_epoch += 1
