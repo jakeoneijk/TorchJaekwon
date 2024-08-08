@@ -65,7 +65,7 @@ class Controller():
             'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
             'loss_class_meta': HParams().train.loss_dict,
             'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
-            'total_epoch': getattr(HParams().train, 'total_epoch', np.inf),
+            'total_epoch': getattr(HParams().train, 'total_epoch', int(1e20)),
             'total_step': getattr(HParams().train, 'total_step', np.inf),
             'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
             'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
