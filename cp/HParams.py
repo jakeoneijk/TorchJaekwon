@@ -54,7 +54,6 @@ class Train:
     lr:int = 0.001
     lr_decay:float = 0.98
     lr_decay_step:float = 1.0E+3
-    epoch:int = 3000
     save_model_after_epoch:int = 200
     save_model_every_epoch:int = 100
     check_evalstep_first:bool = True
