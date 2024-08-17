@@ -27,19 +27,23 @@ class DiffusersWrapper:
         return config
     
     @staticmethod
-    def infer(ddpm_module: DDPM, 
-              diffusers_scheduler_class,
-              x_shape:tuple,
-              cond:Optional[dict] = None,
-              is_cond_unpack:bool = False,
-              num_steps: int = 20,
-              scheduler_args: dict = {'timestep_spacing': 'trailing'},
-              cfg_scale: float = None):
+    def infer(
+        ddpm_module: DDPM, 
+        diffusers_scheduler_class,
+        x_shape:tuple,
+        cond:Optional[dict] = None,
+        is_cond_unpack:bool = False,
+        num_steps: int = 20,
+        scheduler_args: dict = {'timestep_spacing': 'trailing'},
+        cfg_scale: float = None,
+        device:device = None
+        ) -> Tensor:
+        
         noise_scheduler = diffusers_scheduler_class(**DiffusersWrapper.get_diffusers_scheduler_config(ddpm_module, scheduler_args))
         _, cond, additional_data_dict = ddpm_module.preprocess(x_start = None, cond=cond)
         if x_shape is None: x_shape = ddpm_module.get_x_shape(cond=cond)
         noise_scheduler.set_timesteps(num_steps)
-        model_device:device = UtilTorch.get_model_device(ddpm_module)
+        model_device:device = UtilTorch.get_model_device(ddpm_module) if device is None else device
         x:Tensor = torch.randn(x_shape, device = model_device)
         x = x * noise_scheduler.init_noise_sigma
         for t in tqdm(noise_scheduler.timesteps, desc='sample time step'):

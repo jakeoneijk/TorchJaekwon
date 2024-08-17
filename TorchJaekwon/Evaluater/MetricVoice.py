@@ -54,16 +54,21 @@ class MetricVoice:
                                          frequency_min = spec_config_of_sr['frequency_min'] if frequency_min is None else frequency_min, 
                                          frequency_max = spec_config_of_sr['frequency_max'] if frequency_max is None else frequency_max)
         
-    def get_spec_metrics_from_audio(self,
-                                   source, #linear scale spectrogram [time]
-                                   target):
-        source_spec_dict = self.get_spec_dict_of_audio(source)
+    def get_spec_metrics_from_audio(
+            self,
+            pred, #linear scale spectrogram [time]
+            target,
+            metric_list:list = ['lsd','ssim','sispnr', 'l1']
+        ) -> Dict[str,float]:
+        
+        source_spec_dict = self.get_spec_dict_of_audio(pred)
         target_spec_dict = self.get_spec_dict_of_audio(target)
 
         metric_dict = dict()
         for spec_name in source_spec_dict:
             metric_dict[f'lsd_{spec_name}'] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
-            metric_dict[f'ssim_{spec_name}'] = float(ssim(source_spec_dict[spec_name],target_spec_dict[spec_name],win_size=7))
+            if 'ssim' in metric_list:
+                metric_dict[f'ssim_{spec_name}'] = float(ssim(source_spec_dict[spec_name],target_spec_dict[spec_name],win_size=7))
         
         linear_spec_name = list(source_spec_dict.keys())
         for spec_name in linear_spec_name:
@@ -71,7 +76,8 @@ class MetricVoice:
             target_spec_dict[f'{spec_name}_log'] = np.log10(np.clip(target_spec_dict[spec_name], a_min=1e-8, a_max=None))
         
         for spec_name in source_spec_dict:
-            metric_dict[f'sispnr_{spec_name}'] = MetricVoice.get_sispnr(torch.from_numpy(source_spec_dict[spec_name]),torch.from_numpy(target_spec_dict[spec_name]))
+            if 'l1' in metric_list: metric_dict[f'l1_{spec_name}'] = float(np.mean(np.abs(source_spec_dict[spec_name] - target_spec_dict[spec_name])))
+            if 'sispnr' in metric_list: metric_dict[f'sispnr_{spec_name}'] = MetricVoice.get_sispnr(torch.from_numpy(source_spec_dict[spec_name]),torch.from_numpy(target_spec_dict[spec_name]))
         
         return metric_dict
         
