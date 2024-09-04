@@ -30,6 +30,7 @@ class MetricVoice:
                  frequency_max:Optional[float] = None) -> None:
         
         spec_config_of_sr_dict:Dict[int,dict] = {
+            '''
             16000:{
                 nfft: 512,
                 hop_size: 256,
@@ -44,6 +45,7 @@ class MetricVoice:
                 frequency_min: 0,
                 frequency_max: float(sample_rate // 2)
             }
+            '''
         }
         spec_config_of_sr:dict = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate = sample_rate) if sample_rate not in spec_config_of_sr_dict else spec_config_of_sr_dict[sample_rate]
         
@@ -58,7 +60,7 @@ class MetricVoice:
             self,
             pred, #linear scale spectrogram [time]
             target,
-            metric_list:list = ['lsd','ssim','sispnr', 'l1']
+            metric_list:list = ['lsd','ssim','sispnr', 'l1', 'l2']
         ) -> Dict[str,float]:
         
         source_spec_dict = self.get_spec_dict_of_audio(pred)
@@ -66,9 +68,10 @@ class MetricVoice:
 
         metric_dict = dict()
         for spec_name in source_spec_dict:
-            metric_dict[f'lsd_{spec_name}'] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
+            if 'lsd' in metric_list:
+                metric_dict[f'lsd_{spec_name}'] = MetricVoice.get_lsd_from_spec(source_spec_dict[spec_name],target_spec_dict[spec_name])
             if 'ssim' in metric_list:
-                metric_dict[f'ssim_{spec_name}'] = float(ssim(source_spec_dict[spec_name],target_spec_dict[spec_name],win_size=7))
+                metric_dict[f'ssim_{spec_name}'] = self.get_ssim(source_spec_dict[spec_name], target_spec_dict[spec_name])
         
         linear_spec_name = list(source_spec_dict.keys())
         for spec_name in linear_spec_name:
@@ -77,6 +80,7 @@ class MetricVoice:
         
         for spec_name in source_spec_dict:
             if 'l1' in metric_list: metric_dict[f'l1_{spec_name}'] = float(np.mean(np.abs(source_spec_dict[spec_name] - target_spec_dict[spec_name])))
+            if 'l2' in metric_list: metric_dict[f'l2_{spec_name}'] = float(np.mean(np.square(source_spec_dict[spec_name] - target_spec_dict[spec_name])))
             if 'sispnr' in metric_list: metric_dict[f'sispnr_{spec_name}'] = MetricVoice.get_sispnr(torch.from_numpy(source_spec_dict[spec_name]),torch.from_numpy(target_spec_dict[spec_name]))
         
         return metric_dict
@@ -104,7 +108,9 @@ class MetricVoice:
                           eps = 1e-12):
         #log_spectral_distance
         # in non-log scale
-        lsd = np.log10(((target+ eps)**2/((pred + eps)**2)) + eps)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
+        lsd = ((target + eps)**2)/((pred + eps)**2)
+        lsd = lsd + eps
+        lsd = np.log10(lsd)**2 #torch.log10((target**2/((source + eps)**2)) + eps)**2
         lsd = np.mean(np.mean(lsd,axis=0)**0.5,axis=0) #torch.mean(torch.mean(lsd,dim=3)**0.5,dim=2)
         return float(lsd)
     
@@ -176,6 +182,12 @@ class MetricVoice:
         # print(pow_p_norm(target) , pow_p_norm(noise), pow_p_norm(target) / (pow_p_norm(noise) + EPS))
         sp_loss = 10 * torch.log10((UtilAudio.pow_p_norm(target) / (UtilAudio.pow_p_norm(noise) + eps) + eps))
         return float(sp_loss)
+    
+    @staticmethod
+    def get_ssim(source, target, data_range=None):
+        if data_range is None:
+            data_range = max(source.max(), target.max()) - min(source.min(), target.min())
+        return float(ssim(source, target, win_size=7, data_range=data_range))
     
     
 '''

@@ -38,9 +38,10 @@ class UtilAudio:
                        origin_sr:int,
                        target_sr:int,
                        resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'librosa',
-                       resample_type:str = "kaiser_fast"):
+                       resample_type:str = "kaiser_fast",
+                       audio_path:Optional[str] = None):
         if(origin_sr == target_sr): return audio
-        print(f"resample audio {origin_sr} to {target_sr}")
+        #print(f"resample audio {origin_sr} to {target_sr}")
         if resample_module == 'librosa':
             return librosa.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type)
         elif resample_module == 'resample_poly':
@@ -65,7 +66,7 @@ class UtilAudio:
             if len(audio_data.shape) > 1 : audio_data = audio_data.T
 
             if sample_rate is not None and sample_rate != original_samplerate:
-                print(f"resample audio {original_samplerate} to {sample_rate}")
+                #print(f"resample audio {original_samplerate} to {sample_rate}")
                 audio_data = UtilAudio.resample_audio(audio_data,original_samplerate,sample_rate)
 
         elif module_name == "librosa":
@@ -79,7 +80,7 @@ class UtilAudio:
                                                               frame_offset = start_idx, 
                                                               num_frames = -1 if end_idx is None else end_idx - start_idx)
             if sample_rate is not None and sample_rate != original_samplerate:
-                audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_samplerate, target_sr = sample_rate, resample_module='torchaudio')
+                audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_samplerate, target_sr = sample_rate, resample_module='torchaudio', audio_path = audio_path)
                 
         if mono is not None:
             if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:

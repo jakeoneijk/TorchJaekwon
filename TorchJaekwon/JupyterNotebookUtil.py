@@ -18,7 +18,8 @@ PLUS_MINUS_SYMBOL = "±"
 class JupyterNotebookUtil():
     def __init__(self,
                  output_dir:str = None,
-                 table_data_width:int = None
+                 table_data_width:int = None,
+                 audio_sr:int = 44100
                  ) -> None:
         self.indent:str = '  '
         self.media_idx_dict:dict = {'audio':0, 'img':0}
@@ -57,6 +58,9 @@ class JupyterNotebookUtil():
         ]
         self.output_dir:str = output_dir
         self.media_save_dir_name:str = 'media'
+
+        mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(audio_sr)
+        self.mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
     
     def get_table_html_list(self,
                             dict_list: List[dict],
@@ -132,7 +136,6 @@ class JupyterNotebookUtil():
                        cp_to_html_dir:bool = True,
                        sample_rate:int = None,
                        mel_spec_plot:bool = True,
-                       mel_spec_config:dict = None,
                        spec_plot:bool = False,
                        width:int=200
                        ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
@@ -146,24 +149,19 @@ class JupyterNotebookUtil():
         html_code_dict = dict()
         html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
         if mel_spec_plot:
-            if mel_spec_config is None:
-                mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(sr)
-            mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
-            mel_spec = mel_spec_util.get_hifigan_mel_spec(audio)
+            mel_spec = self.mel_spec_util.get_hifigan_mel_spec(audio)
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
             img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
             self.media_idx_dict["img"] += 1
-            mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
+            self.mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
             img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
             html_code_dict['mel'] = self.get_html_img(img_path, width)
         
         if spec_plot:
-            mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(sr)
-            mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
-            stft_mag = mel_spec_util.stft_torch(audio)["mag"].squeeze()
+            stft_mag = self.mel_spec_util.stft_torch(audio)["mag"].squeeze()
             stft_db = librosa.amplitude_to_db(stft_mag)
             path_dict = self.get_media_path('img')
-            mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)
+            self.mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         return html_code_dict

@@ -13,10 +13,12 @@ class Evaluater():
     def __init__(self,
                  source_dir:str,
                  reference_dir:str = None,
+                 sort_result_by_metric:bool = True,
                  device:torch.device = torch.device('cpu')
                  ) -> None:
         self.source_dir:str = source_dir
         self.reference_dir:str = reference_dir
+        self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
     
     '''
@@ -53,8 +55,9 @@ class Evaluater():
 
             test_set_name:str = eval_dir.split('/')[-1]
             UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
-            for metric_name in result_dict['metric_name_list']:
-                UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
+            if self.sort_result_by_metric:
+                for metric_name in result_dict['metric_name_list']:
+                    UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
         result_dict_list:List[dict] = list()

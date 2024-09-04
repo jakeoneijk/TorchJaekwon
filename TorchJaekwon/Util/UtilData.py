@@ -48,7 +48,7 @@ class UtilData:
         assert(os.path.splitext(save_path)[1] == ".yaml") , "file extension should be '.yaml'"
 
         with open(save_path, 'w') as file:
-            yaml.dump(data, file, sort_keys = sort_keys)
+            yaml.dump(data, file, sort_keys = sort_keys, allow_unicode=True)
     
     @staticmethod
     def yaml_load(data_path:str) -> dict:

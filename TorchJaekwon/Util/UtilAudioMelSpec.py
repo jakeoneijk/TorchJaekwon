@@ -91,7 +91,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
     def mel_spec_plot(self,
                       save_path:str, #'*.png'
                       mel_spec:ndarray, #[mel_size, time]
-                      fig_size:tuple=(12,4),
+                      fig_size:tuple=(8,4),
                       dpi:int = 500) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
         if isinstance(mel_spec, Tensor):
