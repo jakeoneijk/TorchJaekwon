@@ -76,6 +76,7 @@ class Trainer():
         self.save_model_every_step:int = save_model_every_step
         self.do_log_every_epoch:bool = do_log_every_epoch
         
+        self.debug_mode = debug_mode
         if debug_mode:
             torch.autograd.set_detect_anomaly(True)
 
@@ -172,6 +173,7 @@ class Trainer():
         
         self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
+
     
     def init_model(self, model_class_name:Union[str, list, dict]) -> None:
         if isinstance(model_class_name, list):
@@ -184,6 +186,8 @@ class Trainer():
                 model[name] = self.init_model(model_class_name[name])
         else:
             model:nn.Module = GetModule.get_model(model_class_name)
+            if not self.debug_mode:
+                model = torch.compile(model)
         return model
     
     def init_optimizer(self, optimizer_class_meta_dict:dict) -> None:
@@ -369,7 +373,7 @@ class Trainer():
                 if self.local_step % self.h_params.log.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
-                if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0:
+                if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0 and not self.global_step == 0:
                     self.save_module(self.model, name=f"step{self.global_step}")
                     self.log_current_state()
 

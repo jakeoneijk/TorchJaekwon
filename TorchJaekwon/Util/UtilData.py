@@ -161,7 +161,7 @@ class UtilData:
             if isinstance(data,Tensor):
                 return F.pad(data, (0,length - data.shape[dim]), "constant", 0)
             else:
-                return np.pad(data, (0,length - data.shape[dim]), 'constant', constant_values=0)
+                return F.pad(torch.from_numpy(data), (0,length - data.shape[dim]), "constant", 0).numpy()
         elif data.shape[dim] == length:
             return data
         else:
