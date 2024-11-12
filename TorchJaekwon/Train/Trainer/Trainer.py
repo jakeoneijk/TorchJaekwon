@@ -312,6 +312,7 @@ class Trainer():
             print("check evaluation step first whether there is no error")
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
+                self.log_current_state()
                 
         for _ in range(self.current_epoch, self.total_epoch):
             self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.h_params.train.epoch} -----------------------')
