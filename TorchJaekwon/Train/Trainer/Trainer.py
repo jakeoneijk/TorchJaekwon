@@ -13,6 +13,7 @@ from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
 from TorchJaekwon.Util.UtilData import UtilData
+from TorchJaekwon.Util.Util import Util
 from TorchJaekwon.Train.AverageMeter import AverageMeter
 #internal import
 from HParams import HParams
@@ -28,6 +29,7 @@ class Trainer():
                  #resource
                  device:torch.device,
                  #class_meta
+                 data_class_meta_dict:dict,
                  model_class_name:Union[str, list],
                  model_class_meta_dict:dict,
                  optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
@@ -46,6 +48,8 @@ class Trainer():
                  ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
+
+        self.data_class_meta_dict:dict = data_class_meta_dict
 
         self.model_class_name:Union[str, list] = model_class_name
         self.model_class_meta_dict:dict = model_class_meta_dict
@@ -78,7 +82,10 @@ class Trainer():
         
         self.debug_mode = debug_mode
         if debug_mode:
+            Util.print("debug mode is on", type='warning')
             torch.autograd.set_detect_anomaly(True)
+        else:
+            Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly \n  - [on] torch.compile", type='info')
 
         
     '''
@@ -286,8 +293,8 @@ class Trainer():
         return data_dict
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class('./Data/PytorchDataLoader', self.h_params.pytorch_data.class_meta['name'])
-        data_loader_getter = data_loader_getter_class(**self.h_params.pytorch_data.class_meta['args'])
+        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class('./Data/PytorchDataLoader', self.data_class_meta_dict['name'])
+        data_loader_getter = data_loader_getter_class(**self.data_class_meta_dict['args'])
         if dataset_dict is not None:
             pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)
             self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)

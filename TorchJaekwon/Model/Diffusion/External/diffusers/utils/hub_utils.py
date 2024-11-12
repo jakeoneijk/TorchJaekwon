@@ -13,49 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import json
 import os
 import re
 import sys
 import tempfile
-import traceback
-import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
-'''
-from huggingface_hub import (
-    ModelCard,
-    ModelCardData,
-    create_repo,
-    hf_hub_download,
-    model_info,
-    snapshot_download,
-    upload_folder,
-)
-from huggingface_hub.constants import HF_HUB_CACHE, HF_HUB_DISABLE_TELEMETRY, HF_HUB_OFFLINE
-from huggingface_hub.file_download import REGEX_COMMIT_HASH
-from huggingface_hub.utils import (
-    EntryNotFoundError,
-    RepositoryNotFoundError,
-    RevisionNotFoundError,
-    is_jinja_available,
-    validate_hf_hub_args,
-)
 
-from packaging import version
-from requests import HTTPError
-
-
-from .constants import (
-    DEPRECATED_REVISION_ARGS,
-    HUGGINGFACE_CO_RESOLVE_ENDPOINT,
-    SAFETENSORS_WEIGHTS_NAME,
-    WEIGHTS_NAME,
-)
-from .. import __version__
-'''
 from .import_utils import (
     ENV_VARS_TRUE_VALUES,
     _flax_version,
@@ -73,100 +38,6 @@ logger = get_logger(__name__)
 
 MODEL_CARD_TEMPLATE_PATH = Path(__file__).parent / "model_card_template.md"
 SESSION_ID = uuid4().hex
-
-
-def http_user_agent(user_agent: Union[Dict, str, None] = None) -> str:
-    """
-    Formats a user-agent string with basic info about a request.
-    """
-    ua = f"diffusers/{__version__}; python/{sys.version.split()[0]}; session_id/{SESSION_ID}"
-    if HF_HUB_DISABLE_TELEMETRY or HF_HUB_OFFLINE:
-        return ua + "; telemetry/off"
-    if is_torch_available():
-        ua += f"; torch/{_torch_version}"
-    if is_flax_available():
-        ua += f"; jax/{_jax_version}"
-        ua += f"; flax/{_flax_version}"
-    if is_onnx_available():
-        ua += f"; onnxruntime/{_onnxruntime_version}"
-    # CI will set this value to True
-    if os.environ.get("DIFFUSERS_IS_CI", "").upper() in ENV_VARS_TRUE_VALUES:
-        ua += "; is_ci/true"
-    if isinstance(user_agent, dict):
-        ua += "; " + "; ".join(f"{k}/{v}" for k, v in user_agent.items())
-    elif isinstance(user_agent, str):
-        ua += "; " + user_agent
-    return ua
-
-
-def load_or_create_model_card(
-    repo_id_or_path: str = None,
-    token: Optional[str] = None,
-    is_pipeline: bool = False,
-    from_training: bool = False,
-    model_description: Optional[str] = None,
-    base_model: str = None,
-    prompt: Optional[str] = None,
-    license: Optional[str] = None,
-    widget: Optional[List[dict]] = None,
-    inference: Optional[bool] = None,
-):# -> ModelCard:
-    """
-    Loads or creates a model card.
-
-    Args:
-        repo_id_or_path (`str`):
-            The repo id (e.g., "runwayml/stable-diffusion-v1-5") or local path where to look for the model card.
-        token (`str`, *optional*):
-            Authentication token. Will default to the stored token. See https://huggingface.co/settings/token for more
-            details.
-        is_pipeline (`bool`):
-            Boolean to indicate if we're adding tag to a [`DiffusionPipeline`].
-        from_training: (`bool`): Boolean flag to denote if the model card is being created from a training script.
-        model_description (`str`, *optional*): Model description to add to the model card. Helpful when using
-            `load_or_create_model_card` from a training script.
-        base_model (`str`): Base model identifier (e.g., "stabilityai/stable-diffusion-xl-base-1.0"). Useful
-            for DreamBooth-like training.
-        prompt (`str`, *optional*): Prompt used for training. Useful for DreamBooth-like training.
-        license: (`str`, *optional*): License of the output artifact. Helpful when using
-            `load_or_create_model_card` from a training script.
-        widget (`List[dict]`, *optional*): Widget to accompany a gallery template.
-        inference: (`bool`, optional): Whether to turn on inference widget. Helpful when using
-            `load_or_create_model_card` from a training script.
-    """
-    if not is_jinja_available():
-        raise ValueError(
-            "Modelcard rendering is based on Jinja templates."
-            " Please make sure to have `jinja` installed before using `load_or_create_model_card`."
-            " To install it, please run `pip install Jinja2`."
-        )
-
-    try:
-        # Check if the model card is present on the remote repo
-        model_card = ModelCard.load(repo_id_or_path, token=token)
-    except (EntryNotFoundError, RepositoryNotFoundError):
-        # Otherwise create a model card from template
-        if from_training:
-            model_card = ModelCard.from_template(
-                card_data=ModelCardData(  # Card metadata object that will be converted to YAML block
-                    license=license,
-                    library_name="diffusers",
-                    inference=inference,
-                    base_model=base_model,
-                    instance_prompt=prompt,
-                    widget=widget,
-                ),
-                template_path=MODEL_CARD_TEMPLATE_PATH,
-                model_description=model_description,
-            )
-        else:
-            card_data = ModelCardData()
-            component = "pipeline" if is_pipeline else "model"
-            if model_description is None:
-                model_description = f"This is the model card of a 🧨 diffusers {component} that has been pushed on the Hub. This model card has been automatically generated."
-            model_card = ModelCard.from_template(card_data, model_description=model_description)
-
-    return model_card
 
 
 def populate_model_card(model_card, 

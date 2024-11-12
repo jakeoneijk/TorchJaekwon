@@ -125,6 +125,8 @@ class UtilData:
     
     @staticmethod
     def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0) -> Tensor:
+        if shape_length == len(feature.shape):
+            return feature
         if type(feature) != torch.Tensor:
             feature = torch.from_numpy(feature)
         

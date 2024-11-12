@@ -1,6 +1,38 @@
+from typing import Literal
 import os, sys
 
+PURPLE = '\033[95m'
+CYAN = '\033[96m'
+DARKCYAN = '\033[36m'
+BLUE = '\033[94m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+RED = '\033[91m'
+BOLD = '\033[1m'
+UNDERLINE = '\033[4m'
+END = '\033[0m'
+
 class Util:
+    @staticmethod 
+    def print(text:str, type:Literal['info', 'success', 'warning'] = None) -> None:
+        template_dict:dict = {
+            'info': {
+                'color': BOLD + BLUE,
+                'prefix': '[Info]: '
+            },
+            'success': {
+                'color': BOLD + GREEN,
+                'prefix': '[Success]: '
+            },
+            'warning': {
+                'color': BOLD + YELLOW,
+                'prefix': '[Warning]: '
+            }
+        }
+        color:str = template_dict.get(type, {}).get('color', '')
+        prefix:str = template_dict.get(type, {}).get('prefix', '')
+        print(f"{color + prefix + text + END}")
+
     @staticmethod
     def set_sys_path_to_parent_dir(file:str, # __file__
                                    depth_to_dir_from_file:int = 1,

@@ -59,6 +59,7 @@ class Controller():
         train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
         trainer_args:dict = {
             'device': HParams().resource.device,
+            'data_class_meta_dict': HParams().pytorch_data.class_meta,
             'model_class_name': HParams().model.class_name,
             'model_class_meta_dict': HParams().model.class_meta_dict,
             'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
@@ -71,7 +72,7 @@ class Controller():
             'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
             'seed_strict': HParams().train.seed_strict,
-            'debug_mode': getattr(HParams().train, 'debug_mode', False),
+            'debug_mode': getattr(HParams().mode, 'debug_mode', False),
         }
         trainer_args.update(train_class_meta['args'])
         
@@ -155,6 +156,13 @@ class Controller():
         )
 
         parser.add_argument(
+            "-do",
+            "--debug_off",
+            help="debug mode off",
+            action='store_true'
+        )
+
+        parser.add_argument(
             "-lv",
             "--log_visualizer",
             type=str,
@@ -170,5 +178,6 @@ class Controller():
         if args.stage is not None: HParams().mode.stage = args.stage
         if args.log_visualizer is not None: HParams().log.visualizer_type = args.log_visualizer
         if args.resume: HParams().mode.train = "resume"
+        if args.debug_off: HParams().mode.debug_mode = False
 
         return args
