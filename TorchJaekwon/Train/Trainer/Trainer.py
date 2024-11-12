@@ -45,7 +45,7 @@ class Trainer():
                  seed: float,
                  seed_strict:bool,
                  debug_mode:bool = False,
-                 use_torch_complie:bool = True
+                 use_torch_compile:bool = True
                  ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
@@ -82,13 +82,13 @@ class Trainer():
         self.do_log_every_epoch:bool = do_log_every_epoch
         
         self.debug_mode = debug_mode
-        self.use_torch_complie = use_torch_complie
+        self.use_torch_compile = use_torch_compile
         if debug_mode:
             Util.print("debug mode is on", type='warning')
             torch.autograd.set_detect_anomaly(True)
         else:
             Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", type='info')
-            if self.use_torch_complie: 
+            if self.use_torch_compile: 
                 Util.print("\n  - [on] torch.compile", type='info')
             else:
                 Util.print("\n  - [off] torch.compile", type='warning')
@@ -199,7 +199,7 @@ class Trainer():
                 model[name] = self.init_model(model_class_name[name])
         else:
             model:nn.Module = GetModule.get_model(model_class_name)
-            if not self.debug_mode and self.use_torch_complie:
+            if not self.debug_mode and self.use_torch_compile:
                 model = torch.compile(model)
         return model
     
