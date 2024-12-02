@@ -12,6 +12,7 @@ except: print('Didnt import following packages: wandb')
 try: from tensorboardX import SummaryWriter
 except: print('Didnt import following packages: tensorboardX')
 
+from TorchJaekwon.Util.Util import Util
 from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 from TorchJaekwon.Util.UtilTorch import UtilTorch
 from TorchJaekwon.Util.UtilData import UtilData
@@ -19,14 +20,16 @@ from TorchJaekwon.Util.UtilData import UtilData
 from HParams import HParams
 
 class LogWriter():
-    def __init__(self,
-                 model:nn.Module
-                 )->None:
+    def __init__(
+            self,
+            model:nn.Module
+        )->None:
+
         self.h_params:HParams = HParams()
         self.visualizer_type:str = self.h_params.log.visualizer_type #["tensorboard","wandb"]
 
         self.experiment_start_time:float = time.time()
-        self.experiment_name = "[" +datetime.now().strftime('%y%m%d-%H%M%S') + "] " + self.h_params.mode.config_name if self.h_params.log.use_currenttime_on_experiment_name else self.h_params.mode.config_name
+        self.experiment_name:str = "[" +datetime.now().strftime('%y%m%d-%H%M%S') + "] " + self.h_params.mode.config_name if self.h_params.log.use_currenttime_on_experiment_name else self.h_params.mode.config_name
         
         self.log_path:dict[str,str] = {"root":"","console":"","visualizer":""}
         self.set_log_path()
@@ -34,8 +37,12 @@ class LogWriter():
 
         if self.visualizer_type == 'wandb':
             if self.h_params.mode.train == 'resume':
-                wandb_meta_data:dict = UtilData.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
-                wandb.init(id=wandb_meta_data['id'], project=self.h_params.log.project_name, resume = 'must')
+                try:
+                    wandb_meta_data:dict = UtilData.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
+                    wandb.init(id=wandb_meta_data['id'], project=self.h_params.log.project_name, resume = 'must')
+                except:
+                    Util.print("Failed to resume wandb. Please check the wandb_meta.yaml file", type='error')
+                    wandb.init(project=self.h_params.log.project_name)
             else: 
                 wandb.init(project=self.h_params.log.project_name)
             wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
@@ -71,12 +78,12 @@ class LogWriter():
 
         os.makedirs(self.log_path["visualizer"],exist_ok=True)
         
-    def print_and_log(self,log_message:str) -> None:
+    def print_and_log(self, log_message:str) -> None:
         log_message_with_time_took:str = f"{log_message} ({self.get_time_took()} took)"
         print(log_message_with_time_took)
         self.log_write(log_message_with_time_took)
     
-    def log_write_init(self,model:nn.Module) -> None:
+    def log_write_init(self, model:nn.Module) -> None:
         write_mode:str = 'w' if self.h_params.mode.train != "resume" else 'a'
         file = open(self.log_path["console"], write_mode)
         file.write("========================================="+'\n')
@@ -90,7 +97,7 @@ class LogWriter():
         file.write("========================================="+'\n')
         file.close()
     
-    def log_model_parameters(self,file, model: Union[nn.Module, dict], model_name:str = ''):
+    def log_model_parameters(self, file, model: Union[nn.Module, dict], model_name:str = ''):
         if isinstance(model, nn.Module):
             file.write(f'''Model {model_name} Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
             file.write(f'''Model {model_name} Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
@@ -104,26 +111,29 @@ class LogWriter():
         file.close()
 
     def visualizer_log(
-        self,
-        x_axis_name:str, #epoch, step, ...
-        x_axis_value:float,
-        y_axis_name:str, #metric name
-        y_axis_value:float) -> None:
+            self,
+            x_axis_name:str, #epoch, step, ...
+            x_axis_value:float,
+            y_axis_name:str, #metric name
+            y_axis_value:float
+        ) -> None:
 
         if self.visualizer_type == 'tensorboard':
             self.tensorboard_writer.add_scalar(y_axis_name,y_axis_value,x_axis_value)
         else:
             wandb.log({y_axis_name: y_axis_value, x_axis_name: x_axis_value})
     
-    def plot_audio(self, 
-                   name:str, #test case name, you could make structure by using /. ex) 'taskcase_1/test_set_1'
-                   audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array}.
-                   global_step:int,
-                   sample_rate:int = 16000,
-                   is_plot_spec:bool = False,
-                   is_plot_mel:bool = True,
-                   mel_spec_args:Optional[dict] = None
-                   ) -> None:
+    def plot_audio(
+            self, 
+            name:str, #test case name, you could make structure by using /. ex) 'taskcase_1/test_set_1'
+            audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array}.
+            global_step:int,
+            sample_rate:int = 16000,
+            is_plot_spec:bool = False,
+            is_plot_mel:bool = True,
+            mel_spec_args:Optional[dict] = None
+        ) -> None:
+
         self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step)
         if is_plot_mel:
             from TorchJaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
@@ -136,12 +146,14 @@ class LogWriter():
             self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict)
         
     
-    def plot_wav(self, 
-                 name:str, #test case name, you could make structure by using /. ex) 'audio/test_set_1'
-                 audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array},
-                 sample_rate:int,
-                 global_step:int
-                 ) -> None:
+    def plot_wav(
+            self, 
+            name:str, #test case name, you could make structure by using /. ex) 'audio/test_set_1'
+            audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array},
+            sample_rate:int,
+            global_step:int
+        ) -> None:
+        
         if self.visualizer_type == 'tensorboard':
             for audio_name in audio_dict:
                 self.tensorboard_writer.add_audio(f'{name}/{audio_name}', audio_dict[audio_name], sample_rate=sample_rate, global_step=global_step)

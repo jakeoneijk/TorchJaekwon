@@ -14,7 +14,7 @@ END = '\033[0m'
 
 class Util:
     @staticmethod 
-    def print(text:str, type:Literal['info', 'success', 'warning'] = None) -> None:
+    def print(text:str, type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
         template_dict:dict = {
             'info': {
                 'color': BOLD + BLUE,
@@ -27,6 +27,10 @@ class Util:
             'warning': {
                 'color': BOLD + YELLOW,
                 'prefix': '[Warning]: '
+            },
+            'error': {
+                'color': BOLD + RED,
+                'prefix': '[Error]: '
             }
         }
         color:str = template_dict.get(type, {}).get('color', '')
