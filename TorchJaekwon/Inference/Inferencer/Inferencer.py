@@ -135,6 +135,9 @@ class Inferencer():
         if pretrain_path is None:
             return
         pretrained_load:dict = torch.load(pretrain_path,map_location='cpu')
+        key_list = list(pretrained_load.keys())
+        for key in key_list: 
+            if '_orig_mod.' in key: pretrained_load[key.replace('_orig_mod.', '')] = pretrained_load.pop(key)
         self.model.load_state_dict(pretrained_load)
         self.model = self.model.to(self.device)
         self.model.eval()
