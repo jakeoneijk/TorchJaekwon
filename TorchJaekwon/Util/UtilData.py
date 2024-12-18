@@ -70,11 +70,14 @@ class UtilData:
             return txtfile.readlines()
     
     @staticmethod
-    def txt_save(save_path:str, string_list:List[str], new_file:bool = True) -> list:
+    def txt_save(save_path:str, string_list:List[str]|str, new_file:bool = True) -> list:
          os.makedirs(os.path.dirname(save_path), exist_ok=True)
          with open(save_path, 'w' if new_file else 'a') as file:
-            for line in string_list:
-                file.write(f'{line}\n')
+            if isinstance(string_list, str):
+                file.write(string_list)
+            else:
+                for line in string_list:
+                    file.write(f'{line}\n')
     
     @staticmethod
     def csv_save(file_path:str,

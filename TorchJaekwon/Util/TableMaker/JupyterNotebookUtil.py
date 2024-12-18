@@ -137,7 +137,7 @@ class JupyterNotebookUtil():
                        sample_rate:int = None,
                        mel_spec_plot:bool = True,
                        spec_plot:bool = False,
-                       width:int=200
+                       width:int=300
                        ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:

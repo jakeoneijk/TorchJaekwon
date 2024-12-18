@@ -1,0 +1,12 @@
+title: 'task title'
+sub_title: 'sub_task_title'
+
+audio_name_list:
+  - singer/wav/song_name
+
+audio_dir_meta_list:
+  - name: 'model_name', # if you don't use this, name will be the dir_name
+    dir: 'output_dir', # path of the dir
+    audio_name: null|'pred', # if audio name is the dirname and there is audio, you can specify audio name
+    use_only_name: false, # if it is true, use audio_name.split('/')[-1]
+    audio_name_pre_post_fix: ['prefix','postfix'] # prefix_audio_name_postfix
