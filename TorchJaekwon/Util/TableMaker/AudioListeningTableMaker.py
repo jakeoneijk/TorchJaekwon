@@ -24,7 +24,8 @@ class AudioListeningTableMaker:
             audio_name_list:list = None,
             output_dir:str = None,
             sr:int = 44100,
-            max_num_tr:int = 5
+            max_num_tr:int = 5,
+            return_html:bool = False
         ):
         if output_dir is None: output_dir = f'./output/{title}'
         html_util = JupyterNotebookUtil(output_dir=output_dir)
@@ -49,7 +50,8 @@ class AudioListeningTableMaker:
                 html_dict_list = list()
         
         if len(html_dict_list) > 0: html_list += html_util.get_table_html_list(html_dict_list)
-        html_util.save_html(html_list)
+        if return_html: return html_list
+        else: html_util.save_html(html_list)
     
     @staticmethod
     def get_audio_path(audio_name:str, audio_dir_meta:dict) -> str:
