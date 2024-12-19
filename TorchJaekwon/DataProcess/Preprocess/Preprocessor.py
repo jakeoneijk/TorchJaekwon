@@ -19,6 +19,7 @@ class Preprocessor(ABC):
         self.root_dir:str = root_dir
         self.num_workers:int = num_workers
         self.device:torch.device = device
+        self.max_meta_data_len:int = 10000
         if self.root_dir is not None and self.data_name is not None:
             self.output_dir = self.get_output_dir()
             os.makedirs(self.output_dir,exist_ok=True)
@@ -34,16 +35,19 @@ class Preprocessor(ABC):
     
     def preprocess_data(self) -> None:
         meta_param_list:list = self.get_meta_data_param()
-        if meta_param_list is None:
-            print('meta_param_list is None, So we skip preprocess data')
-            return
-        start_time:float = time.time()
-        if self.num_workers > 2:
-            with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
-                pool.map(self.preprocess_one_data, meta_param_list)
-        else:
-            for meta_param in tqdm(meta_param_list,desc='preprocess data'):
-                self.preprocess_one_data(meta_param)
+        print(f'length of meta data: {len(meta_param_list)}')
+        for start_idx in tqdm(range(0,len(meta_param_list),self.max_meta_data_len),desc='sub meta param list'):
+            sub_meta_param_list = meta_param_list[start_idx:start_idx+self.max_meta_data_len]
+            if sub_meta_param_list is None:
+                print('meta_param_list is None, So we skip preprocess data')
+                return
+            start_time:float = time.time()
+            if self.num_workers > 2:
+                with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
+                    pool.map(self.preprocess_one_data, sub_meta_param_list)
+            else:
+                for meta_param in tqdm(sub_meta_param_list,desc='preprocess data'):
+                    self.preprocess_one_data(meta_param)
 
         self.final_process()
         print("{:.3f} s".format(time.time() - start_time))
