@@ -1,6 +1,6 @@
 data:
-  config:
-    sample_rate: &sample_rate 16000 #*sample_rate
+  config: #config for data
+    sample_rate: &sample_rate 16000
   config_per_dataset_dict:
     dataset_name:
       preprocessor_class_meta_list: 
@@ -14,7 +14,6 @@ pytorch_data:
       num_workers: 15
       dataset: 
         class_meta: { 'name' : 'DataSet', 'args' : {}}
-        dataset_load_on_memory: True
       batch_sampler:
         class_meta: { 'name' : '', 'args' : {}}
       shuffle: True
