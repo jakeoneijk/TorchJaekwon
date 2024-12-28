@@ -210,11 +210,13 @@ class UtilAudio:
         return output_audio
     
     @staticmethod
-    def analyze_audio_dataset(data_dir:str, 
-                              result_save_dir:str,
-                              sanity_check_sr:Union[int,List[int]] = None,
-                              save_each_meta:bool = False
-                              ) -> None:
+    def analyze_audio_dataset(
+            data_dir:str, 
+            result_save_dir:str,
+            sanity_check_sr:Union[int,List[int]] = None,
+            save_each_meta:bool = False
+        ) -> None:
+        
         total_meta_dict:dict = {
             'total_duration_second': 0,
             'total_duration_minutes': 0,
