@@ -46,6 +46,7 @@ class UtilData:
     @staticmethod
     def yaml_save(save_path:str, data:Union[dict,list], sort_keys:bool = False) -> None:
         assert(os.path.splitext(save_path)[1] == ".yaml") , "file extension should be '.yaml'"
+        os.makedirs(os.path.dirname(save_path),exist_ok=True)
 
         with open(save_path, 'w') as file:
             yaml.dump(data, file, sort_keys = sort_keys, allow_unicode=True)
