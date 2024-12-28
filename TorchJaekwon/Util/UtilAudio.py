@@ -23,10 +23,11 @@ DATA_TYPE_MIN_MAX_DICT:Final[dict] = {'float32':(-1,1), 'float64':(-1,1), 'int16
 
 class UtilAudio:
     @staticmethod
-    def change_dtype(audio:ndarray,
-                     current_dtype:Literal['float32', 'float64', 'int16', 'int32'],
-                     target_dtype:Literal['float32', 'float64', 'int16', 'int32']
-                     ) -> ndarray:
+    def change_dtype(
+        audio:ndarray,
+        current_dtype:Literal['float32', 'float64', 'int16', 'int32'],
+        target_dtype:Literal['float32', 'float64', 'int16', 'int32']
+    ) -> ndarray:
         audio = np.clip(audio, a_min = DATA_TYPE_MIN_MAX_DICT[current_dtype][0], a_max = DATA_TYPE_MIN_MAX_DICT[current_dtype][1])
         audio = audio / DATA_TYPE_MIN_MAX_DICT[current_dtype][1]
         audio = (audio * DATA_TYPE_MIN_MAX_DICT[target_dtype][1])
@@ -34,12 +35,14 @@ class UtilAudio:
         return audio
     
     @staticmethod
-    def resample_audio(audio:Union[ndarray, Tensor], #[shape=(channel, num_samples) or (num_samples)]
-                       origin_sr:int,
-                       target_sr:int,
-                       resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'librosa',
-                       resample_type:str = "kaiser_fast",
-                       audio_path:Optional[str] = None):
+    def resample_audio(
+        audio:Union[ndarray, Tensor], #[shape=(channel, num_samples) or (num_samples)]
+        origin_sr:int,
+        target_sr:int,
+        resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'librosa',
+        resample_type:str = "kaiser_fast",
+        audio_path:Optional[str] = None
+    ) -> Union[ndarray, Tensor]:
         if(origin_sr == target_sr): return audio
         #print(f"resample audio {origin_sr} to {target_sr}")
         if resample_module == 'librosa':
@@ -52,14 +55,15 @@ class UtilAudio:
             return torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr)(audio)
     
     @staticmethod
-    def read(audio_path:str,
-             sample_rate:Optional[int] = None,
-             mono:Optional[bool] = None,
-             start_idx:int = 0,
-             end_idx:Optional[int] = None,
-             module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
-             return_type:Union[ndarray, Tensor] = ndarray
-            ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
+    def read(
+        audio_path:str,
+        sample_rate:Optional[int] = None,
+        mono:Optional[bool] = None,
+        start_idx:int = 0,
+        end_idx:Optional[int] = None,
+        module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
+        return_type:Union[ndarray, Tensor] = ndarray
+    ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
         
         if module_name == "soundfile":
             audio_data, original_samplerate = sf.read(audio_path)
@@ -96,10 +100,11 @@ class UtilAudio:
         return audio_data, original_samplerate if sample_rate is None else sample_rate
     
     @staticmethod
-    def write(audio_path:str,
-              audio:Union[ndarray, Tensor],
-              sample_rate:int,
-              ) -> None:
+    def write(
+        audio_path:str,
+        audio:Union[ndarray, Tensor],
+        sample_rate:int,
+    ) -> None:
         os.makedirs(os.path.dirname(audio_path), exist_ok=True)
         if isinstance(audio, Tensor):
             audio = audio.squeeze().cpu().detach().numpy()
@@ -129,8 +134,9 @@ class UtilAudio:
         return UtilAudio.change_dtype(audio=np.array(normalizedsound.get_array_of_samples()),current_dtype='int32',target_dtype='float64') #UtilAudio.int32_to_float64(np.array(normalizedsound.get_array_of_samples()))
     
     @staticmethod
-    def normalize_by_fro_norm(audio_input:Tensor #[batch, channel, time]
-                              ) -> Tensor:
+    def normalize_by_fro_norm(
+        audio_input:Tensor #[batch, channel, time]
+    ) -> Tensor:
         original_shape:tuple = audio_input.shape
         audio = audio_input.reshape(original_shape[0], -1)
         audio = audio/torch.norm(audio, p="fro", dim=1, keepdim=True)
@@ -152,11 +158,12 @@ class UtilAudio:
         return torch.pow(torch.norm(signal, p=2), 2)
     
     @staticmethod
-    def get_segment_index_list(audio:ndarray, #[time]
-                               sample_rate:int,
-                               segment_sample_length:int,
-                               hop_seconds:float = 0.1
-                               ) -> list:
+    def get_segment_index_list(
+        audio:ndarray, #[time]
+        sample_rate:int,
+        segment_sample_length:int,
+        hop_seconds:float = 0.1
+    ) -> list:
         begin_sample:int = 0
         hop_samples = int(hop_seconds * sample_rate)
         segment_index_list = list()
@@ -166,10 +173,12 @@ class UtilAudio:
         return segment_index_list
     
     @staticmethod
-    def audio_to_batch(audio:Tensor, #[Length]
-                       segment_length:int,
-                       overlap_length:int = 48000 #recommend: int(sr * 0.5)
-                       ):
+    def audio_to_batch(
+        audio:Tensor, #[Length]
+        segment_length:int,
+        overlap_length:int = 48000 #recommend: int(sr * 0.5)
+    ) -> Tensor:
+        
         assert len(audio.shape) == 1, f'[Error] audio shape must be 1, but {audio.shape}'
         start_idx:int = 0
         audio_list = list()
@@ -181,10 +190,11 @@ class UtilAudio:
         return torch.stack(audio_list)
     
     @staticmethod
-    def merge_batch_w_cross_fade(batch_audio:Union[List[ndarray],ndarray,Tensor],
-                                 segment_length:int,
-                                 overlap_length:int = 48000 #recommend: int(sr * 0.5)
-                                 ) -> ndarray:
+    def merge_batch_w_cross_fade(
+        batch_audio:Union[List[ndarray],ndarray,Tensor],
+        segment_length:int,
+        overlap_length:int = 48000 #recommend: int(sr * 0.5)
+    ) -> ndarray:
         '''
         reference from https://github.com/nkandpa2/music_enhancement/blob/master/scripts/generate_from_wav.py
         '''
@@ -211,11 +221,11 @@ class UtilAudio:
     
     @staticmethod
     def analyze_audio_dataset(
-            data_dir:str, 
-            result_save_dir:str,
-            sanity_check_sr:Union[int,List[int]] = None,
-            save_each_meta:bool = False
-        ) -> None:
+        data_dir:str, 
+        result_save_dir:str,
+        sanity_check_sr:Union[int,List[int]] = None,
+        save_each_meta:bool = False
+    ) -> None:
         
         total_meta_dict:dict = {
             'total_duration_second': 0,
