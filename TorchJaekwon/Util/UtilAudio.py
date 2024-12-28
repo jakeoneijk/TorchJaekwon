@@ -221,55 +221,62 @@ class UtilAudio:
     
     @staticmethod
     def analyze_audio_dataset(
-        data_dir:str, 
-        result_save_dir:str,
+        data_dir_list:Union[str, list], 
+        result_save_dir:str = './meta',
         sanity_check_sr:Union[int,List[int]] = None,
         save_each_meta:bool = False
     ) -> None:
+        if isinstance(data_dir_list, str): data_dir_list = [data_dir_list]
+        result_meta_dict = dict()
         
-        total_meta_dict:dict = {
-            'total_duration_second': 0,
-            'total_duration_minutes': 0,
-            'total_duration_hours': 0,
+        for data_dir in tqdm(data_dir_list, desc="Dataset list"):
+            dir_name:str = UtilData.get_file_name(data_dir)
+            result_meta_dict[dir_name]:dict = {
+                'total_duration_second': 0,
+                'total_duration_minutes': 0,
+                'total_duration_hours': 0,
 
-            'longest_sample_meta': {
-                'file_name': '',
-                'duration_second':0
-            },
+                'longest_sample_meta': {
+                    'file_name': '',
+                    'duration_second':0
+                },
 
-            'error_file_list': list()
-        }
-        if sanity_check_sr is not None: total_meta_dict['sample_rate'] = sanity_check_sr
-        
-        audio_meta_data_list = UtilData.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
-        for meta_data in tqdm(audio_meta_data_list):
-            try:
-                audio, sr = UtilAudio.read(meta_data['file_path'], mono=True)
-            except:
-                print(f'Error: {meta_data["file_path"]}')
-                total_meta_dict['error_file_list'].append(meta_data['file_path'])
-                continue
-            if sanity_check_sr is not None: 
-                if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
-                if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
-            
-            meta_data_of_this_file = {
-                'file_name': meta_data['file_name'],
-                'file_path': os.path.abspath(meta_data['file_path']),
-                'sample_length': audio.shape[-1],
-                'sample_rate': sr,
+                'sample_rate': list(),
+                'error_file_list': list()
             }
-            meta_data_of_this_file['duration_second'] = meta_data_of_this_file['sample_length'] / meta_data_of_this_file['sample_rate']
+            if sanity_check_sr is not None: result_meta_dict[dir_name]['sample_rate'] = sanity_check_sr
             
-            save_dir:str = meta_data['dir_path'].replace(data_dir, result_save_dir)
-            if save_each_meta: UtilData.pickle_save(f'''{save_dir}/{meta_data['file_name']}.pkl''', meta_data_of_this_file)
+            audio_meta_data_list = UtilData.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
+            for meta_data in tqdm(audio_meta_data_list):
+                try:
+                    audio, sr = UtilAudio.read(meta_data['file_path'], mono=True)
+                except:
+                    print(f'Error: {meta_data["file_path"]}')
+                    result_meta_dict[dir_name]['error_file_list'].append(meta_data['file_path'])
+                    continue
+                if sanity_check_sr is not None: 
+                    if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+                    if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+                
+                meta_data_of_this_file = {
+                    'file_name': meta_data['file_name'],
+                    'file_path': os.path.abspath(meta_data['file_path']),
+                    'sample_length': audio.shape[-1],
+                    'sample_rate': sr,
+                }
+                meta_data_of_this_file['duration_second'] = meta_data_of_this_file['sample_length'] / meta_data_of_this_file['sample_rate']
+                
+                if save_each_meta: 
+                    UtilData.pickle_save(f"{result_save_dir}/per_sample/{dir_name}/{meta_data['file_path'].split(dir_name)[-1]}.pkl".replace('//','/'), meta_data_of_this_file)
 
-            total_meta_dict['total_duration_second'] += meta_data_of_this_file['duration_second']
-            if total_meta_dict['longest_sample_meta']['duration_second'] < meta_data_of_this_file['duration_second']:
-                total_meta_dict['longest_sample_meta'] = meta_data_of_this_file
-        
-        total_meta_dict['total_duration_minutes'] = total_meta_dict['total_duration_second'] / 60
-        total_meta_dict['total_duration_hours'] = total_meta_dict['total_duration_second'] / 3600
-        UtilData.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = total_meta_dict)
+                result_meta_dict[dir_name]['total_duration_second'] += meta_data_of_this_file['duration_second']
+                if result_meta_dict[dir_name]['longest_sample_meta']['duration_second'] < meta_data_of_this_file['duration_second']:
+                    result_meta_dict[dir_name]['longest_sample_meta'] = meta_data_of_this_file
+                if meta_data_of_this_file['sample_rate'] not in result_meta_dict[dir_name]['sample_rate']:
+                    result_meta_dict[dir_name]['sample_rate'].append(meta_data_of_this_file['sample_rate'])
+
+            result_meta_dict[dir_name]['total_duration_minutes'] = result_meta_dict[dir_name]['total_duration_second'] / 60
+            result_meta_dict[dir_name]['total_duration_hours'] = result_meta_dict[dir_name]['total_duration_second'] / 3600
+        UtilData.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = result_meta_dict)
         
 
