@@ -192,7 +192,7 @@ class UtilData:
                     file_meta_list.append({
                         'file_name': UtilData.get_file_name( file_path = filename ),
                         'file_path': f'{root}/{filename}',
-                        'dir_name': root.replace(dir_name,'').replace('/',''),
+                        'dir_name': UtilData.get_file_name(root),
                         'dir_path': root,
                     })
         return file_meta_list
