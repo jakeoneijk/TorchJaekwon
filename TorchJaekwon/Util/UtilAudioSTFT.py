@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import librosa
-import librosa.display
+try: import librosa.display
+except: print('can not import librosa display')
 
 from TorchJaekwon.Util.UtilAudio import UtilAudio
 

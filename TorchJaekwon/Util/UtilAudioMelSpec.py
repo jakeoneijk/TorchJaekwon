@@ -6,7 +6,9 @@ from torch import Tensor
 import os
 import torch
 import numpy as np
-import librosa.display
+import librosa
+try: import librosa.display
+except: print('can not import librosa display')
 from librosa.filters import mel as librosa_mel_fn
 try:
     import matplotlib.pyplot as plt

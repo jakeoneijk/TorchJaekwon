@@ -4,6 +4,8 @@ sub_title: 'sub_task_title'
 audio_name_list:
   - singer/wav/song_name
 
+#audio_name_list_ref_dir: 'path/to/ref_dir' 
+
 audio_dir_meta_list:
   - name: 'model_name', # if you don't use this, name will be the dir_name
     dir: 'output_dir', # path of the dir

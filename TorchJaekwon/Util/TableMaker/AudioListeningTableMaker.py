@@ -22,12 +22,15 @@ class AudioListeningTableMaker:
             sub_title:str = '',
             audio_dir_meta_list:list = list(),
             audio_name_list:list = None,
+            audio_name_list_ref_dir:str = None,
             output_dir:str = None,
             sr:int = 44100,
             max_num_tr:int = 5,
             return_html:bool = False
         ):
         if output_dir is None: output_dir = f'./output/{title}'
+        if audio_name_list is None and audio_name_list_ref_dir is not None:
+            audio_name_list = [meta['file_name'] for meta in UtilData.walk(audio_name_list_ref_dir)]
         html_util = JupyterNotebookUtil(output_dir=output_dir)
         html_list = list()
         html_list.append(html_util.get_html_text(title))
