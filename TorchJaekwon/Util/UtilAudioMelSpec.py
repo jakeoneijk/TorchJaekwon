@@ -94,7 +94,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                       save_path:str, #'*.png'
                       mel_spec:ndarray, #[mel_size, time]
                       fig_size:tuple=(8,4),
-                      dpi:int = 500) -> None:
+                      dpi:int = 300) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
         if isinstance(mel_spec, Tensor):
             mel_spec = UtilTorch.to_np(mel_spec)
