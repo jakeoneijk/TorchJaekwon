@@ -1,6 +1,8 @@
 title: 'task title'
 sub_title: 'sub_task_title'
 
+spec_type: x | stft | mel
+
 audio_name_list:
   - singer/wav/song_name
 

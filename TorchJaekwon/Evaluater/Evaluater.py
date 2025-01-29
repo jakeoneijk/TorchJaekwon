@@ -10,12 +10,13 @@ from TorchJaekwon.Util.UtilData import UtilData
 #internal import
 
 class Evaluater():
-    def __init__(self,
-                 source_dir:str,
-                 reference_dir:str = None,
-                 sort_result_by_metric:bool = True,
-                 device:torch.device = torch.device('cpu')
-                 ) -> None:
+    def __init__(
+        self,
+        source_dir:str,
+        reference_dir:str = None,
+        sort_result_by_metric:bool = True,
+        device:torch.device = torch.device('cpu')
+    ) -> None:
         self.source_dir:str = source_dir
         self.reference_dir:str = reference_dir
         self.sort_result_by_metric = sort_result_by_metric
@@ -35,7 +36,7 @@ class Evaluater():
     def get_result_dict_for_one_testcase(
         self,
         meta_data:dict
-        ) -> dict: #{'name':name_of_testcase,'metric_name1':value1,'metric_name2':value2... }
+    ) -> dict: #{'name':name_of_testcase,'metric_name1':value1,'metric_name2':value2... }
         pass
     '''
     ==============================================================
@@ -64,7 +65,7 @@ class Evaluater():
         for meta_data in tqdm(meta_data_list,desc='get result'):
             result_dict_list.append(self.get_result_dict_for_one_testcase(meta_data))
         
-        metric_name_list:list = [metric_name for metric_name in list(result_dict_list[0].keys()) if type(result_dict_list[0][metric_name]) in [float,np.float_]]
+        metric_name_list:list = [metric_name for metric_name in list(result_dict_list[0].keys()) if type(result_dict_list[0][metric_name]) in [float]]
         metric_name_list.sort()
         mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict_list,metric_name_list)
 

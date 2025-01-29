@@ -15,12 +15,13 @@ LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
 PLUS_MINUS_SYMBOL = "±"
 
-class JupyterNotebookUtil():
-    def __init__(self,
-                 output_dir:str = None,
-                 table_data_width:int = None,
-                 audio_sr:int = 44100
-                 ) -> None:
+class HTMLUtil():
+    def __init__(
+        self,
+        output_dir:str = None,
+        table_data_width:int = None,
+        audio_sr:int = 44100
+    ) -> None:
         self.indent:str = '  '
         self.media_idx_dict:dict = {'audio':0, 'img':0}
         self.html_start_list:List[str] = [
@@ -62,10 +63,11 @@ class JupyterNotebookUtil():
         mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(audio_sr)
         self.mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
     
-    def get_table_html_list(self,
-                            dict_list: List[dict],
-                            use_pandas:bool = False
-                            ) -> List[str]:
+    def get_table_html_list(
+        self,
+        dict_list: List[dict],
+        use_pandas:bool = False
+    ) -> List[str]:
         '''
         Keys will be the table head items
         Values will be the table body items
@@ -110,16 +112,18 @@ class JupyterNotebookUtil():
             final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
         UtilData.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
     
-    def get_html_text(self, 
-                      text:str,
-                      tag:Literal['h1','h2','h3','h4','h5','h6','p'] = 'h1'
-                      ) -> str:
+    def get_html_text(
+        self, 
+        text:str,
+        tag:Literal['h1','h2','h3','h4','h5','h6','p'] = 'h1'
+    ) -> str:
         return f'<{tag}>{text}</{tag}>'
     
-    def get_html_img(self,
-                     src_path:str = None,
-                     width:int=150
-                    ) -> str: #html code
+    def get_html_img(
+        self,
+        src_path:str = None,
+        width:int=150
+    ) -> str: #html code
         style:str = '' if width is None else f'style="width:{width}px"'
         return f'''<img src="{src_path}" {style}/>'''
     
@@ -131,14 +135,14 @@ class JupyterNotebookUtil():
         self.media_idx_dict[type] += 1
         return path_dict
     
-    def get_html_audio(self,
-                       audio_path:str = None,
-                       cp_to_html_dir:bool = True,
-                       sample_rate:int = None,
-                       mel_spec_plot:bool = True,
-                       spec_plot:bool = False,
-                       width:int=300
-                       ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
+    def get_html_audio(
+        self,
+        audio_path:str = None,
+        cp_to_html_dir:bool = True,
+        sample_rate:int = None,
+        spec_type:Literal['mel', 'stft', 'x'] = 'mel',
+        width:int=300
+    ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
             audio, sr = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
@@ -148,17 +152,18 @@ class JupyterNotebookUtil():
 
         html_code_dict = dict()
         html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
-        if mel_spec_plot:
+        if spec_type == 'mel':
             mel_spec = self.mel_spec_util.get_hifigan_mel_spec(audio)
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
             img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
             self.media_idx_dict["img"] += 1
             self.mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
             img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
-            html_code_dict['mel'] = self.get_html_img(img_path, width)
+            html_code_dict['spec'] = self.get_html_img(img_path, width)
         
-        if spec_plot:
+        if spec_type == 'stft':
             stft_mag = self.mel_spec_util.stft_torch(audio)["mag"].squeeze()
+            if len(stft_mag.shape) == 3: stft_mag = stft_mag[0]
             stft_db = librosa.amplitude_to_db(stft_mag)
             path_dict = self.get_media_path('img')
             self.mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)

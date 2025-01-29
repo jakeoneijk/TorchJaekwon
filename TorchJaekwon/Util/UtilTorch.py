@@ -23,10 +23,12 @@ class UtilTorch:
         return torch.tensor(numpy_array, dtype=dtype)
     
     @staticmethod
-    def register_buffer(model:nn.Module,
-                        variable_name:str,
-                        value:Any,
-                        dtype:dtype = torch.float32) -> Any:
+    def register_buffer(
+        model:nn.Module,
+        variable_name:str,
+        value:Any,
+        dtype:dtype = torch.float32
+    ) -> Any:
         if type(value) != Tensor:
             value = torch.tensor(value, dtype=dtype)
         model.register_buffer(variable_name, value)
@@ -51,10 +53,11 @@ class UtilTorch:
         return next(model.parameters()).device
     
     @staticmethod
-    def interpolate_2d(input:Tensor, #[width, height] | [batch, width, height] | [batch, channels, width, height]
-                       size_after_interpolation:tuple, #(width, height)
-                       mode:str = 'nearest'
-                       ) -> Tensor:
+    def interpolate_2d(
+        input:Tensor, #[width, height] | [batch, width, height] | [batch, channels, width, height]
+        size_after_interpolation:tuple, #(width, height)
+        mode:str = 'nearest'
+    ) -> Tensor:
         if len(input.shape) == 2:
             shape_after_interpolation = size_after_interpolation
             input = input.view(1,1,*(input.shape))
@@ -66,13 +69,14 @@ class UtilTorch:
         return F.interpolate(input, size = size_after_interpolation, mode=mode).view(shape_after_interpolation)
     
     @staticmethod
-    def tsne_plot(save_file_path:str,
-                  class_array:ndarray, #[the number of data, 1] data must be integer for class. ex) [[1],[3],...]
-                  embedding_array:ndarray,  #[the number of data, channel_size]
-                  figure_size:tuple = (10,10),
-                  legend:str = 'full',
-                  point_size:float = None #s=200
-                  ) -> None:
+    def tsne_plot(
+        save_file_path:str,
+        class_array:ndarray, #[the number of data, 1] data must be integer for class. ex) [[1],[3],...]
+        embedding_array:ndarray,  #[the number of data, channel_size]
+        figure_size:tuple = (10,10),
+        legend:str = 'full',
+        point_size:float = None #s=200
+    ) -> None:
         import pandas as pd
         import seaborn as sns
         assert os.path.splitext(save_file_path)[-1] == '.png', 'save_file_path should be *.png'
