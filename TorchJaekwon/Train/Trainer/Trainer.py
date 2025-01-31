@@ -25,28 +25,30 @@ class TrainState(Enum):
     TEST = "test"
  
 class Trainer():
-    def __init__(self,
-                 #resource
-                 device:torch.device,
-                 #class_meta
-                 data_class_meta_dict:dict,
-                 model_class_name:Union[str, list],
-                 model_class_meta_dict:dict,
-                 optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
-                 lr_scheduler_class_meta_dict:dict,
-                 loss_class_meta:dict,
-                 #train params
-                 max_norm_value_for_gradient_clip:float,
-                 #train setting
-                 total_epoch:int,
-                 total_step:int,
-                 save_model_every_step:int,
-                 do_log_every_epoch:bool,
-                 seed: float,
-                 seed_strict:bool,
-                 debug_mode:bool = False,
-                 use_torch_compile:bool = True
-                 ) -> None:
+    def __init__(
+        self,
+        #resource
+        device:torch.device,
+        #class_meta
+        data_class_meta_dict:dict,
+        model_class_name:Union[str, list],
+        model_class_meta_dict:dict,
+        optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
+        lr_scheduler_class_meta_dict:dict,
+        loss_class_meta:dict,
+        #train params
+        max_norm_value_for_gradient_clip:float,
+        lr_scheduler_interval:Literal['step','epoch'],
+        #train setting
+        total_epoch:int,
+        total_step:int,
+        save_model_every_step:int,
+        do_log_every_epoch:bool,
+        seed: float,
+        seed_strict:bool,
+        debug_mode:bool = False,
+        use_torch_compile:bool = True
+    ) -> None:
         self.h_params = HParams()
         self.device:torch.device = device
 
@@ -64,10 +66,13 @@ class Trainer():
         self.loss_function_dict:dict = dict()
         self.loss_class_meta:dict = loss_class_meta
 
+        self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
+
         self.data_loader_dict:dict = {subset: None for subset in ['train','valid','test']}
 
         self.seed:int = seed
-        self.set_seeds(self.seed, seed_strict)
+        self.seed_strict:bool = seed_strict
+        self.set_seeds(self.seed, self.seed_strict)
 
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
 
@@ -132,7 +137,7 @@ class Trainer():
         metrics:Dict[str,AverageMeter],
         data_size: int,
         train_state=TrainState.TRAIN
-        )->None:
+    )->None:
         """
         log and visualizer log
         """
@@ -237,8 +242,6 @@ class Trainer():
                 params += self.get_params(model[model_name], model_name_list)
         return params
 
-
-
     def init_lr_scheduler(self, optimizer, lr_scheduler_class_meta_dict) -> None:
         if isinstance(optimizer, dict):
             lr_scheduler = dict()
@@ -266,26 +269,6 @@ class Trainer():
                 model = model.to(self.device)
             else:
                 model = model.to(device)
-        '''
-        if self.h_params.resource.multi_gpu:
-            from TorchJaekwon.Train.Trainer.Parallel import DataParallelModel, DataParallelCriterion
-            self.model = DataParallelModel(self.model)
-            self.model.cuda()
-            for loss_name in self.loss_control.loss_function_dict:
-                self.loss_control.loss_function_dict[loss_name] = DataParallelCriterion(self.loss_control.loss_function_dict[loss_name])
-        else:
-            for loss_name in self.loss_function_dict:
-                self.loss_function_dict[loss_name] = self.loss_function_dict[loss_name].to(self.device)
-            if isinstance(self.model_class_name, list):
-                for class_name in self.model_class_name: 
-                    self.model[class_name] = self.model[class_name].to(self.device)
-            elif isinstance(self.model_class_name, dict):
-                for type_name in self.model_class_name:
-                    for class_name in self.model_class_name[type_name]:
-                        self.model[type_name][class_name] = self.model[type_name][class_name].to(self.device)
-            else:   
-                self.model = self.model.to(self.device)
-        '''
 
     def data_dict_to_device(self,data_dict:dict) -> dict:
         for feature_name in data_dict:
@@ -315,7 +298,7 @@ class Trainer():
                 self.log_current_state()
                 
         for _ in range(self.current_epoch, self.total_epoch):
-            self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.h_params.train.epoch} -----------------------')
+            self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.total_epoch} -----------------------')
             self.log_writer.print_and_log(f'current best epoch: {self.best_valid_epoch}')
             if self.best_valid_metric is not None:
                 for loss_name in self.best_valid_metric:
@@ -468,7 +451,7 @@ class Trainer():
     def lr_scheduler_step(self, call_state:Literal['step','epoch'], args = None):
         if self.lr_scheduler is None:
             return
-        if self.h_params.train.scheduler['interval'] == call_state:
+        if self.lr_scheduler_interval == call_state:
             if args is not None:
                 if isinstance(self.lr_scheduler, dict):
                     for key in self.lr_scheduler:
@@ -526,7 +509,7 @@ class Trainer():
         self.log_writer.print_and_log(f'load train from {filename}')
         cpt:dict = torch.load(filename,map_location='cpu')
         self.seed = cpt['seed']
-        self.set_seeds(self.h_params.train.seed_strict)
+        self.set_seeds(self.seed_strict)
         self.current_epoch = cpt['epoch']
         self.global_step = cpt['step']
 
