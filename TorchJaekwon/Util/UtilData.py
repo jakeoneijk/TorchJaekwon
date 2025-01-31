@@ -53,7 +53,7 @@ class UtilData:
     
     @staticmethod
     def yaml_load(data_path:str) -> dict:
-        yaml_file = open(data_path, 'r')
+        yaml_file = open(data_path, 'r', encoding="utf-8")
         return yaml.safe_load(yaml_file)
     
     @staticmethod

@@ -1,6 +1,7 @@
 from typing import Literal
 
 import os
+import unicodedata
 from tqdm import tqdm
 from TorchJaekwon.Util.Util import Util 
 from TorchJaekwon.Util.UtilData import UtilData
@@ -71,4 +72,7 @@ class AudioListeningTableMaker:
             audio_file_name = f'{audio_name_pre_post_fix[0]}{audio_name}{audio_name_pre_post_fix[1]}.{ext}'
         else:
             audio_file_name = f'{audio_name}/{audio_name_pre_post_fix[0]}{audio_file_name}{audio_name_pre_post_fix[1]}.{ext}'
-        return f"{audio_dir_meta['dir']}/{audio_file_name}"
+        audio_path:str = f"{audio_dir_meta['dir']}/{audio_file_name}"
+        
+        if os.path.isfile(audio_path): return audio_path
+        else: return unicodedata.normalize("NFC", audio_path)
