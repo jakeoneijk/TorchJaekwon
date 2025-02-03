@@ -55,30 +55,42 @@ class Controller():
     def train(self) -> None:
         import torch
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
-        
         train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
-        trainer_args:dict = {
-            'device': HParams().resource.device,
+        trainer_class_name:str = train_class_meta['name']
+        trainer_args:dict = train_class_meta['args']
+        trainer_args.update({
+            # data
             'data_class_meta_dict': HParams().pytorch_data.class_meta,
+            # model
             'model_class_name': HParams().model.class_name,
-            'model_class_meta_dict': HParams().model.class_meta_dict,
-            'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
-            'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
+            # loss
             'loss_class_meta': HParams().train.loss_dict,
-            'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
+            # optimizer
+            'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
+            'optimizer_step_unit': getattr(HParams().train,'optimizer_step_unit',1),
+            'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
             'lr_scheduler_interval': HParams().train.scheduler['interval'],
-            'total_epoch': getattr(HParams().train, 'total_epoch', int(1e20)),
+            'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
+            # train paremeters
             'total_step': getattr(HParams().train, 'total_step', np.inf),
-            'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
-            'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
+            'total_epoch': getattr(HParams().train, 'total_epoch', int(1e20)),
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
             'seed_strict': HParams().train.seed_strict,
+            # logging
+            'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
+            'save_model_every_epoch': getattr(HParams().train, 'save_model_every_epoch', 1),
+            'log_every_local_step': getattr(HParams().log, 'log_every_local_step', 1),
+            'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
+            # resource
+            'device': HParams().resource.device,
+            'multi_gpu': getattr(HParams().resource, 'multi_gpu', False),
+            # additional
+            'check_evalstep_first': getattr(HParams().train,'check_evalstep_first',False),
             'debug_mode': getattr(HParams().mode, 'debug_mode', False),
             'use_torch_compile': getattr(HParams().mode, 'use_torch_compile', True),
-        }
-        trainer_args.update(train_class_meta['args'])
+        })
         
-        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', train_class_meta['name'])
+        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', trainer_class_name)
         trainer:Trainer = trainer_class(**trainer_args)
         trainer.init_train()
         

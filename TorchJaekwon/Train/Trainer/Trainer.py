@@ -16,7 +16,6 @@ from TorchJaekwon.Util.UtilData import UtilData
 from TorchJaekwon.Util.Util import Util
 from TorchJaekwon.Train.AverageMeter import AverageMeter
 #internal import
-from HParams import HParams
 
 @unique
 class TrainState(Enum):
@@ -27,65 +26,79 @@ class TrainState(Enum):
 class Trainer():
     def __init__(
         self,
-        #resource
-        device:torch.device,
-        #class_meta
+        # data
         data_class_meta_dict:dict,
+        # model
         model_class_name:Union[str, list],
-        model_class_meta_dict:dict,
-        optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
-        lr_scheduler_class_meta_dict:dict,
+        # loss
         loss_class_meta:dict,
-        #train params
-        max_norm_value_for_gradient_clip:float,
+        # optimizer
+        optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
+        optimizer_step_unit:int,
+        lr_scheduler_class_meta_dict:dict,
         lr_scheduler_interval:Literal['step','epoch'],
-        #train setting
-        total_epoch:int,
+        max_norm_value_for_gradient_clip:float,
+        # train paremeters
         total_step:int,
-        save_model_every_step:int,
-        do_log_every_epoch:bool,
+        total_epoch:int,
         seed: float,
         seed_strict:bool,
+        # logging
+        save_model_every_step:int,
+        save_model_every_epoch:int,
+        log_every_local_step:int,
+        do_log_every_epoch:bool,
+        # resource
+        device:torch.device,
+        multi_gpu:bool,
+        # additional
+        check_evalstep_first:bool = False,
         debug_mode:bool = False,
         use_torch_compile:bool = True
     ) -> None:
-        self.h_params = HParams()
-        self.device:torch.device = device
-
+        # data
         self.data_class_meta_dict:dict = data_class_meta_dict
-
-        self.model_class_name:Union[str, list] = model_class_name
-        self.model_class_meta_dict:dict = model_class_meta_dict
-        self.model:Union[nn.Module, list, dict] = None
-        
-        self.optimizer_class_meta_dict:dict = optimizer_class_meta_dict
-        self.optimizer:torch.optim.Optimizer = None
-        self.lr_scheduler_class_meta_dict:dict = lr_scheduler_class_meta_dict
-        self.lr_scheduler:torch.optim.lr_scheduler = None
-
-        self.loss_function_dict:dict = dict()
-        self.loss_class_meta:dict = loss_class_meta
-
-        self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
-
         self.data_loader_dict:dict = {subset: None for subset in ['train','valid','test']}
 
+        # model
+        self.model_class_name:Union[str, list] = model_class_name
+        self.model:Union[nn.Module, list, dict] = None
+
+        # loss
+        self.loss_class_meta:dict = loss_class_meta
+        self.loss_function_dict:dict = dict()
+
+        # optimizer
+        self.optimizer_class_meta_dict:dict = optimizer_class_meta_dict
+        self.optimizer_step_unit:int = optimizer_step_unit
+        self.lr_scheduler_class_meta_dict:dict = lr_scheduler_class_meta_dict
+        self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
+        self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
+        self.optimizer:torch.optim.Optimizer = None
+        self.lr_scheduler:torch.optim.lr_scheduler = None
+
+        # train paremeters
+        self.total_step:int = total_step
+        self.total_epoch:int = total_epoch
         self.seed:int = seed
         self.seed_strict:bool = seed_strict
         self.set_seeds(self.seed, self.seed_strict)
-
-        self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
-
         self.current_epoch:int = 1
-        self.total_epoch:int = total_epoch
-        self.total_step:int = total_step
         self.global_step:int = 0
         self.local_step:int = 0
-        self.best_valid_metric:dict[str,AverageMeter] = None
-        self.best_valid_epoch:int = 0
+
+        # logging
         self.save_model_every_step:int = save_model_every_step
+        self.save_model_every_epoch:int = save_model_every_epoch
+        self.log_every_local_step:int = log_every_local_step
         self.do_log_every_epoch:bool = do_log_every_epoch
-        
+
+        # resource
+        self.device:torch.device = device
+        self.multi_gpu:bool = multi_gpu
+
+        # additional
+        self.check_evalstep_first:bool = check_evalstep_first
         self.debug_mode = debug_mode
         self.use_torch_compile = use_torch_compile
         if debug_mode:
@@ -98,6 +111,9 @@ class Trainer():
             else:
                 Util.print("\n  - [off] torch.compile", type='warning')
 
+        # evaluation
+        self.best_valid_metric:dict[str,AverageMeter] = None
+        self.best_valid_epoch:int = 0
         
     '''
     ==============================================================
@@ -292,7 +308,7 @@ class Trainer():
             self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders()
     
     def fit(self) -> None:
-        if getattr(self.h_params.train,'check_evalstep_first',False):
+        if self.check_evalstep_first:
             print("check evaluation step first whether there is no error")
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
@@ -319,7 +335,7 @@ class Trainer():
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
-            if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.h_params.train.save_model_every_epoch == 0:
+            if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.save_model_every_epoch == 0:
                 self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch}")
                 self.log_current_state()
             
@@ -368,7 +384,7 @@ class Trainer():
                 self.backprop(loss)
                 self.lr_scheduler_step(call_state='step')
                 
-                if self.local_step % self.h_params.log.log_every_local_step == 0:
+                if self.local_step % self.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
                 if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0 and not self.global_step == 0:
@@ -403,13 +419,13 @@ class Trainer():
         if self.max_norm_value_for_gradient_clip is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
 
-        if getattr(self.h_params.train,'optimizer_step_unit',1) == 1:
+        if self.optimizer_step_unit == 1:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
         else:
             loss.backward()
-            if (self.global_step + 1) % self.h_params.train.optimizer_step_unit == 0:
+            if (self.global_step + 1) % self.optimizer_step_unit == 0:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
     
@@ -436,7 +452,7 @@ class Trainer():
                 self.save_module(model[model_type], model_name + f'{model_type}_', name)
         else:
             path = os.path.join(self.log_writer.log_path["root"],f'{model_name}{name}.pth')
-            torch.save(model.state_dict() if not self.h_params.resource.multi_gpu else model.module.state_dict(), path)
+            torch.save(model.state_dict() if not self.multi_gpu else model.module.state_dict(), path)
 
     def load_module(self,name = 'pretrained_best_epoch'):
         path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')
