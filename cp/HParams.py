@@ -2,8 +2,6 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-from TorchJaekwon.Util.UtilData import UtilData
-
 @dataclass
 class Mode:
     config_name:str = str()

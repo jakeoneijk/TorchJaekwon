@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Literal
 from numpy import ndarray
 
 import os
@@ -21,12 +21,13 @@ from HParams import HParams
 
 class LogWriter():
     def __init__(
-            self,
-            model:nn.Module
-        )->None:
+        self,
+        model:nn.Module,
+        visualizer_type:Literal['wandb','tensorboard'] = HParams().log.visualizer_type
+    )->None:
 
         self.h_params:HParams = HParams()
-        self.visualizer_type:str = self.h_params.log.visualizer_type #["tensorboard","wandb"]
+        self.visualizer_type:Literal['wandb','tensorboard'] = visualizer_type
 
         self.experiment_start_time:float = time.time()
         self.experiment_name:str = "[" +datetime.now().strftime('%y%m%d-%H%M%S') + "] " + self.h_params.mode.config_name if self.h_params.log.use_currenttime_on_experiment_name else self.h_params.mode.config_name
@@ -143,7 +144,7 @@ class LogWriter():
             mel_dict = dict()
             for audio_name in audio_dict:
                 mel_dict[audio_name] = mel_spec_util.get_hifigan_mel_spec(audio=audio_dict[audio_name],return_type='ndarray')
-            self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict)
+            self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict, global_step=global_step)
         
     
     def plot_wav(
@@ -161,7 +162,7 @@ class LogWriter():
             wandb_audio_list = list()
             for audio_name in audio_dict:
                 wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=audio_name,sample_rate=sample_rate))
-            wandb.log({name: wandb_audio_list})
+            wandb.log({name: wandb_audio_list, 'global_step': global_step})
     
     def plot_spec(self, 
                   name:str, #test case name, you could make structure by using /. ex) 'mel/test_set_1'
@@ -179,7 +180,7 @@ class LogWriter():
             for audio_name in spec_dict:
                 UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
                 wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=audio_name))
-            wandb.log({name: wandb_mel_list})
+            wandb.log({name: wandb_mel_list, 'global_step': global_step})
     
     def log_every_epoch(self,model:nn.Module):
         pass
