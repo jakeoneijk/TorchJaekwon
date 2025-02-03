@@ -55,10 +55,7 @@ class Controller():
     def train(self) -> None:
         import torch
         from TorchJaekwon.Train.Trainer.Trainer import Trainer
-        train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
-        trainer_class_name:str = train_class_meta['name']
-        trainer_args:dict = train_class_meta['args']
-        trainer_args.update({
+        trainer_args = {
             # data
             'data_class_meta_dict': HParams().pytorch_data.class_meta,
             # model
@@ -88,7 +85,11 @@ class Controller():
             'check_evalstep_first': getattr(HParams().train,'check_evalstep_first',False),
             'debug_mode': getattr(HParams().mode, 'debug_mode', False),
             'use_torch_compile': getattr(HParams().mode, 'use_torch_compile', True),
-        })
+        }
+
+        train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
+        trainer_class_name:str = train_class_meta['name']
+        trainer_args.update(train_class_meta['args'])
         
         trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', trainer_class_name)
         trainer:Trainer = trainer_class(**trainer_args)

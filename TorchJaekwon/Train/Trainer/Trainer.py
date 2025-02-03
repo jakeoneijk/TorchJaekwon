@@ -384,7 +384,7 @@ class Trainer():
                 self.backprop(loss)
                 self.lr_scheduler_step(call_state='step')
                 
-                if self.local_step % self.log_every_local_step == 0:
+                if self.global_step % self.log_every_local_step == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
                 if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0 and not self.global_step == 0:
