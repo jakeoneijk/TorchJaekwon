@@ -7,20 +7,21 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 #torchjaekwon
-from TorchJaekwon.GetModule import GetModule
-from TorchJaekwon.Util.UtilData import UtilData 
+from TorchJaekwon import GetModule
+from TorchJaekwon.Util import UtilData 
 #internal
 
 class Inferencer():
-    def __init__(self,
-                 output_dir:str,
-                 experiment_name:str,
-                 model:Union[nn.Module,object],
-                 model_class_name:str,
-                 set_type:Literal[ 'single', 'dir', 'testset' ],
-                 set_meta_dict: dict,
-                 device:torch.device,
-                 ) -> None:
+    def __init__(
+        self,
+        output_dir:str,
+        experiment_name:str,
+        model:Union[nn.Module,object],
+        model_class_name:str,
+        set_type:Literal[ 'single', 'dir', 'testset' ],
+        set_meta_dict: dict,
+        device:torch.device,
+    ) -> None:
         self.output_dir:str = output_dir
         self.experiment_name:str = experiment_name
         
@@ -85,11 +86,12 @@ class Inferencer():
     def get_model(self, model_class_name:str) -> nn.Module:
         return GetModule.get_model(model_class_name) if (model_class_name not in [None,'']) else None
 
-    def inference(self,
-                  pretrained_root_dir:str,
-                  pretrained_dir_name:str,
-                  pretrain_module_name:str
-                  ) -> None:
+    def inference(
+        self,
+        pretrained_root_dir:str,
+        pretrained_dir_name:str,
+        pretrain_module_name:str
+    ) -> None:
         pretrained_path_list:List[str] = self.get_pretrained_path_list(
             pretrain_root_dir= pretrained_root_dir,
             pretrain_dir_name = pretrained_dir_name,
@@ -109,11 +111,12 @@ class Inferencer():
 
                 self.save_data(output_dir_path, shared_output_dir_path, meta_data, data_dict)    
                     
-    def get_pretrained_path_list(self,
-                                 pretrain_root_dir:str,
-                                 pretrain_dir_name:str,
-                                 pretrain_module_name:str
-                                 ) -> List[str]:
+    def get_pretrained_path_list(
+        self,
+        pretrain_root_dir:str,
+        pretrain_dir_name:str,
+        pretrain_module_name:str
+    ) -> List[str]:
         pretrain_dir = f"{pretrain_root_dir}/{pretrain_dir_name}"
         
         if pretrain_module_name in ["all","last_epoch"]:

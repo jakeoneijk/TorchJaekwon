@@ -136,12 +136,13 @@ class Trainer():
         self, 
         metrics:Dict[str,AverageMeter],
         data_size: int,
-        train_state=TrainState.TRAIN
+        train_state=TrainState.TRAIN,
+        x_axis:Literal['step_global', 'epoch'] = 'step_global'
     )->None:
         """
         log and visualizer log
         """
-        if train_state == TrainState.TRAIN:
+        if x_axis == 'step_global':
             x_axis_name:str = "step_global"
             x_axis_value:int = self.global_step
         else:
