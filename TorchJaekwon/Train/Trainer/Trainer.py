@@ -47,7 +47,7 @@ class Trainer():
         save_model_every_step:int,
         save_model_every_epoch:int,
         log_every_local_step:int,
-        do_log_every_epoch:bool,
+        start_logging_epoch:bool,
         # resource
         device:torch.device,
         multi_gpu:bool,
@@ -91,7 +91,7 @@ class Trainer():
         self.save_model_every_step:int = save_model_every_step
         self.save_model_every_epoch:int = save_model_every_epoch
         self.log_every_local_step:int = log_every_local_step
-        self.do_log_every_epoch:bool = do_log_every_epoch
+        self.start_logging_epoch:bool = start_logging_epoch
 
         # resource
         self.device:torch.device = device
@@ -335,7 +335,7 @@ class Trainer():
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
-            if self.current_epoch > self.do_log_every_epoch and self.current_epoch % self.save_model_every_epoch == 0:
+            if self.current_epoch > self.start_logging_epoch and self.current_epoch % self.save_model_every_epoch == 0:
                 self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch}")
                 self.log_current_state()
             

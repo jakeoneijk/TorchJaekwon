@@ -80,7 +80,7 @@ class Controller():
             'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
             'save_model_every_epoch': getattr(HParams().train, 'save_model_every_epoch', 1),
             'log_every_local_step': getattr(HParams().log, 'log_every_local_step', 1),
-            'do_log_every_epoch': getattr(HParams().train, 'do_log_every_epoch', True),
+            'start_logging_epoch': getattr(HParams().log, 'start_logging_epoch', 0),
             # resource
             'device': HParams().resource.device,
             'multi_gpu': getattr(HParams().resource, 'multi_gpu', False),
