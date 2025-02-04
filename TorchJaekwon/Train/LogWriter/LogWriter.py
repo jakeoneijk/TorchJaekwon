@@ -15,7 +15,7 @@ except: print('Didnt import following packages: tensorboardX')
 from TorchJaekwon.Util.Util import Util
 from TorchJaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 from TorchJaekwon.Util.UtilTorch import UtilTorch
-from TorchJaekwon.Util.UtilData import UtilData
+from TorchJaekwon.Util import UtilData
 
 from HParams import HParams
 
@@ -161,7 +161,7 @@ class LogWriter():
         else:
             wandb_audio_list = list()
             for audio_name in audio_dict:
-                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=audio_name,sample_rate=sample_rate))
+                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}_step:{UtilData.pretty_num(global_step)}', sample_rate=sample_rate))
             wandb.log({name: wandb_audio_list, 'global_step': global_step})
     
     def plot_spec(self, 
@@ -179,7 +179,7 @@ class LogWriter():
             wandb_mel_list = list()
             for audio_name in spec_dict:
                 UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
-                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=audio_name))
+                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}_step:{UtilData.pretty_num(global_step)}'))
             wandb.log({name: wandb_mel_list, 'global_step': global_step})
     
     def log_every_epoch(self,model:nn.Module):
