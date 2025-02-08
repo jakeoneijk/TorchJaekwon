@@ -90,12 +90,12 @@ class Inferencer():
         self,
         pretrained_root_dir:str,
         pretrained_dir_name:str,
-        pretrain_module_name:str
+        ckpt_name:str
     ) -> None:
         pretrained_path_list:List[str] = self.get_pretrained_path_list(
             pretrain_root_dir= pretrained_root_dir,
             pretrain_dir_name = pretrained_dir_name,
-            pretrain_module_name= pretrain_module_name
+            ckpt_name= ckpt_name
         )
 
         for pretrained_path in pretrained_path_list:
@@ -115,11 +115,11 @@ class Inferencer():
         self,
         pretrain_root_dir:str,
         pretrain_dir_name:str,
-        pretrain_module_name:str
+        ckpt_name:str
     ) -> List[str]:
         pretrain_dir = f"{pretrain_root_dir}/{pretrain_dir_name}"
         
-        if pretrain_module_name in ["all","last_epoch"]:
+        if ckpt_name in ["all","last_epoch"]:
             pretrain_name_list:List[str] = [
                 pretrain_module
                 for pretrain_module in os.listdir(pretrain_dir)
@@ -127,10 +127,10 @@ class Inferencer():
                 ]
             pretrain_name_list.sort()
 
-            if pretrain_module_name == "last_epoch":
+            if ckpt_name == "last_epoch":
                 pretrain_name_list = [pretrain_name_list[-1]]
         else:
-            pretrain_name_list:List[str] = [pretrain_module_name]
+            pretrain_name_list:List[str] = [ckpt_name]
         
         return [f"{pretrain_dir}/{pretrain_name}" for pretrain_name in pretrain_name_list]
     

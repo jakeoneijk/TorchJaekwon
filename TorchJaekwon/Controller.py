@@ -121,7 +121,7 @@ class Controller():
         inferencer.inference(
             pretrained_root_dir = HParams().inference.pretrain_root_dir,
             pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
-            pretrain_module_name = HParams().inference.pretrain_module_name
+            ckpt_name = HParams().inference.ckpt_name
         )
 
     def evaluate(self) -> None:

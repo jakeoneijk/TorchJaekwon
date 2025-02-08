@@ -2,15 +2,18 @@ import yaml
 import torch
 from dataclasses import dataclass
 
+CONFIG_DIR = "./Config"
+LOG_DIR = "./Train/Log"
+
 @dataclass
 class Mode:
     config_name:str = str()
-    config_path:str = f"./Config/{config_name}.yaml"
+    config_path:str = f"./{CONFIG_DIR}/{config_name}.yaml"
 
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
     train:str = ["start","resume"][0]
-    resume_path:str = f"./Train/Log/{config_name}"
+    resume_path:str = f"{LOG_DIR}/{config_name}"
     debug_mode:bool = False
 
 @dataclass
@@ -21,14 +24,14 @@ class Resource:
 
 @dataclass
 class Data:
-    original_data_dir:str = "../220101_data"
+    original_data_dir:str = ""
     root_path:str = "./Data/Dataset"
     config = dict()
     config_per_dataset_dict = dict()
 
 @dataclass
 class Logging():
-    class_root_dir:str = "./Train/Log"
+    class_root_dir:str = LOG_DIR
     project_name:str = "ldm_enhance"
     visualizer_type = ["tensorboard","wandb"][0]
     use_currenttime_on_experiment_name:bool = False
@@ -49,9 +52,6 @@ class Train:
     class_meta = { 'name' : 'Trainer', 'args' : {}}
     seed_strict = False
     seed = (int)(torch.cuda.initial_seed() / (2**32))
-    lr:int = 0.001
-    lr_decay:float = 0.98
-    lr_decay_step:float = 1.0E+3
     save_model_after_epoch:int = 200
     save_model_every_epoch:int = 100
     check_evalstep_first:bool = True
@@ -65,8 +65,8 @@ class Inference():
         'dir': ''
     }
 
-    pretrain_module_name:str = ["all","last_epoch"][0]
-    pretrain_root_dir:str = "./Train/Log"
+    ckpt_name:str = ["all","last_epoch"][0]
+    pretrain_root_dir:str = LOG_DIR
     pretrain_dir:str = ""
     
     output_dir:str = "./Inference/Output"
@@ -107,16 +107,15 @@ class HParams(Singleton):
             return
         with open(self.mode.config_path, 'r') as yaml_file:
             config_dict:dict = yaml.safe_load(yaml_file)
-        self.set_h_params_from_dict(config_dict)
+        self.set_h_params_by_dict(config_dict)
     
-    def set_config(self,config_path:str = None) -> None:
-        if config_path is not None:
-            self.mode.config_name = config_path.split('Config/')[-1]
-            self.mode.config_path = config_path
-        self.mode.resume_path = f"./Train/Log/{self.mode.config_name}"
+    def set_config(self, config_name:str = None) -> None:
+        self.mode.config_name = config_name
+        self.mode.config_path = f"./{CONFIG_DIR}/{config_name}.yaml"
+        self.mode.resume_path = f"{LOG_DIR}/{self.mode.config_name}"
         self.load_config()
     
-    def set_h_params_from_dict(self, h_params_dict:dict) -> None:
+    def set_h_params_by_dict(self, h_params_dict:dict) -> None:
         for data_class_name in h_params_dict:
             for var_name in h_params_dict[data_class_name]:
                 setattr(getattr(self,data_class_name),var_name,h_params_dict[data_class_name][var_name])
