@@ -179,7 +179,7 @@ class LogWriter():
             wandb_mel_list = list()
             for audio_name in spec_dict:
                 UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
-                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}_step:{UtilData.pretty_num(global_step)}'))
+                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}({UtilData.pretty_num(global_step)})'))
             wandb.log({name: wandb_mel_list, 'global_step': global_step})
     
     def log_every_epoch(self,model:nn.Module):
