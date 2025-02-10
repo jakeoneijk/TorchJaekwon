@@ -161,7 +161,7 @@ class LogWriter():
         else:
             wandb_audio_list = list()
             for audio_name in audio_dict:
-                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}_step:{UtilData.pretty_num(global_step)}', sample_rate=sample_rate))
+                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}({UtilData.pretty_num(global_step)})', sample_rate=sample_rate))
             wandb.log({name: wandb_audio_list, 'global_step': global_step})
     
     def plot_spec(self, 
