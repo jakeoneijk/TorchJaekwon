@@ -278,5 +278,21 @@ class UtilAudio:
             result_meta_dict[dir_name]['total_duration_minutes'] = result_meta_dict[dir_name]['total_duration_second'] / 60
             result_meta_dict[dir_name]['total_duration_hours'] = result_meta_dict[dir_name]['total_duration_second'] / 3600
         UtilData.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = result_meta_dict)
+    
+    @staticmethod
+    def resample_audio_dataset(
+        data_dir_list:Union[str, list], 
+        sr:int,
+        save_dir:str = None,
+    ) -> None:
+        if isinstance(data_dir_list, str): data_dir_list = [data_dir_list]
+        for data_dir in tqdm(data_dir_list, desc="Dataset list"):
+            audio_meta_data_list = UtilData.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
+            for meta_data in tqdm(audio_meta_data_list):
+                audio, _ = librosa.load(meta_data['file_path'], sr = sr)
+                if save_dir == None:
+                    audio_dir_new = meta_data['dir_path'].replace(meta_data['dir_name'], f"{meta_data['dir_name']}_{sr}")
+                UtilAudio.write(f"{audio_dir_new}/{meta_data['file_name']}.wav", audio, sr)
+        
         
 
