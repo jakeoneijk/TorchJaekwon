@@ -46,7 +46,7 @@ class LogWriter():
                     wandb.init(project=self.h_params.log.project_name)
             else: 
                 wandb.init(project=self.h_params.log.project_name)
-            wandb.config = {"learning_rate": self.h_params.train.lr, "epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
+            wandb.config = {"epochs": self.h_params.train.epoch, "batch_size": self.h_params.pytorch_data.dataloader['train']['batch_size'] }
             watched_model = model
             while not isinstance(watched_model, nn.Module):
                 watched_model = watched_model[list(watched_model.keys())[0]]
@@ -93,7 +93,6 @@ class LogWriter():
         self.log_model_parameters(file, model)
         file.write("========================================="+'\n')
         file.write("Epoch :" + str(self.h_params.train.epoch)+'\n')
-        file.write("lr :" + str(self.h_params.train.lr)+'\n')
         file.write("Batch :" + str(self.h_params.pytorch_data.dataloader['train']['batch_size'])+'\n')
         file.write("========================================="+'\n')
         file.close()
