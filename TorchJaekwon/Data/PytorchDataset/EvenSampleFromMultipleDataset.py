@@ -37,18 +37,18 @@ class EvenSampleFromMultipleDataset(IterableDataset):
     
     def __iter__(self):
         while True:
-            self.idx_dict['data_class'] = self.idx_dict['data_class'] + 1
             if self.idx_dict['data_class'] == len(self.data_set_class_list):
                 self.idx_dict['data_class'] = 0
                 self.random_state_dict['data_class'].shuffle(self.data_set_class_list)
             data_class:str = self.data_set_class_list[self.idx_dict['data_class']]
 
-            self.idx_dict[data_class] = self.idx_dict[data_class] + 1
             if self.idx_dict[data_class] == len(self.data_list_dict[data_class]):
                 self.idx_dict[data_class] = 0
                 self.random_state_dict[data_class].shuffle(self.data_list_dict[data_class])
             
             data = self.read_data(self.data_list_dict[data_class][self.idx_dict[data_class]])
+            self.idx_dict['data_class'] = self.idx_dict['data_class'] + 1
+            self.idx_dict[data_class] = self.idx_dict[data_class] + 1
             
             yield data
     
