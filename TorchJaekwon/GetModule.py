@@ -1,10 +1,9 @@
-from typing import Optional, Callable
+from typing import Literal, Callable
 
 import os
 import importlib
 
-import TorchJaekwon
-TORCH_JAEKWON_PATH = os.path.dirname(TorchJaekwon.__file__)
+from TorchJaekwon.Path import TORCH_JAEKWON_PATH, CLASS_DIR_PATH_DICT
 
 try: import torch.nn as nn
 except: print('''Can't import torch.nn''')
@@ -13,7 +12,10 @@ except: print('There is no Hparams')
 
 class GetModule:
     @staticmethod
-    def get_import_path_of_module(root_path:str, module_name:str) -> Optional[str]:
+    def get_import_path_of_module(
+        root_path:str, 
+        module_name:str,
+    ) -> str:
         root_path_list:list = [root_path]
         root_path_list.append(root_path.replace("./",f'{TORCH_JAEKWON_PATH}/'))
         
@@ -30,16 +32,22 @@ class GetModule:
         return None
     
     @staticmethod
-    def get_module_class(root_path:str,module_name:str):
+    def get_module_class(
+        root_path:str = None,
+        class_type:Literal['lr_scheduler'] = None,
+        module_name:str = None,
+    ):
+        if class_type is not None:
+            root_path = CLASS_DIR_PATH_DICT[class_type]
         module_path:str = GetModule.get_import_path_of_module(root_path,module_name)
         module_from = importlib.import_module(module_path)
-        return getattr(module_from,module_name)
+        return getattr( module_from, module_name )
     
     @staticmethod
     def get_model(
         model_name:str,
         root_path:str = './Model'
-        ) -> nn.Module:
+    ) -> nn.Module:
         module_file_path:str = GetModule.get_import_path_of_module(root_path, model_name)
         file_module = importlib.import_module(module_file_path)
         class_module = getattr(file_module,model_name)

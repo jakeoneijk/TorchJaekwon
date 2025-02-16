@@ -14,7 +14,7 @@ END = '\033[0m'
 
 class Util:
     @staticmethod 
-    def print(text:str, type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
+    def print(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
         template_dict:dict = {
             'info': {
                 'color': BOLD + BLUE,
@@ -33,8 +33,8 @@ class Util:
                 'prefix': '[Error]: '
             }
         }
-        color:str = template_dict.get(type, {}).get('color', '')
-        prefix:str = template_dict.get(type, {}).get('prefix', '')
+        color:str = template_dict.get(msg_type, {}).get('color', '')
+        prefix:str = template_dict.get(msg_type, {}).get('prefix', '')
         print(f"{color + prefix + text + END}")
 
     @staticmethod

@@ -15,22 +15,23 @@ from TorchJaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
 from TorchJaekwon.Model.Diffusion.DDPM.BetaSchedule import BetaSchedule
 
 class DDPM(nn.Module):
-    def __init__(self,
-                 model_class_name:Optional[str] = None,
-                 model:Optional[nn.Module] = None,
-
-                 model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
-                 timesteps:int = 1000,
-                 
-                 loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
-
-                 betas: Optional[ndarray] = None, 
-                 beta_schedule_type:Literal['linear','cosine'] = 'cosine',
-                 beta_arg_dict:dict = dict(),
-
-                 unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance
-                 cfg_scale:Optional[float] = None # classifer free guidance scale
-                 ) -> None:
+    def __init__(
+        self,
+        model_class_name:Optional[str] = None,
+        model:Optional[nn.Module] = None,
+        
+        model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
+        timesteps:int = 1000,
+        
+        loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
+        
+        betas: Optional[ndarray] = None, 
+        beta_schedule_type:Literal['linear','cosine'] = 'cosine',
+        beta_arg_dict:dict = dict(),
+        
+        unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
+        cfg_scale:Optional[float] = None # classifer free guidance scale
+    ) -> None:
         super().__init__()
         if model_class_name is not None:
             self.model = GetModule.get_model(model_name = model_class_name)
@@ -46,12 +47,13 @@ class DDPM(nn.Module):
         self.unconditional_prob:float = unconditional_prob
         self.cfg_scale:Optional[float] = cfg_scale
     
-    def set_noise_schedule(self,
-                           betas: Optional[ndarray] = None, 
-                           beta_schedule_type:Literal['linear','cosine'] = 'linear',
-                           beta_arg_dict:dict = dict(),
-                           timesteps:int = 1000,
-                           ) -> None:
+    def set_noise_schedule(
+        self,
+        betas: Optional[ndarray] = None, 
+        beta_schedule_type:Literal['linear','cosine'] = 'linear',
+        beta_arg_dict:dict = dict(),
+        timesteps:int = 1000,
+    ) -> None:
         if betas is None:
             beta_arg_dict.update({'timesteps':timesteps})
             betas = getattr(BetaSchedule,beta_schedule_type)(**beta_arg_dict)
@@ -80,13 +82,14 @@ class DDPM(nn.Module):
         self.posterior_mean_coef1:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_mean_coef1', value = betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
         self.posterior_mean_coef2:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_mean_coef2', value = (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
     
-    def forward(self,
-                x_start:Optional[Tensor] = None,
-                x_shape:Optional[tuple] = None,
-                cond:Optional[Union[dict,Tensor]] = None,
-                is_cond_unpack:bool = False,
-                stage: Literal['train', 'infer'] = 'train'
-                ) -> Tensor: # return loss value or sample
+    def forward(
+        self,
+        x_start:Optional[Tensor] = None,
+        x_shape:Optional[tuple] = None,
+        cond:Optional[Union[dict,Tensor]] = None,
+        is_cond_unpack:bool = False,
+        stage: Literal['train', 'infer'] = 'train'
+    ) -> Tensor: # return loss value or sample
         '''
         train diffusion model. 
         return diffusion loss
@@ -103,12 +106,14 @@ class DDPM(nn.Module):
         else:
             return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, additional_data_dict = additional_data_dict)
     
-    def p_losses(self, 
-                 x_start:Tensor,
-                 cond:Optional[Union[dict,Tensor]],
-                 is_cond_unpack:bool,
-                 t:Tensor, 
-                 noise:Optional[Tensor] = None):
+    def p_losses(
+        self, 
+        x_start:Tensor,
+        cond:Optional[Union[dict,Tensor]],
+        is_cond_unpack:bool,
+        t:Tensor, 
+        noise:Optional[Tensor] = None
+    ):
         noise:Tensor = UtilData.default(noise, lambda: torch.randn_like(x_start))
         x_noisy:Tensor = self.q_sample(x_start=x_start, t=t, noise=noise)
         model_output:Tensor = self.apply_model(x_noisy, t, cond, is_cond_unpack)
@@ -143,7 +148,7 @@ class DDPM(nn.Module):
         return (
             DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
             DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
-            )
+        )
     
     def q_mean_variance(self, x_start, t):
         """
@@ -158,11 +163,13 @@ class DDPM(nn.Module):
         return mean, variance, log_variance
     
     @torch.no_grad()
-    def infer(self,
-              x_shape:tuple,
-              cond:Optional[Union[dict,Tensor]],
-              is_cond_unpack:bool,
-              additional_data_dict:dict):
+    def infer(
+        self,
+        x_shape:tuple,
+        cond:Optional[Union[dict,Tensor]],
+        is_cond_unpack:bool,
+        additional_data_dict:dict
+    ):
         if x_shape is None: x_shape = self.get_x_shape(cond)
         model_device:device = UtilTorch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
@@ -172,13 +179,15 @@ class DDPM(nn.Module):
         return self.postprocess(x, additional_data_dict = additional_data_dict)
     
     @torch.no_grad()
-    def p_sample(self,
-                 x:Tensor, 
-                 t:Tensor, 
-                 cond:Optional[Union[dict,Tensor]],
-                 is_cond_unpack:bool,
-                 clip_denoised:bool = False, # dangerous if True
-                 repeat_noise:bool = False):
+    def p_sample(
+        self,
+        x:Tensor,
+        t:Tensor,
+        cond:Optional[Union[dict,Tensor]],
+        is_cond_unpack:bool,
+        clip_denoised:bool = False, # dangerous if True
+        repeat_noise:bool = False
+    ):
         b, *_, device = *x.shape, x.device
         model_mean, _, model_log_variance = self.p_mean_variance(x = x, t = t, cond = cond, is_cond_unpack = is_cond_unpack, clip_denoised = clip_denoised)
         noise = DiffusionUtil.noise_like(x.shape, device, repeat_noise)
@@ -186,12 +195,14 @@ class DDPM(nn.Module):
         nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
     
-    def p_mean_variance(self,
-                        x:Tensor,
-                        t:Tensor,
-                        cond:Optional[Union[dict,Tensor]],
-                        is_cond_unpack:bool,
-                        clip_denoised: bool) -> Tuple[Tensor]:
+    def p_mean_variance(
+        self,
+        x:Tensor,
+        t:Tensor,
+        cond:Optional[Union[dict,Tensor]],
+        is_cond_unpack:bool,
+        clip_denoised: bool
+    ) -> Tuple[Tensor]:
         
         model_output:Tensor = self.apply_model(x, t, cond, is_cond_unpack, cfg_scale=self.cfg_scale)
         if self.model_output_type == "noise":
@@ -243,13 +254,14 @@ class DDPM(nn.Module):
     def postprocess(self, x:Tensor, additional_data_dict:dict) -> Tensor:
         return x
 
-    def apply_model(self,
-                    x:Tensor,
-                    t:Tensor,
-                    cond:Optional[Union[dict,Tensor]],
-                    is_cond_unpack:bool,
-                    cfg_scale:Optional[float] = None
-                    ) -> Tensor:
+    def apply_model(
+        self,
+        x:Tensor,
+        t:Tensor,
+        cond:Optional[Union[dict,Tensor]],
+        is_cond_unpack:bool,
+        cfg_scale:Optional[float] = None
+    ) -> Tensor:
         if cfg_scale is None or cfg_scale == 1.0:
             if cond is None:
                 return self.model(x, t)
@@ -273,11 +285,12 @@ class DDPM(nn.Module):
         else:
             return False
     
-    def get_unconditional_condition(self,
-                                    cond:Optional[Union[dict,Tensor]] = None, 
-                                    cond_shape:Optional[tuple] = None,
-                                    condition_device:Optional[device] = None
-                                    ) -> Tensor:
+    def get_unconditional_condition(
+        self,
+        cond:Optional[Union[dict,Tensor]] = None, 
+        cond_shape:Optional[tuple] = None,
+        condition_device:Optional[device] = None
+    ) -> Tensor:
         print('Default Unconditional Condition. You might wanna overwrite this function')
         if cond_shape is None: cond_shape = cond.shape
         if cond is not None and isinstance(cond,Tensor): condition_device = cond.device

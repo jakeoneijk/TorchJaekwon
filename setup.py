@@ -17,6 +17,7 @@ setup(
         'librosa',
         'wandb',
         'tensorboardX',
+        'ema-pytorch==0.2.3',
     ],
     # additional metadata about your project
     author='Jaekwon Im',

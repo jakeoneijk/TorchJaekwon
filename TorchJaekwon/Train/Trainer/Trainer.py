@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from ema_pytorch import EMA
 #torchjaekwon import
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
@@ -30,27 +31,29 @@ class Trainer():
         data_class_meta_dict:dict,
         # model
         model_class_name:Union[str, list],
+        model_ckpt_path:str = None,
         # loss
-        loss_class_meta:dict,
+        loss_class_meta:dict = None,
         # optimizer
-        optimizer_class_meta_dict:dict,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
-        optimizer_step_unit:int,
-        lr_scheduler_class_meta_dict:dict,
-        lr_scheduler_interval:Literal['step','epoch'],
-        max_norm_value_for_gradient_clip:float,
+        optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
+        optimizer_step_unit:int = 1,
+        lr_scheduler_class_meta_dict:dict = None,
+        lr_scheduler_interval:Literal['step','epoch'] = 'step',
+        max_norm_value_for_gradient_clip:float = None,
+        use_ema:bool = False,
         # train paremeters
-        total_step:int,
-        total_epoch:int,
-        seed: float,
-        seed_strict:bool,
+        total_step:int = np.inf,
+        total_epoch:int = int(1e20),
+        seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
+        seed_strict:bool = False,
         # logging
-        save_model_every_step:int,
-        save_model_every_epoch:int,
-        log_every_local_step:int,
-        start_logging_epoch:bool,
+        save_model_every_step:int = None,
+        save_model_every_epoch:int = 1,
+        log_every_local_step:int = 100,
+        start_logging_epoch:bool = 0,
         # resource
-        device:torch.device,
-        multi_gpu:bool,
+        device:torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
+        multi_gpu:bool = False,
         # additional
         check_evalstep_first:bool = False,
         debug_mode:bool = False,
@@ -63,6 +66,7 @@ class Trainer():
         # model
         self.model_class_name:Union[str, list] = model_class_name
         self.model:Union[nn.Module, list, dict] = None
+        self.model_ckpt_path:str = model_ckpt_path
 
         # loss
         self.loss_class_meta:dict = loss_class_meta
@@ -74,9 +78,11 @@ class Trainer():
         self.lr_scheduler_class_meta_dict:dict = lr_scheduler_class_meta_dict
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
+        self.use_ema:bool = use_ema
+        self.model_ema:nn.Module = None
         self.optimizer:torch.optim.Optimizer = None
         self.lr_scheduler:torch.optim.lr_scheduler = None
-
+        
         # train paremeters
         self.total_step:int = total_step
         self.total_epoch:int = total_epoch
@@ -102,14 +108,14 @@ class Trainer():
         self.debug_mode = debug_mode
         self.use_torch_compile = use_torch_compile
         if debug_mode:
-            Util.print("debug mode is on", type='warning')
+            Util.print("debug mode is on", msg_type='warning')
             torch.autograd.set_detect_anomaly(True)
         else:
             Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", type='info')
             if self.use_torch_compile: 
-                Util.print("\n  - [on] torch.compile", type='info')
+                Util.print("\n  - [on] torch.compile", msg_type='info')
             else:
-                Util.print("\n  - [off] torch.compile", type='warning')
+                Util.print("\n  - [off] torch.compile", msg_type='warning')
 
         # evaluation
         self.best_valid_metric:dict[str,AverageMeter] = None
@@ -138,7 +144,7 @@ class Trainer():
         """
         raise NotImplementedError
 
-    def save_best_model(self,prev_best_metric, current_metric):
+    def save_best_model( self, prev_best_metric, current_metric ):
         return None
     
     def update_metric(self, metric:Dict[str,AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
@@ -146,7 +152,6 @@ class Trainer():
             metric[loss_name] = AverageMeter()
         metric[loss_name].update(loss.item(), batch_size)
         return metric
-
     
     def log_metric(
         self, 
@@ -154,7 +159,7 @@ class Trainer():
         data_size: int,
         train_state=TrainState.TRAIN,
         x_axis:Literal['global_step', 'epoch'] = 'global_step'
-    )->None:
+    ) -> None:
         """
         log and visualizer log
         """
@@ -200,6 +205,10 @@ class Trainer():
 
     def init_train(self, dataset_dict=None):
         self.model = self.init_model(self.model_class_name)
+        if self.model_ckpt_path is not None:
+            ckpt:dict = torch.load(self.model_ckpt_path, map_location='cpu')
+            self.model = self.load_state_dict(self.model, ckpt)
+        if self.use_ema: self.init_model_ema()
         self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
         if self.lr_scheduler_class_meta_dict is not None:
             self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
@@ -208,8 +217,18 @@ class Trainer():
         
         self.log_writer:LogWriter = LogWriter(model=self.model)
         self.set_data_loader(dataset_dict)
-
     
+    def init_model_ema(self) -> None:
+        self.model_ema = EMA(
+            self.model,
+            beta=0.9999,
+            power=3/4,
+            update_every=1,
+            update_after_step=1,
+            include_online_model=False
+        )
+        self.model_ema = self.model_ema.to(self.device)
+
     def init_model(self, model_class_name:Union[str, list, dict]) -> None:
         if isinstance(model_class_name, list):
             model = dict()
@@ -245,10 +264,11 @@ class Trainer():
             optimizer = optimizer_class(**optimizer_args)
         return optimizer
     
-    def get_params(self, 
-                   model:dict, 
-                   model_name_list:list
-                   ) -> dict:
+    def get_params(
+        self, 
+        model:dict, 
+        model_name_list:list
+    ) -> dict:
         params = list()
         for model_name in model:
             if isinstance(model[model_name], nn.Module):
@@ -266,10 +286,19 @@ class Trainer():
                 lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], self.lr_scheduler_class_meta_dict[key])
         else:
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
-            lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name)
+            lr_scheduler_class = getattr(
+                torch.optim.lr_scheduler, 
+                lr_scheduler_name, 
+                GetModule.get_module_class(class_type = 'lr_scheduler', module_name=lr_scheduler_name)
+            )
             lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
             lr_scheduler_args.update({'optimizer': optimizer})
             lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
+            if hasattr(lr_scheduler, 'interval') and getattr(lr_scheduler, 'interval', None) != self.lr_scheduler_interval:
+                Util.print(
+                    text = f'lr_scheduler interval ({self.lr_scheduler_interval}) is not same as interval of {lr_scheduler_name} ({lr_scheduler.interval}).', 
+                    msg_type='warning'
+                )
         return lr_scheduler
 
     def init_loss(self) -> None:
@@ -299,7 +328,10 @@ class Trainer():
         return data_dict
     
     def set_data_loader(self,dataset_dict=None):
-        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class('./Data/PytorchDataLoader', self.data_class_meta_dict['name'])
+        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class(
+            root_path = './Data/PytorchDataLoader', 
+            module_name = self.data_class_meta_dict['name']
+        )
         data_loader_getter = data_loader_getter_class(**self.data_class_meta_dict['args'])
         if dataset_dict is not None:
             pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)
@@ -420,6 +452,7 @@ class Trainer():
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
 
         if self.optimizer_step_unit == 1:
+            self.on_before_zero_grad()
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -427,7 +460,12 @@ class Trainer():
             loss.backward()
             if (self.global_step + 1) % self.optimizer_step_unit == 0:
                 self.optimizer.step()
+                self.on_before_zero_grad()
                 self.optimizer.zero_grad()
+    
+    def on_before_zero_grad(self) -> None:
+        if self.model_ema is not None:
+            self.model_ema.update()
     
     def set_model_train_valid_mode(self, model, mode: Literal['train','valid']):
         if isinstance(model, dict):
@@ -452,7 +490,13 @@ class Trainer():
                 self.save_module(model[model_type], model_name + f'{model_type}_', name)
         else:
             path = os.path.join(self.log_writer.log_path["root"],f'{model_name}{name}.pth')
-            torch.save(model.state_dict() if not self.multi_gpu else model.module.state_dict(), path)
+            if self.multi_gpu:
+                state_dict = model.module.state_dict()
+            elif self.model_ema is not None:
+                state_dict = self.model_ema.ema_model.state_dict()
+            else:
+                state_dict = model.state_dict()
+            torch.save(state_dict, path)
 
     def load_module(self,name = 'pretrained_best_epoch'):
         path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')

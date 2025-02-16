@@ -19,7 +19,10 @@ class PytorchDataLoader:
         pytorch_dataset_dict:Dict[str,Dataset] = dict()
         for subset in self.data_loader_config:
             dataset_args:dict = self.data_loader_config[subset]["dataset"]['class_meta']['args']
-            pytorch_dataset_dict[subset] = GetModule.get_module_class('./Data/PytorchDataset',self.data_loader_config[subset]["dataset"]['class_meta']["name"])(**dataset_args)
+            pytorch_dataset_dict[subset] = GetModule.get_module_class(
+                root_path = './Data/PytorchDataset',
+                module_name = self.data_loader_config[subset]["dataset"]['class_meta']["name"]
+            )(**dataset_args)
         return pytorch_dataset_dict
     
     def get_pytorch_data_loader_args(self,pytorch_dataset:dict) -> dict:
@@ -34,9 +37,10 @@ class PytorchDataLoader:
                 if arg_name == 'batch_sampler':
                     arguments_for_args_class:dict = self.h_params.pytorch_data.dataloader[subset]['batch_sampler']
                     arguments_for_args_class.update({"pytorch_dataset":pytorch_dataset[subset],"subset":subset})
-                    pytorch_data_loader_config_dict[subset][arg_name] = GetModule.get_module_class('./Data/PytorchDataLoader',
-                                                                                             self.data_loader_config[subset][arg_name]["class_name"]
-                                                                                             )(arguments_for_args_class)
+                    pytorch_data_loader_config_dict[subset][arg_name] = GetModule.get_module_class(
+                        root_path = './Data/PytorchDataLoader',
+                        module_name = self.data_loader_config[subset][arg_name]["class_name"]
+                    )(arguments_for_args_class)
                 elif arg_name == 'collate_fn':
                     if self.data_loader_config[subset][arg_name] == True: pytorch_data_loader_config_dict[subset][arg_name] = pytorch_data_loader_config_dict[subset]["dataset"].collate_fn
                 else:

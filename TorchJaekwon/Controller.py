@@ -48,7 +48,10 @@ class Controller():
                 }
                 preprocessor_args.update(preprocessor_meta['args'])
 
-                preprocessor_class:Type[Preprocessor] = GetModule.get_module_class( "./DataProcess/Preprocess", preprocessor_class_name )
+                preprocessor_class:Type[Preprocessor] = GetModule.get_module_class( 
+                    root_path = "./DataProcess/Preprocess", 
+                    module_name = preprocessor_class_name 
+                )
                 preprocessor:Preprocessor = preprocessor_class(**preprocessor_args)                             
                 preprocessor.preprocess_data()                           
 
@@ -91,7 +94,10 @@ class Controller():
         trainer_class_name:str = train_class_meta['name']
         trainer_args.update(train_class_meta['args'])
         
-        trainer_class:Type[Trainer] = GetModule.get_module_class('./Train/Trainer', trainer_class_name)
+        trainer_class:Type[Trainer] = GetModule.get_module_class(
+            root_path = './Train/Trainer', 
+            module_name = trainer_class_name
+        )
         trainer:Trainer = trainer_class(**trainer_args)
         trainer.init_train()
         
@@ -116,7 +122,10 @@ class Controller():
         }
         inferencer_args.update(infer_class_meta['args'])
 
-        inferencer_class:Type[Inferencer] = GetModule.get_module_class("./Inference/Inferencer", infer_class_meta['name'])
+        inferencer_class:Type[Inferencer] = GetModule.get_module_class(
+            root_path = "./Inference/Inferencer", 
+            module_name = infer_class_meta['name']
+        )
         inferencer:Inferencer = inferencer_class(**inferencer_args)
         inferencer.inference(
             pretrained_root_dir = HParams().inference.pretrain_root_dir,
@@ -126,7 +135,10 @@ class Controller():
 
     def evaluate(self) -> None:
         from TorchJaekwon.Evaluater.Evaluater import Evaluater
-        evaluater_class:Type[Evaluater] = GetModule.get_module_class("./Evaluater", self.eval_class_meta['name'])
+        evaluater_class:Type[Evaluater] = GetModule.get_module_class(
+            root_path="./Evaluater", 
+            module_name=self.eval_class_meta['name']
+        )
         evaluater_args:dict = self.eval_class_meta['args']
         evaluater_args.update({
             'device': HParams().resource.device
