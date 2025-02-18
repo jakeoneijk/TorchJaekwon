@@ -13,8 +13,8 @@ from ema_pytorch import EMA
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
 from TorchJaekwon.Train.LogWriter.LogWriter import LogWriter
-from TorchJaekwon.Util.UtilData import UtilData
-from TorchJaekwon.Util.Util import Util
+from TorchJaekwon.Util import Util, UtilData, UtilTorch
+
 from TorchJaekwon.Train.AverageMeter import AverageMeter
 #internal import
 
@@ -111,7 +111,7 @@ class Trainer():
             Util.print("debug mode is on", msg_type='warning')
             torch.autograd.set_detect_anomaly(True)
         else:
-            Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", type='info')
+            Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", msg_type='info')
             if self.use_torch_compile: 
                 Util.print("\n  - [on] torch.compile", msg_type='info')
             else:
@@ -207,7 +207,7 @@ class Trainer():
         self.model = self.init_model(self.model_class_name)
         if self.model_ckpt_path is not None:
             ckpt:dict = torch.load(self.model_ckpt_path, map_location='cpu')
-            self.model = self.load_state_dict(self.model, ckpt)
+            self.model = self.load_state_dict(self.model, ckpt, is_model=True)
         if self.use_ema: self.init_model_ema()
         self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
         if self.lr_scheduler_class_meta_dict is not None:
@@ -539,6 +539,9 @@ class Trainer():
 
         if self.lr_scheduler is not None:
             train_state['lr_scheduler'] = self.get_state_dict(self.lr_scheduler)
+        
+        if self.use_ema:
+            train_state['model_ema'] = self.get_state_dict(self.model_ema)
 
         path = os.path.join(self.log_writer.log_path["root"],save_name)
         self.log_writer.print_and_log(save_name)
@@ -555,9 +558,12 @@ class Trainer():
         else:
             raise ValueError(f'Cannot get state_dict from {module}')
     
-    def load_state_dict(self, module:Union[dict, nn.Module], state_dict:dict) -> Union[dict, nn.Module]:
+    def load_state_dict(self, module:Union[dict, nn.Module], state_dict:dict, is_model:bool = False) -> Union[dict, nn.Module]:
         if hasattr(module, 'load_state_dict'):
-            module.load_state_dict(state_dict)
+            if is_model:
+                module = UtilTorch.load_model(module, state_dict)
+            else:
+                module.load_state_dict(state_dict)
             return module
         elif isinstance(module, dict):
             for key in module:
@@ -575,8 +581,11 @@ class Trainer():
         self.global_step = cpt['step']
 
         self.model_to_device(self.model, torch.device('cpu'))
-        self.model = self.load_state_dict(self.model, cpt['model'])
+        self.model = self.load_state_dict(self.model, cpt['model'], is_model=True)  
         self.model_to_device(self.model)
+        if self.use_ema:
+            self.model_ema = self.load_state_dict(self.model_ema, cpt['model_ema'])
+            self.model_to_device(self.model_ema)
 
         self.optimizer = self.load_state_dict(self.optimizer, cpt['optimizers'])
         if self.lr_scheduler is not None:

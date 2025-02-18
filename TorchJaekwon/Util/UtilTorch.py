@@ -132,3 +132,27 @@ class UtilTorch:
         """
 
         return 0.5 * ( -1.0 + logvar2 - logvar1 + torch.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * torch.exp(-logvar2))
+
+
+    @staticmethod
+    def load_model(model:nn.Module, state_dict:dict, strict:bool = True) -> nn.Module:
+        is_model_comiled: bool = "_orig_mod." in list(model.state_dict().keys())[0]
+        is_state_dict_comiled: bool = "_orig_mod." in list(state_dict.keys())[0]
+        if is_model_comiled and is_state_dict_comiled or not is_model_comiled and not is_state_dict_comiled:
+            model.load_state_dict(state_dict, strict=strict)
+        elif not is_model_comiled and is_state_dict_comiled:
+            state_dict = UtilTorch.state_dict_unwrap_torch_compile(state_dict)
+            model.load_state_dict(state_dict, strict=strict)
+        else:
+            raise NotImplementedError("Model is compiled but state_dict is not compiled")
+        return model
+
+    @staticmethod
+    def state_dict_unwrap_torch_compile(state_dict: dict) -> dict:
+        new_state_dict = {}
+        for key in state_dict.keys():
+            if "_orig_mod." in key:
+                new_state_dict[key.replace("_orig_mod.", "")] = state_dict[key]
+            else:
+                new_state_dict[key] = state_dict[key]
+        return new_state_dict
