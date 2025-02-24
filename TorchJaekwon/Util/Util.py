@@ -42,9 +42,17 @@ class Util:
         file:str, # __file__
         depth_to_dir_from_file:int = 1,
     ) -> None:
+        dir : str = Util.get_ancestor_dir_path(file, depth_to_dir_from_file)
+        sys.path[0] = os.path.abspath(dir)
+    
+    @staticmethod
+    def get_ancestor_dir_path(
+        file:str, # __file__
+        depth_to_dir_from_file:int = 1,
+    ) -> str:
         dir : str = os.path.abspath(os.path.dirname(file))
         for _ in range(depth_to_dir_from_file): dir = os.path.dirname(dir)
-        sys.path[0] = os.path.abspath(dir)
+        return dir
     
     @staticmethod
     def system(command:str) -> None:

@@ -90,16 +90,35 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         else:
             return log_scale_mel
     
-    def mel_spec_plot(self,
-                      save_path:str, #'*.png'
-                      mel_spec:ndarray, #[mel_size, time]
-                      fig_size:tuple=(8,4),
-                      dpi:int = 300) -> None:
+    def mel_spec_plot(
+        self,
+        save_path:str, #'*.png'
+        mel_spec:ndarray, #[mel_size, time]
+        fig_size:tuple=(12,4),
+        dpi:int = 300,
+        hop_size:int = None,
+        sr:int = None,
+        one_d_array_dict:dict = None, # {'feature_name': 1d_array [time] }
+    ) -> None:
         assert(os.path.splitext(save_path)[1] == ".png") , "file extension should be '.png'"
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         if isinstance(mel_spec, Tensor):
             mel_spec = UtilTorch.to_np(mel_spec)
-        plt.figure(figsize=fig_size)
-        plt.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
+        if one_d_array_dict is None:
+            plt.figure(figsize=fig_size)
+            plt.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
+        else:
+            color_list = ['darkmagenta', 'darkorange', 'darkgreen', 'darkblue', 'darkred', 'darkcyan', 'darkviolet', 'darkgoldenrod', 'darkolivegreen', 'darkslategray']
+            _, axes = plt.subplots(1, 1, figsize=fig_size, sharex=True)
+            axes.set_xlim([0, mel_spec.shape[-1]])
+            time_axis = np.arange(mel_spec.shape[-1]) * hop_size / sr
+            axes.set_xticks(np.linspace(0, mel_spec.shape[-1], num=10))
+            axes.set_xticklabels(np.round(np.linspace(0, time_axis[-1], num=10), 2))
+            axes.set_ylim([0, mel_spec.shape[0]])
+            axes.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
+            for key, value in one_d_array_dict.items():
+                axes.plot(mel_spec.shape[0] * value, color = color_list.pop(), linewidth=1, label=key)
+            axes.legend()
         plt.savefig(save_path,dpi=dpi)
         plt.close()
     
