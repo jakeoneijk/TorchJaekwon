@@ -17,17 +17,21 @@ from TorchJaekwon.Model.Diffusion.DDPM.BetaSchedule import BetaSchedule
 class DDPM(nn.Module):
     def __init__(
         self,
+        # model
         model_class_name:Optional[str] = None,
         model:Optional[nn.Module] = None,
-        
         model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
+        
+        # time
+        time_type:Literal['continuous', 'discrete'] = 'discrete',
         timesteps:int = 1000,
-        
-        loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
-        
+        timestep_sampler:Literal['uniform', 'logit_normal'] = 'uniform',
+
         betas: Optional[ndarray] = None, 
         beta_schedule_type:Literal['linear','cosine'] = 'cosine',
         beta_arg_dict:dict = dict(),
+
+        loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
         
         unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
         cfg_scale:Optional[float] = None # classifer free guidance scale
@@ -41,8 +45,16 @@ class DDPM(nn.Module):
         
         self.loss_func:Union[nn.Module, Callable] = loss_func
 
-        self.timesteps:int = timesteps
-        self.set_noise_schedule(betas=betas, beta_schedule_type=beta_schedule_type, beta_arg_dict=beta_arg_dict, timesteps=timesteps)
+        self.time_type:Literal['continuous', 'discrete'] = time_type
+        if time_type == 'discrete': 
+            self.timesteps:int = timesteps
+        else:
+            self.rng = torch.quasirandom.SobolEngine(1, scramble=True)
+
+        self.timestep_sampler:Literal['uniform', 'logit_normal'] = timestep_sampler
+
+        if any(x is not None for x in (betas, beta_schedule_type, beta_arg_dict)):
+            self.set_noise_schedule(betas=betas, beta_schedule_type=beta_schedule_type, beta_arg_dict=beta_arg_dict, timesteps=timesteps)
 
         self.unconditional_prob:float = unconditional_prob
         self.cfg_scale:Optional[float] = cfg_scale
@@ -99,12 +111,25 @@ class DDPM(nn.Module):
             if x_shape is None: x_shape = x_start.shape
             batch_size:int = x_shape[0] 
             input_device:device = x_start.device
-            t:Tensor = torch.randint(0, self.timesteps, (batch_size,), device=input_device).long()
+            t:Tensor = self.sample_time(batch_size).to(input_device)
             if DDPM.make_decision(self.unconditional_prob):
                 cond:Optional[Union[dict,Tensor]] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
             return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, additional_data_dict = additional_data_dict)
+    
+    def sample_time(self, batch_size:int) -> Tensor:
+        if self.time_type == 'discrete':
+            if self.timestep_sampler == 'uniform':
+                return torch.randint(0, self.timesteps, (batch_size,)).long()
+            else:
+                raise NotImplementedError()
+        else:
+            if self.timestep_sampler == 'uniform':
+                return self.rng.draw(batch_size)[:, 0]
+            elif self.timestep_sampler == 'logit_normal':
+                return torch.sigmoid(torch.randn(batch_size))
+
     
     def p_losses(
         self, 
@@ -130,14 +155,14 @@ class DDPM(nn.Module):
         if target.shape != model_output.shape: print(f'warning: target shape({target.shape}) and model shape({model_output.shape}) are different')
         return self.loss_func(target, model_output)
     
-    def get_v(self, x, noise, t):
+    def get_v(self, x_start, noise, t):
         '''
         Progressive Distillation for Fast Sampling of Diffusion Models
         https://arxiv.org/abs/2202.00512
         '''
         return (
-            DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x.shape) * noise
-            - DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * x
+            DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x_start.shape) * noise
+            - DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * x_start
         )
     
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:
@@ -241,8 +266,8 @@ class DDPM(nn.Module):
     
     def q_posterior(self, x_start, x_t, t):
         posterior_mean = (
-                DiffusionUtil.extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
-                DiffusionUtil.extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
+            DiffusionUtil.extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
+            DiffusionUtil.extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
         )
         posterior_variance = DiffusionUtil.extract(self.posterior_variance, t, x_t.shape)
         posterior_log_variance_clipped = DiffusionUtil.extract(self.posterior_log_variance_clipped, t, x_t.shape)

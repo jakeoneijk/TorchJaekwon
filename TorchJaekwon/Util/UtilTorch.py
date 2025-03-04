@@ -156,3 +156,8 @@ class UtilTorch:
             else:
                 new_state_dict[key] = state_dict[key]
         return new_state_dict
+    
+    @staticmethod
+    def checkpoint(function, *args, **kwargs):
+        kwargs.setdefault("use_reentrant", False)
+        return torch.utils.checkpoint.checkpoint(function, *args, **kwargs)

@@ -7,8 +7,12 @@ from TorchJaekwon.Path import TORCH_JAEKWON_PATH, CLASS_DIR_PATH_DICT
 
 try: import torch.nn as nn
 except: print('''Can't import torch.nn''')
-try: from HParams import HParams
-except: print('There is no Hparams')
+try: 
+    from HParams import HParams
+    hparams_exist = True
+except: 
+    hparams_exist = False
+    print('There is no Hparams')
 
 class GetModule:
     @staticmethod
@@ -53,10 +57,11 @@ class GetModule:
         class_module = getattr(file_module,model_name)
         argument_getter:Callable[[],dict] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
         model_parameter:dict = argument_getter()
-        if len(model_parameter) == 0:
-            model_parameter = HParams().model.class_meta_dict.get(model_name,{})
-        if not model_parameter: 
-            model_parameter = getattr(HParams().model,model_name,dict())
-            if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')
+        if hparams_exist:
+            if len(model_parameter) == 0:
+                model_parameter = HParams().model.class_meta_dict.get(model_name,{})
+            if not model_parameter: 
+                model_parameter = getattr(HParams().model,model_name,dict())
+                if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')
         model:nn.Module = class_module(**model_parameter)
         return model
