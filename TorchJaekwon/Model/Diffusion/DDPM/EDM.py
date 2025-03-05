@@ -1,15 +1,10 @@
-from typing import Union, Callable, Literal, Optional, Tuple
-from numpy import ndarray
-from torch import Tensor, device
+from torch import Tensor
 
 import math
 import torch
 
-from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Util.UtilData import UtilData
-from TorchJaekwon.Util.UtilTorch import UtilTorch
 from TorchJaekwon.Model.Diffusion.DDPM.DDPM import DDPM
-from TorchJaekwon.Model.Diffusion.DDPM.BetaSchedule import BetaSchedule
 
 class EDM(DDPM):
     '''
@@ -17,11 +12,14 @@ class EDM(DDPM):
     aka k-dissusion / KDiffusion / Karras Diffusion
     '''
     def __init__(self, **kwargs) -> None:
-        kwargs['time_type'] = 'continuous'
-        kwargs['timesteps'] = None 
-        kwargs['betas'] = None
-        kwargs['beta_schedule_type'] = None
-        kwargs['beta_arg_dict'] = None
+        default_args = dict()
+        default_args['time_type'] = 'continuous'
+        default_args['timesteps'] = None 
+        default_args['betas'] = None
+        default_args['beta_schedule_type'] = None
+        default_args['beta_arg_dict'] = None
+        assert not any([key in kwargs for key in default_args]), f"Can't change the following params: {list(default_args.keys())}"
+        kwargs.update(default_args)
         super().__init__(**kwargs)
     
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:

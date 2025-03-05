@@ -21,41 +21,40 @@ class DDPM(nn.Module):
         model_class_name:Optional[str] = None,
         model:Optional[nn.Module] = None,
         model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
-        
         # time
         time_type:Literal['continuous', 'discrete'] = 'discrete',
         timesteps:int = 1000,
         timestep_sampler:Literal['uniform', 'logit_normal'] = 'uniform',
-
+        # betas schedule
         betas: Optional[ndarray] = None, 
         beta_schedule_type:Literal['linear','cosine'] = 'cosine',
         beta_arg_dict:dict = dict(),
-
+        # loss
         loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
-        
+        # classifier free guidance
         unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
         cfg_scale:Optional[float] = None # classifer free guidance scale
     ) -> None:
         super().__init__()
+        # model
         if model_class_name is not None:
             self.model = GetModule.get_model(model_name = model_class_name)
         else:
             self.model:nn.Module = model
         self.model_output_type:Literal['noise', 'x_start', 'v_prediction'] = model_output_type
-        
-        self.loss_func:Union[nn.Module, Callable] = loss_func
-
+        # time
         self.time_type:Literal['continuous', 'discrete'] = time_type
         if time_type == 'discrete': 
             self.timesteps:int = timesteps
         else:
             self.rng = torch.quasirandom.SobolEngine(1, scramble=True)
-
         self.timestep_sampler:Literal['uniform', 'logit_normal'] = timestep_sampler
-
+        # betas schedule
         if any(x is not None for x in (betas, beta_schedule_type, beta_arg_dict)):
             self.set_noise_schedule(betas=betas, beta_schedule_type=beta_schedule_type, beta_arg_dict=beta_arg_dict, timesteps=timesteps)
-
+        # loss
+        self.loss_func:Union[nn.Module, Callable] = loss_func
+        # classifier free guidance
         self.unconditional_prob:float = unconditional_prob
         self.cfg_scale:Optional[float] = cfg_scale
     
