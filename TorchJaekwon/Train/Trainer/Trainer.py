@@ -8,7 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from ema_pytorch import EMA
+try: from ema_pytorch import EMA
+except: print("ema_pytorch is not installed")
 #torchjaekwon import
 from TorchJaekwon.GetModule import GetModule
 from TorchJaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
@@ -286,11 +287,9 @@ class Trainer():
                 lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], self.lr_scheduler_class_meta_dict[key])
         else:
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
-            lr_scheduler_class = getattr(
-                torch.optim.lr_scheduler, 
-                lr_scheduler_name, 
-                GetModule.get_module_class(class_type = 'lr_scheduler', module_name=lr_scheduler_name)
-            )
+            lr_scheduler_class = getattr( torch.optim.lr_scheduler, lr_scheduler_name, None )
+            if lr_scheduler_class is None:
+                lr_scheduler_class = GetModule.get_module_class(class_type = 'lr_scheduler', module_name=lr_scheduler_name)
             lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
             lr_scheduler_args.update({'optimizer': optimizer})
             lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
