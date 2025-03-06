@@ -17,6 +17,7 @@ class EDM(DDPM):
     '''
     def __init__(self, **kwargs) -> None:
         default_args = dict()
+        default_args['model_output_type'] = 'v_prediction'
         default_args['time_type'] = 'continuous'
         default_args['timesteps'] = None 
         default_args['betas'] = None

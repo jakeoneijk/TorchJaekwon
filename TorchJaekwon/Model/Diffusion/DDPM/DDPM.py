@@ -300,8 +300,9 @@ class DDPM(nn.Module):
             return model_unconditioned_output + cfg_scale * (model_conditioned_output - model_unconditioned_output)
         
     @staticmethod
-    def make_decision(probability:float #[0,1]
-                      ) -> bool:
+    def make_decision(
+        probability:float #[0,1]
+    ) -> bool:
         if probability == 0:
             return False
         if float(torch.rand(1)) < probability:
