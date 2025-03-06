@@ -193,7 +193,7 @@ class DDPM(nn.Module):
         cond:Optional[Union[dict,Tensor]],
         is_cond_unpack:bool,
         additional_data_dict:dict
-    ):
+    ) -> Tensor:
         if x_shape is None: x_shape = self.get_x_shape(cond)
         model_device:device = UtilTorch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)

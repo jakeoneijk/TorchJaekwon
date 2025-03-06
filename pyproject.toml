@@ -20,7 +20,10 @@ dependencies = [
   "librosa",
   "wandb",
   "tensorboardX",
-  "ema-pytorch==0.2.3"
+  "ema-pytorch==0.2.3",
+  "torchdiffeq",
+  "torchsde",
+  "safetensors"
 ]
 
 [tool.setuptools.packages.find]
