@@ -7,26 +7,35 @@ data:
         - { 'name': 'Preprocessor', 'args': {}}
 #####################################################################################################
 pytorch_data:
-  class_meta: { 'name' : 'PytorchDataLoader', 'args' : {}}
+  class_meta:
+    name : 'PytorchDataLoader'
+    args : {}
   dataloader:
     train:
       batch_size: 16
       num_workers: 15
       dataset: 
-        class_meta: { 'name' : 'DataSet', 'args' : {}}
-      batch_sampler:
-        class_meta: { 'name' : '', 'args' : {}}
+        class_meta:
+          name: 'DataSet'
+          args : {}
+      #batch_sampler:
+      #  class_meta:
+      #    name : ''
+      #    args : {}
       shuffle: True
-      collate_fn: True
       pin_memory: True
       drop_last: True
+      # collate_fn: True # if True TorchDatasetClass must have function 'collate_fn'
     valid:
       batch_size: 16
       num_workers: 15
       dataset: 
-        class_meta: { 'name' : 'DataSet', 'args' : {}}
+        class_meta:
+          name: 'DataSet'
+          args : {}
       shuffle: False
       drop_last: True
+      # collate_fn: True # if True TorchDatasetClass must have function 'collate_fn'
 #####################################################################################################
 model:
   class_name: ''

@@ -77,9 +77,9 @@ class Controller():
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
             'seed_strict': HParams().train.seed_strict,
             # logging
-            'save_model_every_step': getattr(HParams().train, 'save_model_every_step', None),
-            'save_model_every_epoch': getattr(HParams().train, 'save_model_every_epoch', 1),
-            'log_every_local_step': getattr(HParams().log, 'log_every_local_step', 1),
+            'save_model_step_interval': getattr(HParams().train, 'save_model_step_interval', None),
+            'save_model_epoch_interval': getattr(HParams().train, 'save_model_epoch_interval', 1),
+            'log_step_interval': getattr(HParams().log, 'log_step_interval', 1),
             'start_logging_epoch': getattr(HParams().log, 'start_logging_epoch', 0),
             # resource
             'device': HParams().resource.device,

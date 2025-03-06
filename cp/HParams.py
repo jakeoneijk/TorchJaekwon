@@ -35,7 +35,7 @@ class Logging():
     project_name:str = "ldm_enhance"
     visualizer_type = ["tensorboard","wandb"][0]
     use_currenttime_on_experiment_name:bool = False
-    log_every_local_step:int = 40
+    log_step_interval:int = 40
 
 @dataclass
 class PytorchData:
@@ -53,7 +53,7 @@ class Train:
     seed_strict = False
     seed = (int)(torch.cuda.initial_seed() / (2**32))
     save_model_after_epoch:int = 200
-    save_model_every_epoch:int = 100
+    save_model_epoch_interval:int = 100
     check_evalstep_first:bool = True
 
 @dataclass

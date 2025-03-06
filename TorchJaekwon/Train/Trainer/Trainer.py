@@ -48,9 +48,9 @@ class Trainer():
         seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
         seed_strict:bool = False,
         # logging
-        save_model_every_step:int = None,
-        save_model_every_epoch:int = 1,
-        log_every_local_step:int = 100,
+        save_model_step_interval:int = None,
+        save_model_epoch_interval:int = 1,
+        log_step_interval:int = 100,
         start_logging_epoch:bool = 0,
         # resource
         device:torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
@@ -95,9 +95,9 @@ class Trainer():
         self.local_step:int = 0
 
         # logging
-        self.save_model_every_step:int = save_model_every_step
-        self.save_model_every_epoch:int = save_model_every_epoch
-        self.log_every_local_step:int = log_every_local_step
+        self.save_model_step_interval:int = save_model_step_interval
+        self.save_model_epoch_interval:int = save_model_epoch_interval
+        self.log_step_interval:int = log_step_interval
         self.start_logging_epoch:bool = start_logging_epoch
 
         # resource
@@ -133,25 +133,31 @@ class Trainer():
         run 1 step
         1. get data
         2. use model
-
         3. calculate loss
-            current_loss_dict = self.loss_control.calculate_total_loss_by_loss_meta_dict(pred_dict=pred, target_dict=train_data_dict)
-        
         4. put the loss in metric (append)
-            for loss_name in current_loss_dict:
-                metric[loss_name].update(current_loss_dict[loss_name].item(),batch_size)
-
-        return current_loss_dict["total_loss"],metric
+            metric = self.update_metric(metric, loss_dict, data.shape[0])
+        5. return loss_dict["total_loss"],metric
         """
         raise NotImplementedError
+
+    @torch.no_grad()
+    def log_media(self) -> None:
+        pass
+
+    '''
+    ==============================================================
+    abstract method end
+    ==============================================================
+    '''
 
     def save_best_model( self, prev_best_metric, current_metric ):
         return None
     
-    def update_metric(self, metric:Dict[str,AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
-        if loss_name not in metric:
-            metric[loss_name] = AverageMeter()
-        metric[loss_name].update(loss.item(), batch_size)
+    def update_metric(self, metric:Dict[str,AverageMeter], loss_dict:Dict[str,torch.Tensor], batch_size:int) -> dict:
+        for loss_name in loss_dict:
+            if loss_name not in metric:
+                metric[loss_name] = AverageMeter()
+            metric[loss_name].update(loss_dict[loss_name].item(), batch_size)
         return metric
     
     def log_metric(
@@ -183,16 +189,7 @@ class Trainer():
                 y_axis_value=val
             )
         self.log_writer.print_and_log(log)
-    
-    @torch.no_grad()
-    def log_media(self) -> None:
-        pass
 
-    '''
-    ==============================================================
-    abstract method end
-    ==============================================================
-    '''
     def set_seeds(self, seed:float, strict=False) -> None:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
@@ -366,7 +363,7 @@ class Trainer():
             
             self.best_valid_metric = self.save_best_model(self.best_valid_metric, valid_metric)
 
-            if self.current_epoch > self.start_logging_epoch and self.current_epoch % self.save_model_every_epoch == 0:
+            if self.current_epoch > self.start_logging_epoch and self.current_epoch % self.save_model_epoch_interval == 0:
                 self.save_module(self.model, name=f"step{self.global_step}_epoch{self.current_epoch}")
                 self.log_current_state()
             
@@ -415,10 +412,10 @@ class Trainer():
                 self.backprop(loss)
                 self.lr_scheduler_step(call_state='step')
                 
-                if self.global_step % self.log_every_local_step == 0:
+                if self.global_step % self.log_step_interval == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
-                if self.save_model_every_step is not None and self.global_step % self.save_model_every_step == 0 and not self.global_step == 0:
+                if self.save_model_step_interval is not None and self.global_step % self.save_model_step_interval == 0 and not self.global_step == 0:
                     self.save_module(self.model, name=f"step{self.global_step}")
                     self.log_current_state()
 

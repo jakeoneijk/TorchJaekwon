@@ -158,10 +158,11 @@ class UtilData:
         return d() if isfunction(d) else d
     
     @staticmethod
-    def fix_length(data:Union[ndarray,Tensor],
-                   length:int,
-                   dim:int = -1
-                   ) -> Tensor:
+    def fix_length(
+        data:Union[ndarray,Tensor],
+        length:int,
+        dim:int = -1
+    ) -> Tensor:
         assert len(data.shape) in [1,2,3], "Error[UtilData.fix_length] only support when data.shape is 1, 2 or 3"
         if data.shape[dim] < length:
             if isinstance(data,Tensor):
