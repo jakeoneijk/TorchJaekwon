@@ -94,7 +94,7 @@ class DDPM(nn.Module):
         x_start:Optional[Tensor] = None,
         x_shape:Optional[tuple] = None,
         cond:Optional[Union[dict,Tensor]] = None,
-        is_cond_unpack:bool = False,
+        is_cond_unpack:bool = True,
         stage: Literal['train', 'infer'] = 'train'
     ) -> Tensor: # return loss value or sample
         '''
@@ -266,7 +266,7 @@ class DDPM(nn.Module):
         x:Tensor,
         t:Tensor,
         cond:Optional[Union[dict,Tensor]],
-        is_cond_unpack:bool,
+        is_cond_unpack:bool = True,
         cfg_scale:Optional[float] = None
     ) -> Tensor:
         if cfg_scale is None or cfg_scale == 1.0:

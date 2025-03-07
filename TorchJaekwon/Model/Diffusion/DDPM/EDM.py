@@ -36,7 +36,6 @@ class EDM(DDPM):
         sigma: Tensor = torch.Tensor([0]),
         x_shape:Optional[tuple] = None,
         cond:Optional[Union[dict,Tensor]] = None,
-        is_cond_unpack:bool = False,
         stage: Literal['train', 'infer'] = 'train'
     ) -> Tensor: # return loss value or sample
         '''
@@ -44,11 +43,11 @@ class EDM(DDPM):
         if stage == 'infer': return the output of the model. for full inference, use infer() method
         '''
         if stage == 'train':
-            return super().forward(x_start = x, x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, stage = stage)
+            return super().forward(x_start = x, x_shape = x_shape, cond = cond, stage = stage)
         else:
             c_skip, c_out, c_in = [append_dims(scaling, x.ndim) for scaling in self.get_scalings(sigma)]
             t = self.sigma_to_t(sigma)
-            model_output = self.apply_model(x = x * c_in, t = t, cond = cond, is_cond_unpack = is_cond_unpack, cfg_scale=self.cfg_scale)
+            model_output = self.apply_model(x = x * c_in, t = t, cond = cond, cfg_scale=self.cfg_scale)
             return model_output * c_out + x * c_skip
             
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:
@@ -67,7 +66,6 @@ class EDM(DDPM):
         self,
         x_shape:tuple = None,
         cond:Optional[Union[dict,Tensor]] = None,
-        is_cond_unpack:bool = False,
         sampler_type:Literal['heun', 'lms', 'dpmpp_2s_ancestral', 'dpm_2', 'dpm_fast', 'dpm_adaptive', 'dpmpp_2m_sde', 'dpmpp_3m_sde'] = 'dpmpp_3m_sde',
         steps:int = 100,
         sigma_min:float = 0.3, #0.5, 
@@ -89,7 +87,6 @@ class EDM(DDPM):
             'disable': False, 
             'extra_args':{
                 'cond': cond,
-                'is_cond_unpack': is_cond_unpack,
                 'stage': 'infer'
             }
         }
