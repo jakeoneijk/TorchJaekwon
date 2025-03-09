@@ -4,15 +4,10 @@ import os
 import importlib
 
 from TorchJaekwon.Path import TORCH_JAEKWON_PATH, CLASS_DIR_PATH_DICT
+from TorchJaekwon.Util import Util
 
 try: import torch.nn as nn
 except: print('''Can't import torch.nn''')
-try: 
-    from HParams import HParams
-    hparams_exist = True
-except: 
-    hparams_exist = False
-    print('There is no Hparams')
 
 class GetModule:
     @staticmethod
@@ -20,19 +15,16 @@ class GetModule:
         root_path:str, 
         module_name:str,
     ) -> str:
-        root_path_list:list = [root_path]
-        root_path_list.append(root_path.replace("./",f'{TORCH_JAEKWON_PATH}/'))
+        root_path_list:list = [root_path, root_path.replace("./",f'{TORCH_JAEKWON_PATH}/')]
+        torch_jaekwon_parent_path:str = '/'.join(TORCH_JAEKWON_PATH.split('/')[:-1])
         
         for root_path in root_path_list:
-            for root,dirs,files in os.walk(root_path):
-                if len(files) > 0:
-                    for file in files:
-                        if os.path.splitext(file)[0] == module_name:
-                            if TORCH_JAEKWON_PATH in root:
-                                torch_jaekwon_parent_path:str = '/'.join(TORCH_JAEKWON_PATH.split('/')[:-1])
-                                return f'{root}/{os.path.splitext(file)[0]}'.replace(torch_jaekwon_parent_path+'/','').replace("/",".")
-                            else:
-                                return f'{root}/{os.path.splitext(file)[0]}'.replace("./","").replace("/",".")
+            for root, _, files in os.walk(root_path):
+                for file in files:
+                    file_name:str = os.path.splitext(file)[0]
+                    if file_name == module_name:
+                        parent_path_to_be_eliminated:str = f'{torch_jaekwon_parent_path}/' if TORCH_JAEKWON_PATH in root else './'
+                        return f'{root}/{file_name}'.replace(parent_path_to_be_eliminated,"").replace("/",".")
         return None
     
     @staticmethod
@@ -57,11 +49,13 @@ class GetModule:
         class_module = getattr(file_module,model_name)
         argument_getter:Callable[[],dict] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
         model_parameter:dict = argument_getter()
-        if hparams_exist:
-            if len(model_parameter) == 0:
+        if not model_parameter:
+            try: 
+                from HParams import HParams
                 model_parameter = HParams().model.class_meta_dict.get(model_name,{})
-            if not model_parameter: 
-                model_parameter = getattr(HParams().model,model_name,dict())
-                if not model_parameter: print(f'''GetModule: Model [{model_name}] doesn't have changed arguments''')
+                if not model_parameter: 
+                    Util.print(f'''[GetModule] Model [{model_name}] doesn't have changed arguments''', 'info')
+            except: 
+                Util.print(f'''[GetModule] Model [{model_name}] doesn't have changed arguments''', 'info')
         model:nn.Module = class_module(**model_parameter)
         return model

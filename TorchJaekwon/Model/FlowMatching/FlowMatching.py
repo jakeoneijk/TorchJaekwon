@@ -31,7 +31,6 @@ class FlowMatching(nn.Module):
         else:
             self.model:nn.Module = model
         # time
-        # time
         self.time_sampler = TimeSampler(time_type = 'continuous', sampler_type = timestep_sampler)
         # loss
         self.loss_func:Union[nn.Module, Callable] = loss_func
