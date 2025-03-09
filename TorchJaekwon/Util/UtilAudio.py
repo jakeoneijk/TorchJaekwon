@@ -39,7 +39,7 @@ class UtilAudio:
         audio:Union[ndarray, Tensor], #[shape=(channel, num_samples) or (num_samples)]
         origin_sr:int,
         target_sr:int,
-        resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'librosa',
+        resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'torchaudio',
         resample_type:str = "kaiser_fast",
         audio_path:Optional[str] = None
     ) -> Union[ndarray, Tensor]:
@@ -52,7 +52,8 @@ class UtilAudio:
         elif resample_module == 'torchaudio':
             #transforms.Resample precomputes and caches the kernel used for resampling, while functional.resample computes it on the fly
             #so using torchaudio.transforms.Resample will result in a speedup when resampling multiple waveforms using the same parameters
-            return torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr)(audio)
+            resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr).to(audio.device)
+            return resampler(audio)
     
     @staticmethod
     def read(
