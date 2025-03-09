@@ -8,6 +8,7 @@ import numpy as np
 
 #torchjaekwon
 from TorchJaekwon.GetModule import GetModule
+from TorchJaekwon.Util import Util
 
 #internal
 from HParams import HParams
@@ -102,7 +103,7 @@ class Controller():
         trainer.init_train()
         
         if self.train_mode == "resume":
-            print('resume the training')
+            Util.print('resume the training', 'info')
             trainer.load_train(self.train_resume_path + "/train_checkpoint.pth")
         
         trainer.fit()

@@ -161,3 +161,14 @@ class UtilTorch:
     def checkpoint(function, *args, **kwargs):
         kwargs.setdefault("use_reentrant", False)
         return torch.utils.checkpoint.checkpoint(function, *args, **kwargs)
+    
+    @staticmethod
+    def get_params(
+        model:nn.Module,
+        excluded_param_name_list:list,
+    ) -> list:
+        parameters = list()
+        for name, param in model.named_parameters():
+            if not any([ excluded_param_name in name for excluded_param_name in excluded_param_name_list]):
+                parameters.append(param)
+        return parameters
