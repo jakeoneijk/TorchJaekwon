@@ -65,7 +65,7 @@ class Controller():
             # model
             'model_class_name': HParams().model.class_name,
             # loss
-            'loss_class_meta': HParams().train.loss_dict,
+            'loss_meta_dict': getattr(HParams().train, 'loss', None),
             # optimizer
             'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
             'optimizer_step_unit': getattr(HParams().train,'optimizer_step_unit',1),

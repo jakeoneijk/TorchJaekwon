@@ -29,15 +29,15 @@ class GetModule:
     
     @staticmethod
     def get_module_class(
-        root_path:str = None,
-        class_type:Literal['lr_scheduler'] = None,
+        root_path:str = None, # if class_type is not None, don't need to input root_path
+        class_type:Literal['lr_scheduler', 'loss'] = None,
         module_name:str = None,
     ):
         if class_type is not None:
             root_path = CLASS_DIR_PATH_DICT[class_type]
         module_path:str = GetModule.get_import_path_of_module(root_path,module_name)
         module_from = importlib.import_module(module_path)
-        return getattr( module_from, module_name )
+        return getattr(module_from, module_name)
     
     @staticmethod
     def get_model(

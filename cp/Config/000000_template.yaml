@@ -76,17 +76,16 @@ train:
         step_size: 20000
         gamma: 0.5
         
-    interval: 'step' #epoch
+    interval: 'step' # Literal['step', 'epoch']
     frequency: 1
 
-  loss_control:
-    class_meta: { 'name' : 'LossControl', 'args' : {}}
-
-  loss_dict:
-    mel_l1_loss :
-      class_meta: { 'name' : 'L1Loss', 'args' : {}}
-      pred_name: ''
-      target_name: ''
+  loss:
+    loss_name: # for specifying loss
+      class_meta:
+        name : 'L1Loss'
+        args : {}
+      pred_name: '' # if model's output is dict, you can specify the key
+      target_name: '' # if target is dict, you can specify the key
       weight: 1
     
   loss_list_for_performance_comparison: 

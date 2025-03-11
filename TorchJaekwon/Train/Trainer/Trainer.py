@@ -34,7 +34,7 @@ class Trainer():
         model_class_name:Union[str, list],
         model_ckpt_path:str = None,
         # loss
-        loss_class_meta:dict = None,
+        loss_meta_dict:dict = None,
         # optimizer
         optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
         optimizer_step_unit:int = 1,
@@ -70,7 +70,7 @@ class Trainer():
         self.model_ckpt_path:str = model_ckpt_path
 
         # loss
-        self.loss_class_meta:dict = loss_class_meta
+        self.loss_meta_dict:dict = loss_meta_dict
         self.loss_function_dict:dict = dict()
 
         # optimizer
@@ -298,9 +298,14 @@ class Trainer():
         return lr_scheduler
 
     def init_loss(self) -> None:
-        for loss_name in self.loss_class_meta:
-            loss_class: Type[torch.nn.Module] = getattr(torch.nn, self.loss_class_meta[loss_name]['class_meta']['name']) # loss_name:Literal['L1Loss']
-            self.loss_function_dict[loss_name] = loss_class()
+        if self.loss_meta_dict is None: return
+        for loss_name in self.loss_meta_dict:
+            loss_class_name:str = self.loss_meta_dict[loss_name]['class_meta']['name']
+            loss_args:dict = self.loss_meta_dict[loss_name]['class_meta']['args']
+            loss_class:Type[torch.nn.Module] = getattr(torch.nn, loss_class_name, None)
+            if loss_class is None:
+                loss_class = GetModule.get_module_class(class_type='loss', module_name=loss_class_name)
+            self.loss_function_dict[loss_name] = loss_class(**loss_args)
     
     def model_to_device(self, model:Union[nn.Module, dict], device = None) -> None:
         if isinstance(model, dict):
