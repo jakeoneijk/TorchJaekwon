@@ -52,7 +52,17 @@ class AudioListeningTableMaker:
             table_row_dict_audio['name'] = f'''<div style="width:300px">{audio_name}<div>'''
             for audio_dir_meta in audio_dir_meta_list:
                 audio_dir_name = audio_dir_meta.get('name', audio_dir_meta['dir'].split('/')[-1])
-                media_html_dict:dict = html_util.get_html_audio(audio_path = AudioListeningTableMaker.get_audio_path(audio_name, audio_dir_meta), sample_rate=sr, spec_type=spec_type)
+                audio_path:str = AudioListeningTableMaker.get_audio_path(audio_name, audio_dir_meta)
+                if os.path.isfile(audio_path):
+                    media_html_dict:dict = html_util.get_html_audio(audio_path = audio_path, sample_rate=sr, spec_type=spec_type)
+                else:
+                    file_strict:bool = audio_dir_meta.get('file_strict', True)
+                    if file_strict: 
+                        Util.print(f'File not found: {audio_path}', msg_type='error')
+                        raise FileNotFoundError
+                    else:
+                        media_html_dict = {'audio': '', 'spec': ''}
+
                 table_row_dict_audio[audio_dir_name] = media_html_dict['audio']
                 table_row_dict_spec[audio_dir_name] = media_html_dict['spec']
             html_dict_list.append(table_row_dict_audio)
