@@ -95,7 +95,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         save_path:str, #'*.png'
         mel_spec:ndarray, #[mel_size, time]
         fig_size:tuple=(12,4),
-        dpi:int = 300,
+        dpi:int = 150,
         hop_size:int = None,
         sr:int = None,
         one_d_array_dict:dict = None, # {'feature_name': 1d_array [time] }

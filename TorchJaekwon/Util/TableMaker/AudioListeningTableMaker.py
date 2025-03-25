@@ -7,6 +7,8 @@ from TorchJaekwon.Util.Util import Util
 from TorchJaekwon.Util.UtilData import UtilData
 from TorchJaekwon.Util.TableMaker import HTMLUtil
 
+TD_WIDTH = 300
+
 class AudioListeningTableMaker:
     @staticmethod
     def get_yaml_example(output_dir:str = './') -> None:
@@ -17,7 +19,6 @@ class AudioListeningTableMaker:
     def make_table_from_config_path(yaml_path:str, output_dir:str = None, max_num_tr:int = 5) -> None:
         meta_data:dict = UtilData.yaml_load(yaml_path)
         AudioListeningTableMaker.make_table(output_dir = output_dir, max_num_tr = max_num_tr, **meta_data)
-        
 
     @staticmethod
     def make_table(
@@ -49,7 +50,7 @@ class AudioListeningTableMaker:
 
             table_row_dict_audio = dict()
             table_row_dict_spec = dict()
-            table_row_dict_audio['name'] = f'''<div style="width:300px">{audio_name}<div>'''
+            table_row_dict_audio['name'] = f'''<div style="width:{TD_WIDTH}px">{audio_name}<div>'''
             for audio_dir_meta in audio_dir_meta_list:
                 audio_dir_name = audio_dir_meta.get('name', audio_dir_meta['dir'].split('/')[-1])
                 audio_path:str = AudioListeningTableMaker.get_audio_path(audio_name, audio_dir_meta)
@@ -61,7 +62,7 @@ class AudioListeningTableMaker:
                         Util.print(f'File not found: {audio_path}', msg_type='error')
                         raise FileNotFoundError
                     else:
-                        media_html_dict = {'audio': '', 'spec': ''}
+                        media_html_dict = {'audio': f'<div style="width:{TD_WIDTH}px"> X <div>', 'spec': f'<div style="width:{TD_WIDTH}px"> X <div>'}
 
                 table_row_dict_audio[audio_dir_name] = media_html_dict['audio']
                 table_row_dict_spec[audio_dir_name] = media_html_dict['spec']
