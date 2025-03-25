@@ -41,7 +41,6 @@ class UtilAudio:
         target_sr:int,
         resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'torchaudio',
         resample_type:str = "kaiser_fast",
-        audio_path:Optional[str] = None
     ) -> Union[ndarray, Tensor]:
         if(origin_sr == target_sr): return audio
         #print(f"resample audio {origin_sr} to {target_sr}")
@@ -58,35 +57,51 @@ class UtilAudio:
     @staticmethod
     def read(
         audio_path:str,
-        sample_rate:Optional[int] = None,
+        # result parameters
+        sample_rate:Optional[int] = None, # Output sample rate. If None, original sample rate will be used
         mono:Optional[bool] = None,
-        start_idx:int = 0,
-        end_idx:Optional[int] = None,
+        sample_length:Optional[int] = None,
+        return_type:Union[ndarray, Tensor] = Tensor,
+        # segment parameters
+        start:Optional[int] = None,
+        end:Optional[int] = None,
+        segment_type:Literal['time','sample'] = 'sample',
+        origin_sample_rate:Optional[int] = None,
+        # module parameters
         module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
-        return_type:Union[ndarray, Tensor] = ndarray
-    ) -> Union[ndarray, Tensor]: #[shape=(channel, num_samples) or (num_samples)]
+    ) -> Union[ndarray, Tensor]: # shape=(channel, num_samples)
+        # error check
+        if segment_type == 'time': assert origin_sample_rate is not None, f'[Error] origin_sample_rate must be given when segment_type is time'
+        if start is not None: assert module_name == 'torchaudio', f'[Error] currently only torchaudio module supports start and end parameter'
         
         if module_name == "soundfile":
-            audio_data, original_samplerate = sf.read(audio_path)
+            audio_data, original_sr = sf.read(audio_path)
             if len(audio_data.shape) > 1 : audio_data = audio_data.T
-
-            if sample_rate is not None and sample_rate != original_samplerate:
-                #print(f"resample audio {original_samplerate} to {sample_rate}")
-                audio_data = UtilAudio.resample_audio(audio_data,original_samplerate,sample_rate)
-
+            if sample_rate is not None and sample_rate != original_sr:
+                audio_data = UtilAudio.resample_audio(audio_data,original_sr,sample_rate)
         elif module_name == "librosa":
-            print(f"read audio sr: {sample_rate}")
-            audio_data, original_samplerate = librosa.load( audio_path, sr=sample_rate, mono=mono)
-        
+            audio_data, original_sr = librosa.load( audio_path, sr=sample_rate, mono=mono)
         elif module_name == 'torchaudio':
-            if end_idx is not None: assert end_idx > start_idx, f'[Error] end_idx must be larger than start_idx'
-            #[channel, time], int
-            audio_data, original_samplerate = torchaudio.load(audio_path, 
-                                                              frame_offset = start_idx, 
-                                                              num_frames = -1 if end_idx is None else end_idx - start_idx)
-            if sample_rate is not None and sample_rate != original_samplerate:
-                audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_samplerate, target_sr = sample_rate, resample_module='torchaudio', audio_path = audio_path)
-                
+            if start is None:
+                frame_offset = 0
+            else:
+                frame_offset = round(start * origin_sample_rate) if segment_type == 'time' else start
+            if end is None:
+                num_frames = -1
+            else:
+                num_frames = round((end - start) * origin_sample_rate) if segment_type == 'time' else end - start
+            audio_data, original_sr = torchaudio.load(
+                audio_path, 
+                frame_offset = frame_offset, 
+                num_frames = num_frames
+            )
+            if origin_sample_rate is not None: assert origin_sample_rate == original_sr, f'[Error] origin_sample_rate is not same with original sample rate'
+            if sample_rate is not None and sample_rate != original_sr:
+                audio_data = UtilAudio.resample_audio(audio = audio_data, origin_sr=original_sr, target_sr = sample_rate, resample_module='torchaudio')
+        
+        if sample_length is not None:
+            audio_data = UtilData.fix_length(audio_data, sample_length, dim = -1)
+            
         if mono is not None:
             if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:
                 audio_data = torch.mean(audio_data,axis=0)  if isinstance(audio_data, torch.Tensor) else np.mean(audio_data,axis=0) 
@@ -96,9 +111,12 @@ class UtilAudio:
                 stereo_audio[1,...] = audio_data.squeeze()
                 audio_data = stereo_audio
         
-        assert ((len(audio_data.shape)==1) or ((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'[read audio shape problem] path: {audio_path} shape: {audio_data.shape}'
+        if isinstance(audio_data, Tensor) and return_type == ndarray:
+            audio_data = audio_data.cpu().detach().numpy()
+
+        assert (((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'[read audio shape problem] path: {audio_path} shape: {audio_data.shape}'
             
-        return audio_data, original_samplerate if sample_rate is None else sample_rate
+        return audio_data, original_sr if sample_rate is None else sample_rate
     
     @staticmethod
     def write(

@@ -8,12 +8,13 @@ import torch
 from tqdm import tqdm
 
 class Preprocessor(ABC):
-    def __init__(self,
-                 data_name:str = None,
-                 root_dir:str = None,
-                 device:torch.device = None,
-                 num_workers:int = 1,
-                 ) -> None:
+    def __init__(
+        self,
+        data_name:str = None,
+        root_dir:str = None,
+        device:torch.device = None,
+        num_workers:int = 1,
+    ) -> None:
         # args to class variable
         self.data_name:str = data_name
         self.root_dir:str = root_dir
@@ -29,13 +30,14 @@ class Preprocessor(ABC):
     def get_output_dir(self) -> str:
         return os.path.join(self.root_dir, self.data_name)
     
-    def write_message(self,message_type:str,message:str) -> None:
+    def write_message(self, message_type:str, message:str) -> None:
         with open(f"{self.preprocessed_data_path}/{message_type}.txt",'a') as file_writer:
             file_writer.write(message+'\n')
     
     def preprocess_data(self) -> None:
         meta_param_list:list = self.get_meta_data_param()
         print(f'length of meta data: {len(meta_param_list)}')
+        result_list = list()
         for start_idx in tqdm(range(0,len(meta_param_list),self.max_meta_data_len),desc='sub meta param list'):
             sub_meta_param_list = meta_param_list[start_idx:start_idx+self.max_meta_data_len]
             if sub_meta_param_list is None:
@@ -44,12 +46,23 @@ class Preprocessor(ABC):
             start_time:float = time.time()
             if self.num_workers > 2:
                 with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
-                    pool.map(self.preprocess_one_data, sub_meta_param_list)
+                    # pool.map(self.preprocess_one_data, sub_meta_param_list)
+                    with tqdm(total=len(sub_meta_param_list)) as progress:
+                        future_list = list()
+
+                        for sub_meta_param in sub_meta_param_list:
+                            future = pool.submit(self.preprocess_one_data, sub_meta_param)
+                            future.add_done_callback(lambda p: progress.update())
+                            future_list.append(future)
+
+                        for future in future_list:
+                            result = future.result()
+                            result_list.append(result)
             else:
                 for meta_param in tqdm(sub_meta_param_list,desc='preprocess data'):
-                    self.preprocess_one_data(meta_param)
+                    result_list.append(self.preprocess_one_data(meta_param))
 
-        self.final_process()
+        self.final_process(result_list)
         print("{:.3f} s".format(time.time() - start_time))
 
     @abstractmethod
@@ -60,11 +73,11 @@ class Preprocessor(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def preprocess_one_data(self,param: tuple) -> None:
+    def preprocess_one_data(self, param:tuple) -> None:
         '''
         ex) (subset, file_name) = param
         '''
         raise NotImplementedError
     
-    def final_process(self) -> None:
+    def final_process(self, result_list:list) -> None:
         print("Finish preprocess")

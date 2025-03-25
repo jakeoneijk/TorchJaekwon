@@ -186,6 +186,7 @@ class UtilData:
     
     @staticmethod
     def walk(dir_name:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
+        dir_name = dir_name.replace('//','/')
         file_meta_list:list = list()
         for root, _, files in os.walk(dir_name):
             for filename in tqdm(files, desc=f'walk {root}'):
