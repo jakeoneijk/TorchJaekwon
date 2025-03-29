@@ -1,4 +1,4 @@
-from typing import Any,Dict
+from typing import Any,Dict,Tuple
 from torch import Tensor, dtype, device
 from numpy import ndarray
 
@@ -166,9 +166,13 @@ class UtilTorch:
     def get_params(
         model:nn.Module,
         excluded_param_name_list:list,
-    ) -> list:
+    ) -> Tuple[list, Dict[str, list]]:
         parameters = list()
+        param_names_dict = {'included':[], 'excluded':[]}
         for name, param in model.named_parameters():
             if not any([ excluded_param_name in name for excluded_param_name in excluded_param_name_list]):
                 parameters.append(param)
-        return parameters
+                param_names_dict['included'].append(name)
+            else:
+                param_names_dict['excluded'].append(name)
+        return parameters, param_names_dict

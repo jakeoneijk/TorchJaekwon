@@ -73,7 +73,7 @@ class Preprocessor(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def preprocess_one_data(self, param:tuple) -> None:
+    def preprocess_one_data(self, param:dict) -> None:
         '''
         ex) (subset, file_name) = param
         '''
