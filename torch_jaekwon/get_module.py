@@ -13,7 +13,7 @@ class GetModule:
     @staticmethod
     def get_module_class(
         root_path:str = None, # if class_type is not None, don't need to input root_path
-        class_type:Literal['trainer', 'lr_scheduler', 'loss'] = None,
+        class_type:Literal['trainer', 'data_loader', 'pytorch_dataset', 'lr_scheduler', 'loss'] = None,
         module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
     ):
         if class_type is not None:

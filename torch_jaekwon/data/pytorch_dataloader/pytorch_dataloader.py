@@ -21,7 +21,7 @@ class PytorchDataLoader:
         for subset in self.data_loader_config:
             dataset_args:dict = self.data_loader_config[subset]["dataset"]['class_meta']['args']
             pytorch_dataset_dict[subset] = GetModule.get_module_class(
-                root_path = './Data/PytorchDataset',
+                class_type='pytorch_dataset',
                 module_name = self.data_loader_config[subset]["dataset"]['class_meta']["name"]
             )(**dataset_args)
         return pytorch_dataset_dict

@@ -283,7 +283,11 @@ class Trainer():
                 lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], self.lr_scheduler_class_meta_dict[key])
         else:
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
-            lr_scheduler_class = getattr( torch.optim.lr_scheduler, lr_scheduler_name, None )
+            lr_scheduler_class = getattr( 
+                torch.optim.lr_scheduler, 
+                lr_scheduler_name if isinstance(lr_scheduler_name, str) else lr_scheduler_name[1], 
+                None 
+            )
             if lr_scheduler_class is None:
                 lr_scheduler_class = GetModule.get_module_class(class_type = 'lr_scheduler', module_name=lr_scheduler_name)
             lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
@@ -333,7 +337,7 @@ class Trainer():
     
     def set_data_loader(self,dataset_dict=None):
         data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class(
-            root_path = './Data/PytorchDataLoader', 
+            class_type='data_loader',
             module_name = self.data_class_meta_dict['name']
         )
         data_loader_getter = data_loader_getter_class(**self.data_class_meta_dict['args'])
