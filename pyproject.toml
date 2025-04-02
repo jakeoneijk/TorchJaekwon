@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "TorchJaekwon"
+name = "torch_jaekwon"
 version = "1.0"
 description = ""
 # If you have a license, you can specify it here:
