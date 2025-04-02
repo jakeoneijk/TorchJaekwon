@@ -17,9 +17,9 @@ from torch_jaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
 from torch_jaekwon.Util.UtilTorch import UtilTorch
 from torch_jaekwon.Util import UtilData
 
-from HParams import HParams
+from h_params import HParams
 
-class LogWriter():
+class Logger():
     def __init__(
         self,
         model:nn.Module,
