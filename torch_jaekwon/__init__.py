@@ -1,1 +1,1 @@
-from torch_jaekwon.GetModule import GetModule
+from torch_jaekwon.get_module import GetModule

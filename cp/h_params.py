@@ -2,8 +2,8 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-CONFIG_DIR = "./Config"
-LOG_DIR = "./Train/Log"
+CONFIG_DIR = "./config"
+LOG_DIR = "./train/log"
 
 @dataclass
 class Mode:
@@ -25,7 +25,6 @@ class Resource:
 @dataclass
 class Data:
     original_data_dir:str = ""
-    root_path:str = "./Data/Dataset"
     config = dict()
     config_per_dataset_dict = dict()
 
@@ -39,12 +38,10 @@ class Logging():
 
 @dataclass
 class PytorchData:
-    class_root_dir:str = "./Data/PytorchDataset"
     dataloader = dict()
 
 @dataclass
 class Model:
-    class_root_dir:str = "./Model"
     class_name:str = ''
     
 @dataclass

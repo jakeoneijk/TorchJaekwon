@@ -4,11 +4,10 @@ from typing import Optional, Union, Literal
 import math
 import torch
 
-from torch_jaekwon.Util import UtilData, UtilTorch
-from torch_jaekwon.Model.Diffusion.DDPM.DDPM import DDPM
-from torch_jaekwon.Model.Diffusion.External.k_diffusion import sampling as e_sampling
-from torch_jaekwon.Model.Diffusion.External.k_diffusion.external import VDenoiser
-from torch_jaekwon.Model.Diffusion.External.k_diffusion.utils import append_dims
+from ....util import UtilData, UtilTorch
+from .ddpm import DDPM
+from ..external.k_diffusion import sampling as e_sampling
+from ..external.k_diffusion.utils import append_dims
 
 class EDM(DDPM):
     '''

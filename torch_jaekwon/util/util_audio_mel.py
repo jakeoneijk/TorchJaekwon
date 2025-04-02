@@ -10,13 +10,11 @@ import librosa
 try: import librosa.display
 except: print('can not import librosa display')
 from librosa.filters import mel as librosa_mel_fn
-try:
-    import matplotlib.pyplot as plt
-except:
-    print('matplotlib is uninstalled')
+try: import matplotlib.pyplot as plt
+except: print('matplotlib is uninstalled')
 #torchjaekwon
-from torch_jaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
-from torch_jaekwon.Util.UtilTorch import UtilTorch
+from .util_audio_stft import UtilAudioSTFT
+from .util_torch import UtilTorch
 
 class UtilAudioMelSpec(UtilAudioSTFT):
     def __init__(self, 

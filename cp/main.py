@@ -1,6 +1,6 @@
 from tqdm import tqdm
 
-from torch_jaekwon.Controller import Controller
+from torch_jaekwon.controller import Controller
 
 from h_params import HParams
 HParams()

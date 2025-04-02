@@ -5,10 +5,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from torch_jaekwon.GetModule import GetModule
-from torch_jaekwon.Util import UtilData, UtilTorch
-from torch_jaekwon.Model.Diffusion.DDPM.TimeSampler import TimeSampler
-from torch_jaekwon.Model.FlowMatching.Sampler import Sampler as flow_sampler
+from ...get_module import GetModule
+from ...util import UtilData, UtilTorch
+from ..diffusion.ddpm.time_sampler import TimeSampler
+from .sampler import Sampler as flow_sampler
 
 class FlowMatching(nn.Module):
     def __init__(

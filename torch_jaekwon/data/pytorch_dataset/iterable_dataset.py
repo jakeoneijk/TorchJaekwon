@@ -8,11 +8,12 @@ import torch
 from torch.utils.data import IterableDataset
 
 class IterablePytorchDataset(IterableDataset):
-    def __init__(self,
-                 data_type:Union[str,list] = None,
-                 is_multiple_random_seed:bool = True,
-                 random_seed:int = (int)(torch.cuda.initial_seed() / (2**32))
-                 ) -> None:
+    def __init__(
+        self,
+        data_type:Union[str,list] = None,
+        is_multiple_random_seed:bool = True,
+        random_seed:int = (int)(torch.cuda.initial_seed() / (2**32))
+    ) -> None:
         
         self.is_multiple_data_type:bool = isinstance(data_type,list)
 

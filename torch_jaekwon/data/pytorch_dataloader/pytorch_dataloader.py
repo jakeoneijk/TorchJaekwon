@@ -1,8 +1,9 @@
 from typing import Dict
 from torch.utils.data import Dataset, DataLoader
 
-from HParams import HParams
-from torch_jaekwon.GetModule import GetModule
+from ...get_module import GetModule
+
+from h_params import HParams
 
 class PytorchDataLoader:
     def __init__(self):

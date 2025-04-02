@@ -8,12 +8,11 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from torch_jaekwon.GetModule import GetModule
-from torch_jaekwon.Util.UtilData import UtilData
-from torch_jaekwon.Util.UtilTorch import UtilTorch
-from torch_jaekwon.Model.Diffusion.DDPM.TimeSampler import TimeSampler
-from torch_jaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
-from torch_jaekwon.Model.Diffusion.DDPM.BetaSchedule import BetaSchedule
+from ....get_module import GetModule
+from ....util import UtilData, UtilTorch
+from .time_sampler import TimeSampler
+from .diffusion_util import DiffusionUtil
+from .beta_schedule import BetaSchedule
 
 class DDPM(nn.Module):
     def __init__(

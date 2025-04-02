@@ -1,12 +1,12 @@
 #type
-from typing import List,Dict,Union
+from typing import List
 #import
 import os
 from tqdm import tqdm
 import numpy as np
 import torch
 #torchjaekwon import
-from torch_jaekwon.Util.UtilData import UtilData
+from ..util import UtilData
 #internal import
 
 class Evaluater():

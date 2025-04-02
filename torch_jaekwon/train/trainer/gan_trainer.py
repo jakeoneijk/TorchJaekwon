@@ -1,7 +1,7 @@
 
 from typing import Union, Literal
 
-from torch_jaekwon.Train.Trainer.Trainer import Trainer
+from .trainer import Trainer
 
 class GANTrainer(Trainer):
     def __init__(

@@ -10,7 +10,7 @@ import librosa
 try: import librosa.display
 except: print('can not import librosa display')
 
-from torch_jaekwon.Util.UtilAudio import UtilAudio
+from .util_audio import UtilAudio
 
 class UtilAudioSTFT(UtilAudio):
     def __init__(self,nfft:int, hop_size:int):

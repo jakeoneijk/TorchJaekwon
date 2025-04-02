@@ -1,5 +1,5 @@
 #type
-from typing import Optional,Dict
+from typing import Optional,Dict, Tuple
 from torch import Tensor
 from numpy import ndarray
 #import
@@ -16,18 +16,19 @@ except: print('Warning: fastdtw is not installed')
 try: from skimage.metrics import structural_similarity as ssim
 except: print('Warning: skimage is not installed')
 #torchjaekwon import
-from torch_jaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
-from torch_jaekwon.Util.UtilAudio import UtilAudio
+from ...util import UtilAudio, UtilAudioMelSpec
 #internal import
 
 class MetricVoice:
-    def __init__(self,
-                 sample_rate:int = 16000,
-                 nfft:Optional[int] = None,
-                 hop_size:Optional[int] = None,
-                 mel_size:Optional[int] = None,
-                 frequency_min:Optional[float] = None,
-                 frequency_max:Optional[float] = None) -> None:
+    def __init__(
+        self,
+        sample_rate:int = 16000,
+        nfft:Optional[int] = None,
+        hop_size:Optional[int] = None,
+        mel_size:Optional[int] = None,
+        frequency_min:Optional[float] = None,
+        frequency_max:Optional[float] = None
+    ) -> None:
         
         spec_config_of_sr_dict:Dict[int,dict] = {
             '''
@@ -57,11 +58,11 @@ class MetricVoice:
                                          frequency_max = spec_config_of_sr['frequency_max'] if frequency_max is None else frequency_max)
         
     def get_spec_metrics_from_audio(
-            self,
-            pred, #linear scale spectrogram [time]
-            target,
-            metric_list:list = ['lsd','ssim','sispnr', 'l1', 'l2']
-        ) -> Dict[str,float]:
+        self,
+        pred, #linear scale spectrogram [time]
+        target,
+        metric_list:list = ['lsd','ssim','sispnr', 'l1', 'l2']
+    ) -> Dict[str,float]:
         
         source_spec_dict = self.get_spec_dict_of_audio(pred)
         target_spec_dict = self.get_spec_dict_of_audio(target)
@@ -86,10 +87,11 @@ class MetricVoice:
         return metric_dict
         
     
-    def get_lsd_from_audio(self,
-                           pred, # [time]
-                           target # [time]
-                           ) -> Dict[str,float] :
+    def get_lsd_from_audio(
+        self,
+        pred, # [time]
+        target # [time]
+    ) -> Dict[str,float] :
         pred_spec_dict = self.get_spec_dict_of_audio(pred)
         target_spec_dict = self.get_spec_dict_of_audio(target)
         lsd_dict = dict()
@@ -103,9 +105,11 @@ class MetricVoice:
         return {'spec_mag':spectrogram_mag.squeeze().detach().cpu().numpy(), 'mel': mel_spec.squeeze().detach().cpu().numpy()}
 
     @staticmethod
-    def get_lsd_from_spec(pred, #linear scale spectrogram [freq, time]
-                          target,
-                          eps = 1e-12):
+    def get_lsd_from_spec(
+        pred, #linear scale spectrogram [freq, time]
+        target,
+        eps = 1e-12
+    ) -> float:
         #log_spectral_distance
         # in non-log scale
         lsd = ((target + eps)**2)/((pred + eps)**2)
@@ -122,10 +126,12 @@ class MetricVoice:
         return sdr
     
     @staticmethod
-    def get_pesq(source:ndarray, #[time]
-                 target:ndarray, #[time]
-                 sample_rate:int = [8000,16000][1],
-                 band:str = ['wide-band','narrow-band'][0]):
+    def get_pesq(
+        source:ndarray, #[time]
+        target:ndarray, #[time]
+        sample_rate:int = [8000,16000][1],
+        band:str = ['wide-band','narrow-band'][0]
+    ) -> float:
         assert (sample_rate in [8000,16000]), f'sample rate must be either 8000 or 16000. current sample rate {sample_rate}'
         if (sample_rate == 16000 and band == 'narrow-band'): print('Warning: narrowband (nb) mode only when sampling rate is 8000Hz')
         if band == 'wide-band':
@@ -134,10 +140,12 @@ class MetricVoice:
             return pesq(sample_rate, target, source, 'nb')
         
     @staticmethod
-    def get_mcd(source:ndarray, #[time]
-                target:ndarray, #[time]
-                sample_rate:int, 
-                frame_period=5):
+    def get_mcd(
+        source:ndarray, #[time]
+        target:ndarray, #[time]
+        sample_rate:int, 
+        frame_period=5
+    ) -> Tuple[float,int]:
         cost_function = MetricVoice.dB_distance
         mgc_source = MetricVoice.get_mgc(source, sample_rate, frame_period)
         mgc_target = MetricVoice.get_mgc(target, sample_rate, frame_period)
@@ -188,63 +196,3 @@ class MetricVoice:
         if data_range is None:
             data_range = max(source.max(), target.max()) - min(source.min(), target.min())
         return float(ssim(source, target, win_size=7, data_range=data_range))
-    
-    
-'''
-
-    
-    
-    def get_sdr_torchmetrics(self,pred_audio:Union[Tensor,ndarray], target_audio:Union[Tensor,ndarray]) -> dict:
-        result_dict = dict()
-        audio_spec_tensor_dict:dict = self.get_audio_and_spec_tensor_pred_target_dict(pred_audio, target_audio)
-        for data_type in audio_spec_tensor_dict["pred"]:
-            sdr = SignalDistortionRatio()
-            result_dict[f"sdr_torchmetrics_{data_type}"] = float(sdr(audio_spec_tensor_dict["pred"][data_type].clone(),audio_spec_tensor_dict["target"][data_type].clone()))
-
-        return result_dict
-
-    
-    
-def get_f0(audio, sample_rate, frame_period=5, method='dio'):
-    if isinstance(audio, torch.Tensor):
-        if audio.ndim > 1:
-            audio = audio[0]
-
-        audio = audio.numpy()
-
-    hop_size = int(frame_period*sample_rate/1000)
-    if method == 'dio':
-        f0, _ = pw.dio(audio.astype(np.double), sample_rate, frame_period=frame_period)
-    elif method == 'harvest':
-        f0, _ = pw.harvest(audio.astype(np.double), sample_rate, frame_period=frame_period)
-    elif method == 'swipe':
-        f0 = pysptk.sptk.swipe(audio.astype(np.double), sample_rate, hopsize=hop_size)
-    elif method == 'rapt':
-        f0 = pysptk.sptk.rapt(audio.astype(np.double), sample_rate, hopsize=hop_size)
-    else:
-        raise ValueError(f'No such f0 extract method, {method}.')
-
-    f0 = torch.from_numpy(f0)
-    vuv = 1*(f0 != 0.0)
-
-    return f0, vuv
-
-
-def get_f0_rmse(source, target, sample_rate, frame_period=5, method='dio'):
-    length = min(source.shape[-1], target.shape[-1])
-
-    source_f0, source_v = get_f0(source[...,:length], sample_rate, frame_period, method)
-    target_f0, target_v = get_f0(target[...,:length], sample_rate, frame_period, method)
-
-    source_uv = 1 - source_v
-    target_uv = 1 - target_v
-    tp_mask = source_v*target_v
-
-    length = tp_mask.sum().item()
-
-    f0_rmse = 1200.0*torch.abs(torch.log2(target_f0 + target_uv) - torch.log2(source_f0 + source_uv))
-    f0_rmse = tp_mask*f0_rmse
-    f0_rmse = f0_rmse.sum()/length
-
-    return f0_rmse.item(), length
-'''

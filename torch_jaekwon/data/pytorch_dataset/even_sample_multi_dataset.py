@@ -1,12 +1,8 @@
-from typing import Union, Dict
-from numpy import ndarray
+from typing import Dict
 
-import time
-import random
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
-from torch.utils.data.dataset import Dataset
 
 class EvenSampleFromMultipleDataset(IterableDataset):
     def __init__(self,

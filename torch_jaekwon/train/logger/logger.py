@@ -12,10 +12,7 @@ except: print('Didnt import following packages: wandb')
 try: from tensorboardX import SummaryWriter
 except: print('Didnt import following packages: tensorboardX')
 
-from torch_jaekwon.Util.Util import Util
-from torch_jaekwon.Util.UtilAudioSTFT import UtilAudioSTFT
-from torch_jaekwon.Util.UtilTorch import UtilTorch
-from torch_jaekwon.Util import UtilData
+from ...util import Util, UtilAudioSTFT, UtilTorch, UtilData
 
 from h_params import HParams
 
@@ -135,7 +132,7 @@ class Logger():
 
         self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step)
         if is_plot_mel:
-            from torch_jaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec
+            from ...util import UtilAudioMelSpec
             if mel_spec_args is None:
                 mel_spec_args = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate=sample_rate)
             mel_spec_util = UtilAudioMelSpec(**mel_spec_args)

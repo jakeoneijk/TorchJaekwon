@@ -3,12 +3,12 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 
-from torch_jaekwon.Util import UtilAudioMelSpec
+from ....util import UtilAudioMelSpec
 
 class MelSpectrogramLoss(nn.Module):
     def __init__(
         self, 
-        sample_rate:int = 44100,
+        sampling_rate:int = 44100,
         nfft:int = 2048,
         hop_size:int = 512,
         mel_size:int = 128,
@@ -19,7 +19,7 @@ class MelSpectrogramLoss(nn.Module):
         self.mel_spec_util = UtilAudioMelSpec(
             nfft = nfft, 
             hop_size = hop_size, 
-            sample_rate = sample_rate, 
+            sample_rate = sampling_rate, 
             mel_size = mel_size, 
             frequency_min = frequency_min, 
             frequency_max = frequency_max

@@ -3,9 +3,8 @@ from typing import Literal
 import os
 import unicodedata
 from tqdm import tqdm
-from torch_jaekwon.Util.Util import Util 
-from torch_jaekwon.Util.UtilData import UtilData
-from torch_jaekwon.Util.TableMaker import HTMLUtil
+from ...util import Util, UtilData
+from ..table_maker import HTMLUtil
 
 TD_WIDTH = 300
 

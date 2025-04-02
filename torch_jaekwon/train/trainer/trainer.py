@@ -11,12 +11,11 @@ from torch.utils.data import DataLoader
 try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
-from torch_jaekwon.GetModule import GetModule
-from torch_jaekwon.Data.PytorchDataLoader.PytorchDataLoader import PytorchDataLoader
-from torch_jaekwon.Train.LogWriter.LogWriter import LogWriter
-from torch_jaekwon.Util import Util, UtilData, UtilTorch
-
-from torch_jaekwon.Train.AverageMeter import AverageMeter
+from ...get_module import GetModule
+from ...data.pytorch_dataloader.pytorch_dataloader import PytorchDataLoader
+from ...util import Util, UtilData, UtilTorch
+from ..logger.logger import Logger
+from ..average_meter import AverageMeter
 #internal import
 
 @unique
@@ -213,7 +212,7 @@ class Trainer():
         self.init_loss()
         self.model_to_device(self.model)
         
-        self.log_writer:LogWriter = LogWriter(model=self.model)
+        self.log_writer:Logger = Logger(model=self.model)
         self.set_data_loader(dataset_dict)
     
     def init_model_ema(self) -> None:
@@ -300,9 +299,13 @@ class Trainer():
     def init_loss(self) -> None:
         if self.loss_meta_dict is None: return
         for loss_name in self.loss_meta_dict:
-            loss_class_name:str = self.loss_meta_dict[loss_name]['class_meta']['name']
+            loss_class_name:Union[str,tuple] = self.loss_meta_dict[loss_name]['class_meta']['name']
             loss_args:dict = self.loss_meta_dict[loss_name]['class_meta']['args']
-            loss_class:Type[torch.nn.Module] = getattr(torch.nn, loss_class_name, None)
+            loss_class:Type[torch.nn.Module] = getattr(
+                torch.nn, 
+                loss_class_name if isinstance(loss_class_name, str) else loss_class_name[1], 
+                None
+            )
             if loss_class is None:
                 loss_class = GetModule.get_module_class(class_type='loss', module_name=loss_class_name)
             self.loss_function_dict[loss_name] = loss_class(**loss_args)

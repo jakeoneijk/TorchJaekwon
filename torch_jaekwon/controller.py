@@ -7,11 +7,11 @@ import argparse
 import numpy as np
 
 #torchjaekwon
-from torch_jaekwon.GetModule import GetModule
-from torch_jaekwon.Util import Util
+from .get_module import GetModule
+from .util import Util
 
 #internal
-from HParams import HParams
+from h_params import HParams
 
 class Controller():
     def __init__(self) -> None:
@@ -37,7 +37,7 @@ class Controller():
         print("Finish app.")
 
     def preprocess(self) -> None:
-        from torch_jaekwon.DataProcess.Preprocess.Preprocessor import Preprocessor
+        from .data_process.preprocess.preprocessor import Preprocessor
         for data_name in self.config_per_dataset_dict:
             for preprocessor_meta in self.config_per_dataset_dict[data_name]['preprocessor_class_meta_list']:
                 preprocessor_class_name:str = preprocessor_meta['name']
@@ -57,8 +57,9 @@ class Controller():
                 preprocessor.preprocess_data()                           
 
     def train(self) -> None:
+        if self.train_mode == "resume": Util.print('resume the training', 'info')   
         import torch
-        from torch_jaekwon.Train.Trainer.Trainer import Trainer
+        from torch_jaekwon.train.trainer.trainer import Trainer
         trainer_args = {
             # data
             'data_class_meta_dict': HParams().pytorch_data.class_meta,
@@ -96,14 +97,14 @@ class Controller():
         trainer_args.update(train_class_meta['args'])
         
         trainer_class:Type[Trainer] = GetModule.get_module_class(
-            root_path = './Train/Trainer', 
+            class_type = 'trainer', 
             module_name = trainer_class_name
         )
         trainer:Trainer = trainer_class(**trainer_args)
         trainer.init_train()
         
         if self.train_mode == "resume":
-            Util.print('resume the training', 'info')
+            Util.print('load the checkpoint', 'info')
             trainer.load_train(self.train_resume_path + "/train_checkpoint.pth")
         
         trainer.fit()
