@@ -185,17 +185,19 @@ class UtilData:
             return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
     
     @staticmethod
-    def walk(dir_name:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
-        dir_name = dir_name.replace('//','/')
+    def walk(dir_path:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
+        dir_path = dir_path.replace('//','/')
         file_meta_list:list = list()
-        for root, _, files in os.walk(dir_name):
+        for root, _, files in os.walk(dir_path):
             for filename in tqdm(files, desc=f'walk {root}'):
                 if os.path.splitext(filename)[-1] in ext:
                     file_meta_list.append({
                         'file_name': UtilData.get_file_name( file_path = filename ),
                         'file_path': f'{root}/{filename}',
+                        'file_path_relative': os.path.relpath(f'{root}/{filename}', dir_path),
                         'dir_name': UtilData.get_file_name(root),
                         'dir_path': root,
+                        'dir_path_relative': os.path.relpath(root, dir_path),
                     })
         return file_meta_list
     

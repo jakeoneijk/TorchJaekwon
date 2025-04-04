@@ -57,10 +57,11 @@ class Preprocessor(ABC):
 
                         for future in future_list:
                             result = future.result()
-                            result_list.append(result)
+                            if result is not None: result_list.append(result)
             else:
                 for meta_param in tqdm(sub_meta_param_list,desc='preprocess data'):
-                    result_list.append(self.preprocess_one_data(meta_param))
+                    result = self.preprocess_one_data(meta_param)
+                    if result is not None: result_list.append(result)
 
         self.final_process(result_list)
         print("{:.3f} s".format(time.time() - start_time))

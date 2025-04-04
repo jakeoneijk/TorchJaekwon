@@ -50,7 +50,7 @@ class Controller():
                 preprocessor_args.update(preprocessor_meta['args'])
 
                 preprocessor_class:Type[Preprocessor] = GetModule.get_module_class( 
-                    root_path = "./DataProcess/Preprocess", 
+                    class_type='preprocessor', 
                     module_name = preprocessor_class_name 
                 )
                 preprocessor:Preprocessor = preprocessor_class(**preprocessor_args)                             
