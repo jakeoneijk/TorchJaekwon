@@ -30,7 +30,7 @@ class Trainer():
         # data
         data_class_meta_dict:dict,
         # model
-        model_class_name:Union[str, list],
+        model_class_name:Union[list, dict],
         model_ckpt_path:str = None,
         # loss
         loss_meta_dict:dict = None,
@@ -64,7 +64,7 @@ class Trainer():
         self.data_loader_dict:dict = {subset: None for subset in ['train','valid','test']}
 
         # model
-        self.model_class_name:Union[str, list] = model_class_name
+        self.model_class_name:Union[list, dict] = model_class_name
         self.model:Union[nn.Module, list, dict] = None
         self.model_ckpt_path:str = model_ckpt_path
 
@@ -226,12 +226,9 @@ class Trainer():
         )
         self.model_ema = self.model_ema.to(self.device)
 
-    def init_model(self, model_class_name:Union[str, list, dict]) -> None:
-        if isinstance(model_class_name, list):
-            model = dict()
-            for name in model_class_name:
-                model[name] = self.init_model(name)
-        elif isinstance(model_class_name, dict):
+    def init_model(self, model_class_name:Union[list, dict]) -> None:
+        if isinstance(model_class_name, list): assert len(model_class_name) == 2, "model_class_name should be list of [file_name, class_name]"
+        if isinstance(model_class_name, dict):
             model = dict()
             for name in model_class_name:
                 model[name] = self.init_model(model_class_name[name])

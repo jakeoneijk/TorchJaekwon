@@ -11,10 +11,15 @@ from ..diffusion.ddpm.time_sampler import TimeSampler
 from .sampler import Sampler as flow_sampler
 
 class FlowMatching(nn.Module):
+    '''
+    Note: This implementation uses a reversed time convention compared to the original Flow Matching paper (https://arxiv.org/abs/2210.02747).
+    In the paper, t=0 corresponds to a standard normal distribution and t=1 to a distribution approximately equal to the data.
+    Here, t=0 corresponds to the data-like distribution and t=1 to noise.
+    '''
     def __init__(
         self,
         # model
-        model_class_name:Optional[str] = None,
+        model_class_name:Optional[list] = None,
         model:Optional[nn.Module] = None,
         # time
         timestep_sampler:Literal['uniform', 'logit_normal'] = 'uniform',
@@ -22,12 +27,14 @@ class FlowMatching(nn.Module):
         loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
         # classifier free guidance
         unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
-        cfg_scale:Optional[float] = None # classifer free guidance scale
+        cfg_scale:Optional[float] = None, # classifer free guidance scale
+        cfg_rescale:Optional[float] = None,
+        cfg_calc_type:Literal['batch', 'sequential'] = 'batch'
     ) -> None:
         super().__init__()
         # model
         if model_class_name is not None:
-            self.model = GetModule.get_model(model_name = model_class_name)
+            self.model = GetModule.get_model(module_name = model_class_name)
         else:
             self.model:nn.Module = model
         # time
@@ -37,22 +44,23 @@ class FlowMatching(nn.Module):
         # classifier free guidance
         self.unconditional_prob:float = unconditional_prob
         self.cfg_scale:Optional[float] = cfg_scale
+        self.cfg_rescale:Optional[float] = cfg_rescale
+        self.cfg_calc_type:Literal['batch', 'sequential'] = cfg_calc_type
     
     def forward(
         self,
         x_start:Tensor,
         cond:Optional[dict] = None,
-    ) -> Tensor: # return loss value or sample
-        '''
-        train diffusion model. 
-        return diffusion loss
-        '''
+    ) -> Tensor: # return loss
         x_start, cond, _ = self.preprocess(x_start, cond)
         batch_size:int = x_start.shape[0] 
         input_device:device = x_start.device
         t:Tensor = self.time_sampler.sample(batch_size).to(input_device)
-        if self.make_decision(self.unconditional_prob):
-            cond:Optional[dict] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
+        if self.unconditional_prob > 0:
+            uncond_dict:dict = self.get_unconditional_condition(cond=cond, condition_device=input_device)
+            for cond_name, uncond in uncond_dict.items():
+                dropout_mask = torch.bernoulli(torch.full((uncond.shape[0], *[1 for _ in range(len(uncond.shape) - 1)]), self.unconditional_prob, device=input_device)).to(torch.bool)
+                cond[cond_name] = torch.where(dropout_mask, uncond, cond[cond_name])
         return self.get_loss(x_start, cond, t)
     
     @torch.no_grad()
@@ -73,7 +81,15 @@ class FlowMatching(nn.Module):
         sigma_max = min(sigma_max, 1)
 
         sampling_func = getattr(flow_sampler, sampler_type)
-        x = sampling_func(model = self.apply_model, x = x, steps = steps, sigma_max = sigma_max, cond = cond, cfg_scale = self.cfg_scale)
+        x = sampling_func(
+            model = self.apply_model, 
+            x = x, 
+            steps = steps, 
+            sigma_max = sigma_max, 
+            cond = cond, 
+            cfg_scale = self.cfg_scale,
+            cfg_rescale = self.cfg_rescale
+        )
 
         return self.postprocess(x, additional_data_dict = additional_data_dict)
     
@@ -98,17 +114,34 @@ class FlowMatching(nn.Module):
         x:Tensor,
         t:Tensor,
         cond:Optional[dict],
-        cfg_scale:Optional[float] = None
+        cfg_scale:Optional[float] = None,
+        cfg_rescale:Optional[float] = None,
     ) -> Tensor:
         if cond is None:
             cond = dict()
         if cfg_scale is None or cfg_scale == 1.0:
             return self.model(x, t, **cond)
         else:
-            model_conditioned_output = self.model(x, t, **cond)
-            unconditional_conditioning = self.get_unconditional_condition(cond=cond)
-            model_unconditioned_output = self.model(x, t, **unconditional_conditioning)
-            return model_unconditioned_output + cfg_scale * (model_conditioned_output - model_unconditioned_output)
+            uncond_dict:dict = self.get_unconditional_condition(cond=cond)
+            uncond:dict = {key: uncond_dict.get(key, cond[key]) for key in cond}
+            if self.cfg_calc_type == 'sequential':
+                output_cond = self.model(x, t, **cond)
+                output_uncond = self.model(x, t, **uncond)
+            else:
+                cfg_x = torch.cat([x, x], dim=0)
+                cfg_t = torch.cat([t, t], dim=0)
+                cfg_cond = {key: torch.cat([cond[key], uncond[key]], dim=0) for key in cond}
+                output_cond_uncond = self.model(cfg_x, cfg_t, **cfg_cond)
+                output_cond, output_uncond = torch.chunk(output_cond_uncond, 2, dim=0)
+
+            output_cfg = output_uncond + cfg_scale * (output_cond - output_uncond)
+            
+            if cfg_rescale is not None:
+                output_cond_std = output_cond.std(dim=1, keepdim=True)
+                output_cfg_std = output_cfg.std(dim=1, keepdim=True)
+                return cfg_rescale * (output_cfg * (output_cond_std/output_cfg_std)) + (1-cfg_rescale) * output_cfg
+            else:
+                return output_cfg
     
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:
         '''
@@ -140,10 +173,9 @@ class FlowMatching(nn.Module):
     
     def get_unconditional_condition(
         self,
-        cond:Optional[dict] = None, 
-        cond_shape:Optional[tuple] = None,
+        cond:Optional[dict] = None,
         condition_device:Optional[device] = None
-    ) -> Tensor:
+    ) -> dict:
         return dict()
 
     def preprocess(self, x_start:Tensor, cond:Optional[dict] = None) -> Tuple[Tensor, Optional[Union[dict,Tensor]], dict]:

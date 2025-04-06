@@ -34,16 +34,17 @@ class GetModule:
     
     @staticmethod
     def get_model(
-        module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
+        module_name:Union[tuple, list] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
         root_path:str = './model'
     ) -> nn.Module:
+        assert isinstance(module_name, (tuple, list)), f'''[GetModule] module_name should be tuple or list. {module_name}'''
         class_module = GetModule.get_module_class(root_path = root_path, module_name = module_name)
         argument_getter:Callable[[],dict] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
         model_parameter:dict = argument_getter()
         if not model_parameter:
             try: 
                 from h_params import HParams
-                model_parameter = HParams().model.class_meta_dict.get(module_name,{})
+                model_parameter = HParams().model.class_meta_dict.get(module_name[1],{})
                 if not model_parameter: 
                     Util.print(f'''[GetModule] Model [{module_name}] doesn't have changed arguments''', 'info')
             except: 
