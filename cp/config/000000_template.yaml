@@ -6,39 +6,38 @@ data:
       preprocessor_class_meta_list: 
         - { 'name': 'Preprocessor', 'args': {}}
 #####################################################################################################
-pytorch_data:
-  class_meta:
-    name : ['pytorch_dataloader', 'PytorchDataLoader']
-    args : {}
-  dataloader:
-    train:
+dataloader:
+  train:
+    args:
       batch_size: 16
-      num_workers: 15
-      dataset: 
-        class_meta:
-          name: 'DataSet'
-          args : {}
-      #batch_sampler:
-      #  class_meta:
-      #    name : ''
-      #    args : {}
-      shuffle: True
-      pin_memory: True
-      drop_last: True
-      # collate_fn: True # if True TorchDatasetClass must have function 'collate_fn'
-    valid:
+      num_workers: 4
+    dataset_class_meta:
+      name: ['file_name', 'class_name']
+      args: {}
+    #collater_class_meta:
+    #  name: ['file_name', 'class_name']
+    #  args: {}
+  valid:
+    args:
       batch_size: 16
-      num_workers: 15
-      dataset: 
-        class_meta:
-          name: 'DataSet'
-          args : {}
+      num_workers: 4
       shuffle: False
       drop_last: True
-      # collate_fn: True # if True TorchDatasetClass must have function 'collate_fn'
+    dataset_class_meta:
+      name: ['file_name', 'class_name']
+      args: {}
+  #test:
+  #  args:
+  #    batch_size: 16
+  #    num_workers: 4
+  #    shuffle: False
+  #    drop_last: True
+  #  dataset_class_meta:
+  #    name: ['file_name', 'class_name']
+  #    args: {}
 #####################################################################################################
 model:
-  class_name: ''
+  class_name: ['file_name', 'class_name']
   class_meta_dict:
     model_class_name: {}
 #####################################################################################################

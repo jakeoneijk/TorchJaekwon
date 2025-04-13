@@ -24,12 +24,11 @@ class Resource:
 
 @dataclass
 class Data:
-    original_data_dir:str = ""
     config = dict()
     config_per_dataset_dict = dict()
 
 @dataclass
-class Logging():
+class Logging:
     class_root_dir:str = LOG_DIR
     project_name:str = "ldm_enhance"
     visualizer_type = ["tensorboard","wandb"][0]
@@ -37,7 +36,7 @@ class Logging():
     log_step_interval:int = 40
 
 @dataclass
-class PytorchData:
+class DataLoader:
     dataloader = dict()
 
 @dataclass
@@ -91,7 +90,7 @@ class HParams(Singleton):
         self.mode = Mode()
         self.resource = Resource()
         self.data = Data()
-        self.pytorch_data = PytorchData()
+        self.dataloader = DataLoader()
         self.model = Model()
         self.train= Train()
         self.log = Logging()

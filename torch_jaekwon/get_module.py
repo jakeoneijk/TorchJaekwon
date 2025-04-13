@@ -15,7 +15,7 @@ class GetModule:
         root_path:str = None, # if class_type is not None, don't need to input root_path
         class_type:Literal['preprocessor', 'trainer', 'data_loader', 'pytorch_dataset', 'lr_scheduler', 'loss'] = None,
         module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
-    ):
+    ) -> type:
         if class_type is not None:
             root_path = CLASS_DIR_PATH_DICT[class_type]
 

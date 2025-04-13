@@ -12,7 +12,6 @@ try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
 from ...get_module import GetModule
-from ...data.pytorch_dataloader.pytorch_dataloader import PytorchDataLoader
 from ...util import Util, UtilData, UtilTorch
 from ..logger.logger import Logger
 from ..average_meter import AverageMeter
@@ -61,7 +60,7 @@ class Trainer():
     ) -> None:
         # data
         self.data_class_meta_dict:dict = data_class_meta_dict
-        self.data_loader_dict:dict = {subset: None for subset in ['train','valid','test']}
+        self.data_loader_dict:dict = {state.value: None for state in TrainState}
 
         # model
         self.model_class_name:Union[list, dict] = model_class_name
@@ -213,7 +212,7 @@ class Trainer():
         self.model_to_device(self.model)
         
         self.log_writer:Logger = Logger(model=self.model)
-        self.set_data_loader(dataset_dict)
+        self.set_data_loader()
     
     def init_model_ema(self) -> None:
         self.model_ema = EMA(
@@ -332,17 +331,24 @@ class Trainer():
                     data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
         return data_dict
     
-    def set_data_loader(self,dataset_dict=None):
-        data_loader_getter_class:Type[PytorchDataLoader] = GetModule.get_module_class(
-            class_type='data_loader',
-            module_name = self.data_class_meta_dict['name']
-        )
-        data_loader_getter = data_loader_getter_class(**self.data_class_meta_dict['args'])
-        if dataset_dict is not None:
-            pytorch_data_loader_config_dict = data_loader_getter.get_pytorch_data_loader_config(dataset_dict)
-            self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders_from_config(pytorch_data_loader_config_dict)
-        else:
-            self.data_loader_dict = data_loader_getter.get_pytorch_data_loaders()
+    def set_data_loader(self) -> None:
+        for subset_name in self.data_loader_dict:
+            subset_meta_dict:dict = getattr(self.data_class_meta_dict, subset_name, None)
+            if subset_meta_dict is None: continue
+            dataset_class:type = GetModule.get_module_class(
+                class_type='pytorch_dataset',
+                module_name = subset_meta_dict['dataset_class_meta']["name"]
+            )
+            dataset = dataset_class(**subset_meta_dict['dataset_class_meta']['args'])
+            data_loader_args:dict = {'dataset': dataset, **subset_meta_dict['args']}
+            if 'collater_class_meta' in subset_meta_dict:
+                collater_class:type = GetModule.get_module_class(
+                    class_type='pytorch_dataset',
+                    module_name = subset_meta_dict['collater_class_meta']["name"]
+                )
+                collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
+                data_loader_args['collate_fn'] = collater
+            self.data_loader_dict[subset_name] = DataLoader(**data_loader_args)
     
     def fit(self) -> None:
         if self.check_evalstep_first:

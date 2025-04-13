@@ -88,9 +88,6 @@ class Logger():
         file.write(f'pid: {os.getpid()} / parent_pid: {psutil.Process(os.getpid()).ppid()} \n')
         file.write("========================================="+'\n')
         self.log_model_parameters(file, model)
-        file.write("========================================="+'\n')
-        file.write("Batch :" + str(self.h_params.pytorch_data.dataloader['train']['batch_size'])+'\n')
-        file.write("========================================="+'\n')
         file.close()
     
     def log_model_parameters(self, file, model: Union[nn.Module, dict], model_name:str = ''):

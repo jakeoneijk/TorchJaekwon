@@ -49,6 +49,7 @@ class UtilAudio:
         elif resample_module == 'resample_poly':
             return resample_poly(x = audio, up = target_sr, down = origin_sr)
         elif resample_module == 'torchaudio':
+            if isinstance(audio, ndarray): audio = torch.FloatTensor(audio)
             #transforms.Resample precomputes and caches the kernel used for resampling, while functional.resample computes it on the fly
             #so using torchaudio.transforms.Resample will result in a speedup when resampling multiple waveforms using the same parameters
             resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr).to(audio.device)

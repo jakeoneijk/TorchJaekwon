@@ -1,3 +1,5 @@
 __pycache__
-TorchJaekwon.egg-info
+
 .vscode/
+TorchJaekwon.egg-info
+torch_jaekwon.egg-info/

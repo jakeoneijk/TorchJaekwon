@@ -62,7 +62,7 @@ class Controller():
         from torch_jaekwon.train.trainer.trainer import Trainer
         trainer_args = {
             # data
-            'data_class_meta_dict': HParams().pytorch_data.class_meta,
+            'data_class_meta_dict': HParams().dataloader,
             # model
             'model_class_name': HParams().model.class_name,
             # loss
