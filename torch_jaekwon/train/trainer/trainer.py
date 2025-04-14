@@ -69,7 +69,7 @@ class Trainer():
 
         # loss
         self.loss_meta_dict:dict = loss_meta_dict
-        self.loss_function_dict:dict = dict()
+        self.loss_fn_dict:dict = dict()
 
         # optimizer
         self.optimizer_class_meta_dict:dict = optimizer_class_meta_dict
@@ -308,7 +308,7 @@ class Trainer():
             )
             if loss_class is None:
                 loss_class = GetModule.get_module_class(class_type='loss', module_name=loss_class_name)
-            self.loss_function_dict[loss_name] = loss_class(**loss_args)
+            self.loss_fn_dict[loss_name] = loss_class(**loss_args)
     
     def model_to_device(self, model:Union[nn.Module, dict], device = None) -> None:
         if isinstance(model, dict):
