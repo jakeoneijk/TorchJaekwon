@@ -60,7 +60,7 @@ class HTMLUtil():
         self.output_dir:str = output_dir
         self.media_save_dir_name:str = 'media'
 
-        mel_spec_config = UtilAudioMelSpec.get_default_mel_spec_config(audio_sr)
+        mel_spec_config = UtilAudioMelSpec.get_default_config(audio_sr)
         self.mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
     
     def get_table_html_list(

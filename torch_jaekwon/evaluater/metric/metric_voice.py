@@ -48,7 +48,7 @@ class MetricVoice:
             }
             '''
         }
-        spec_config_of_sr:dict = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate = sample_rate) if sample_rate not in spec_config_of_sr_dict else spec_config_of_sr_dict[sample_rate]
+        spec_config_of_sr:dict = UtilAudioMelSpec.get_default_config(sample_rate = sample_rate) if sample_rate not in spec_config_of_sr_dict else spec_config_of_sr_dict[sample_rate]
         
         self.util_mel = UtilAudioMelSpec(nfft = spec_config_of_sr['nfft'] if nfft is None else nfft, 
                                          hop_size = spec_config_of_sr['hop_size'] if hop_size is None else hop_size, 

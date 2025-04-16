@@ -131,7 +131,7 @@ class Logger():
         if is_plot_mel:
             from ...util import UtilAudioMelSpec
             if mel_spec_args is None:
-                mel_spec_args = UtilAudioMelSpec.get_default_mel_spec_config(sample_rate=sample_rate)
+                mel_spec_args = UtilAudioMelSpec.get_default_config(sample_rate=sample_rate)
             mel_spec_util = UtilAudioMelSpec(**mel_spec_args)
             mel_dict = dict()
             for audio_name in audio_dict:
