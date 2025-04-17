@@ -7,6 +7,7 @@ from ...util import Util, UtilData
 from ..table_maker import HTMLUtil
 
 TD_WIDTH = 300
+BLANK_COMPONENT = f'<div style="width:{TD_WIDTH}px"> X <div>'
 
 class AudioListeningTableMaker:
     @staticmethod
@@ -52,19 +53,21 @@ class AudioListeningTableMaker:
             table_row_dict_audio['name'] = f'''<div style="width:{TD_WIDTH}px">{audio_name}<div>'''
             for audio_dir_meta in audio_dir_meta_list:
                 audio_dir_name = audio_dir_meta.get('name', audio_dir_meta['dir'].split('/')[-1])
-                audio_path:str = AudioListeningTableMaker.get_audio_path(audio_name, audio_dir_meta)
+                audio_path:str = AudioListeningTableMaker.get_file_path(audio_name, audio_dir_meta)
                 if os.path.isfile(audio_path):
-                    media_html_dict:dict = html_util.get_html_audio(audio_path = audio_path, sample_rate=sr, spec_type=spec_type)
+                    img_path = None
+                    if 'img_dir' in audio_dir_meta:
+                        img_path:str = AudioListeningTableMaker.get_file_path(audio_name, audio_dir_meta, ext='png', dir_path=audio_dir_meta['img_dir'])
+                    media_html_dict:dict = html_util.get_html_audio(audio_path = audio_path, sample_rate=sr, spec_type=spec_type, spec_path=img_path)
                 else:
                     file_strict:bool = audio_dir_meta.get('file_strict', True)
                     if file_strict: 
                         Util.print(f'File not found: {audio_path}', msg_type='error')
                         raise FileNotFoundError
                     else:
-                        media_html_dict = {'audio': f'<div style="width:{TD_WIDTH}px"> X <div>', 'spec': f'<div style="width:{TD_WIDTH}px"> X <div>'}
-
+                        media_html_dict = {'audio': BLANK_COMPONENT, 'spec': BLANK_COMPONENT}
                 table_row_dict_audio[audio_dir_name] = media_html_dict['audio']
-                table_row_dict_spec[audio_dir_name] = media_html_dict['spec']
+                table_row_dict_spec[audio_dir_name] = media_html_dict.get('spec', BLANK_COMPONENT)
             html_dict_list.append(table_row_dict_audio)
             html_dict_list.append(table_row_dict_spec)
         
@@ -73,8 +76,7 @@ class AudioListeningTableMaker:
         else: html_util.save_html(html_list)
     
     @staticmethod
-    def get_audio_path(audio_name:str, audio_dir_meta:dict) -> str:
-        ext = 'wav'
+    def get_file_path(audio_name:str, audio_dir_meta:dict, ext:Literal['wav', 'png'] = 'wav', dir_path:str = None) -> str:
         if audio_dir_meta.get('use_only_name', True): audio_name = audio_name.split('/')[-1]
         audio_name_pre_post_fix = audio_dir_meta.get('audio_name_pre_post_fix',['',''])
         audio_file_name:str = audio_dir_meta.get('audio_name', None)
@@ -82,7 +84,7 @@ class AudioListeningTableMaker:
             audio_file_name = f'{audio_name_pre_post_fix[0]}{audio_name}{audio_name_pre_post_fix[1]}.{ext}'
         else:
             audio_file_name = f'{audio_name}/{audio_name_pre_post_fix[0]}{audio_file_name}{audio_name_pre_post_fix[1]}.{ext}'
-        audio_path:str = f"{audio_dir_meta['dir']}/{audio_file_name}"
+        audio_path:str = f"{audio_dir_meta['dir'] if dir_path is None else dir_path}/{audio_file_name}"
         
         if os.path.isfile(audio_path): return audio_path
         else: return unicodedata.normalize("NFC", audio_path)

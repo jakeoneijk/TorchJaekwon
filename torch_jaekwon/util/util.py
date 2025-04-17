@@ -60,6 +60,11 @@ class Util:
         assert result_id == 0, f'[Error]: Something wrong with the command [{command}]'
     
     @staticmethod
+    def cp(src_path:str, dst_path:str) -> None:
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        Util.system(f'cp "{src_path}" "{dst_path}"')
+    
+    @staticmethod
     def wget(link:str, save_dir:str) -> None:
         os.makedirs(save_dir, exist_ok=True)
         Util.system(f'wget {link} -P {save_dir}')

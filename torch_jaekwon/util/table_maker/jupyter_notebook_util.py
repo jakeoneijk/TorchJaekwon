@@ -7,9 +7,7 @@ except:  print('[error] there is no pandas package')
 import re
 import librosa
 
-from torch_jaekwon.Util.UtilAudio import UtilAudio  
-from torch_jaekwon.Util.UtilAudioMelSpec import UtilAudioMelSpec 
-from torch_jaekwon.Util.UtilData import UtilData
+from torch_jaekwon.util import Util, UtilAudio, UtilAudioMelSpec, UtilData
 
 LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
@@ -141,6 +139,7 @@ class HTMLUtil():
         cp_to_html_dir:bool = True,
         sample_rate:int = None,
         spec_type:Literal['mel', 'stft', 'x'] = 'mel',
+        spec_path:str = None,
         width:int=300
     ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
@@ -167,6 +166,11 @@ class HTMLUtil():
             stft_db = librosa.amplitude_to_db(stft_mag)
             path_dict = self.get_media_path('img')
             self.mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)
+            html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
+        
+        if spec_path is not None:
+            path_dict = self.get_media_path('img')
+            Util.cp(spec_path, path_dict["abs"])
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         return html_code_dict
