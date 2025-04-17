@@ -115,55 +115,51 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         plt.grid(False)
         if isinstance(mel_spec, Tensor):
             mel_spec = UtilTorch.to_np(mel_spec)
-        if line_dict is None:
-            plt.figure(figsize=fig_size)
-            plt.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis', interpolation='none')
-        else:
-            COLOR_DICT = {
-                'blue': 'blue',
-                'darkblue':'darkblue',
-                'red': 'red',
-                'darkred': 'darkred',
-                'purple': '#9370DB',
-                'darkpurple': '#4B0082',
-            }
-            color_list = ['darkblue', 'blue', 'darkmagenta', 'darkorange', 'darkgreen', 'darkblue', 'darkred', 'darkcyan', 'darkviolet', 'darkgoldenrod', 'darkolivegreen', 'darkslategray']
-            _, axes = plt.subplots(1, 1, figsize=fig_size, sharex=True)
-            axes.grid(True, axis='x', linestyle='--', color='black', linewidth=0.5)
-            # set x axis
-            axes.set_xlim([0, mel_spec.shape[-1]])
-            time_axis = np.arange(mel_spec.shape[-1]) * hop_size / sr
-            axes.set_xticks(np.linspace(0, mel_spec.shape[-1], num=10))
-            axes.set_xticklabels(np.round(np.linspace(0, time_axis[-1], num=10), 2))
-            # set y axis
-            axes.set_ylim([0, mel_spec.shape[0]])
-            axes.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
-            axes.set_yticks([])
-            # plot line
-            for key, value in line_dict.items():
-                y = value['value']
-                if value.get('scale', False):
-                    y = y * mel_spec.shape[0]
-                color = COLOR_DICT.get(value.get('color', ''), color_list.pop())
-                axes.plot(y, color = color, linewidth=1, label=key)
-            # plot horizontal line
-            for key, value in h_line_dict.items():
-                for plot_dict in value:
-                    plt.plot((plot_dict['start'], plot_dict['end']), (plot_dict['value'], plot_dict['value']), 'k', linewidth=1)
-            # plot text
-            text_y_offset = 4
-            for key, value in text_dict.items():
-                for plot_dict in value:
-                    for i, value_dict in enumerate(plot_dict['value_dict']):
-                        axes.text(
-                            x=plot_dict['x'],
-                            y=max(plot_dict['y'] - text_y_offset * (i + 1), 0),
-                            s=value_dict['value'],
-                            color='black',
-                            horizontalalignment='center',
-                            verticalalignment='center'
-                        )
-            axes.legend()
+        COLOR_DICT = {
+            'blue': 'blue',
+            'darkblue':'darkblue',
+            'red': 'red',
+            'darkred': 'darkred',
+            'purple': '#9370DB',
+            'darkpurple': '#4B0082',
+        }
+        color_list = ['darkblue', 'blue', 'darkmagenta', 'darkorange', 'darkgreen', 'darkblue', 'darkred', 'darkcyan', 'darkviolet', 'darkgoldenrod', 'darkolivegreen', 'darkslategray']
+        _, axes = plt.subplots(1, 1, figsize=fig_size, sharex=True)
+        axes.grid(True, axis='x', linestyle='--', color='black', linewidth=0.5)
+        # set x axis
+        axes.set_xlim([0, mel_spec.shape[-1]])
+        time_axis = np.arange(mel_spec.shape[-1]) * hop_size / sr
+        axes.set_xticks(np.linspace(0, mel_spec.shape[-1], num=10))
+        axes.set_xticklabels(np.round(np.linspace(0, time_axis[-1], num=10), 2))
+        # set y axis
+        axes.set_ylim([0, mel_spec.shape[0]])
+        axes.imshow(mel_spec, origin='lower', aspect='auto', cmap='viridis')
+        axes.set_yticks([])
+        # plot line
+        for key, value in line_dict.items():
+            y = value['value']
+            if value.get('scale', False):
+                y = y * mel_spec.shape[0]
+            color = COLOR_DICT.get(value.get('color', ''), color_list.pop())
+            axes.plot(y, color = color, linewidth=1, label=key)
+        # plot horizontal line
+        for key, value in h_line_dict.items():
+            for plot_dict in value:
+                plt.plot((plot_dict['start'], plot_dict['end']), (plot_dict['value'], plot_dict['value']), 'k', linewidth=1)
+        # plot text
+        text_y_offset = 4
+        for key, value in text_dict.items():
+            for plot_dict in value:
+                for i, value_dict in enumerate(plot_dict['value_dict']):
+                    axes.text(
+                        x=plot_dict['x'],
+                        y=max(plot_dict['y'] - text_y_offset * (i + 1), 0),
+                        s=value_dict['value'],
+                        color='black',
+                        horizontalalignment='center',
+                        verticalalignment='center'
+                    )
+        axes.legend()
         plt.tight_layout()
         plt.savefig(save_path,dpi=dpi)
         plt.close()

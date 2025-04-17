@@ -156,7 +156,7 @@ class HTMLUtil():
             if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
             img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
             self.media_idx_dict["img"] += 1
-            self.mel_spec_util.mel_spec_plot(save_path=img_path, mel_spec=mel_spec)
+            self.mel_spec_util.plot(save_path=img_path, mel_spec=mel_spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
             img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
             html_code_dict['spec'] = self.get_html_img(img_path, width)
         

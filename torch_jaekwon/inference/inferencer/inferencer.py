@@ -29,7 +29,7 @@ class Inferencer():
 
         assert model_class_name is not None or model is not None, "model_class_name or model must be not None"
         self.model:Union[nn.Module,object] = self.get_model(model_class_name) if model is None else model
-        self.shared_dir_name:str = '0shared0'
+        self.shared_dir_name:str = '_shared_'
 
         self.set_type:Literal[ 'single', 'dir', 'testset' ] = set_type
         self.set_meta_dict:dict = set_meta_dict
