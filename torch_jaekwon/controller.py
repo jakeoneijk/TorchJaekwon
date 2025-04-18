@@ -37,13 +37,12 @@ class Controller():
         print("Finish app.")
 
     def preprocess(self) -> None:
-        from .data_process.preprocess.preprocessor import Preprocessor
+        from .data.preprocess.preprocessor import Preprocessor
         for data_name in self.config_per_dataset_dict:
             for preprocessor_meta in self.config_per_dataset_dict[data_name]['preprocessor_class_meta_list']:
                 preprocessor_class_name:str = preprocessor_meta['name']
                 preprocessor_args:dict = {
                     'data_name': data_name,
-                    'root_dir': HParams().data.root_path,
                     'num_workers': HParams().resource.preprocess['num_workers'],
                     'device': HParams().resource.device,
                 }

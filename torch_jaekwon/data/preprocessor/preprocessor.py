@@ -6,12 +6,13 @@ import os
 import time
 import torch
 from tqdm import tqdm
+from ...path import ARTIFACTS_DIR_PATH_DICT
 
 class Preprocessor(ABC):
     def __init__(
         self,
         data_name:str = None,
-        root_dir:str = None,
+        root_dir:str = ARTIFACTS_DIR_PATH_DICT['data'],
         device:torch.device = None,
         num_workers:int = 1,
     ) -> None:

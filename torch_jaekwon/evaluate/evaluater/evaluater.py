@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 #torchjaekwon import
-from ..util import UtilData
+from ...util import UtilData
 #internal import
 
 class Evaluater():
