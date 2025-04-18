@@ -5,10 +5,9 @@ TORCH_JAEKWON_PATH:str = os.path.dirname(torch_jaekwon.__file__)
 CONFIG_DIR = "./config"
 
 CLASS_DIR_PATH_DICT:dict = {
-    'preprocessor': './data_process/preprocess',
+    'preprocessor': './data/preprocessor',
     'trainer': './train/trainer',
-    'data_loader': './data/pytorch_dataloader',
-    'pytorch_dataset': './data/pytorch_dataset',
+    'pytorch_dataset': './data/dataset',
     'lr_scheduler': './train/optimizer/scheduler',
     'loss': './train/loss'
 }
