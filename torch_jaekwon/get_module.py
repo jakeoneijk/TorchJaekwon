@@ -3,7 +3,7 @@ from typing import Literal, Callable, Union
 import os
 import importlib
 
-from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIR_PATH_DICT
+from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS
 from torch_jaekwon.util import Util
 
 try: import torch.nn as nn
@@ -17,7 +17,7 @@ class GetModule:
         module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
     ) -> type:
         if class_type is not None:
-            root_path = CLASS_DIR_PATH_DICT[class_type]
+            root_path = getattr(CLASS_DIRS, class_type)
 
         if isinstance(module_name, str):
             file_name:str = module_name

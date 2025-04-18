@@ -1,0 +1,8 @@
+{
+    "python.analysis.exclude": [
+        "**/__pycache__", 
+        ".git", 
+        "artifacts/**", 
+        "wandb/**",
+    ]
+}
