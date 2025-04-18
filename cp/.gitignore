@@ -1,0 +1,9 @@
+artifacts
+wandb
+__pycache__
+*.wav
+*.png
+*.pkl
+*.pt
+*.pth
+*.ckpt

@@ -2,8 +2,7 @@ import yaml
 import torch
 from dataclasses import dataclass
 
-CONFIG_DIR = "./config"
-LOG_DIR = "./train/log"
+from torch_jaekwon.path import CONFIG_DIR, ARTIFACTS_DIRS
 
 @dataclass
 class Mode:
@@ -13,7 +12,7 @@ class Mode:
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
     train:str = ["start","resume"][0]
-    resume_path:str = f"{LOG_DIR}/{config_name}"
+    resume_path:str = f"{ARTIFACTS_DIRS.log}/{config_name}"
     debug_mode:bool = False
 
 @dataclass
@@ -29,7 +28,7 @@ class Data:
 
 @dataclass
 class Logging:
-    class_root_dir:str = LOG_DIR
+    class_root_dir:str = ARTIFACTS_DIRS.log
     project_name:str = "ldm_enhance"
     visualizer_type = ["tensorboard","wandb"][0]
     use_currenttime_on_experiment_name:bool = False
@@ -62,7 +61,7 @@ class Inference():
     }
 
     ckpt_name:str = ["all","last_epoch"][0]
-    pretrain_root_dir:str = LOG_DIR
+    pretrain_root_dir:str = ARTIFACTS_DIRS.log
     pretrain_dir:str = ""
     
     output_dir:str = "./Inference/Output"
@@ -108,7 +107,7 @@ class HParams(Singleton):
     def set_config(self, config_name:str = None) -> None:
         self.mode.config_name = config_name
         self.mode.config_path = f"./{CONFIG_DIR}/{config_name}.yaml"
-        self.mode.resume_path = f"{LOG_DIR}/{self.mode.config_name}"
+        self.mode.resume_path = f"{ARTIFACTS_DIRS.log}/{self.mode.config_name}"
         self.load_config()
     
     def set_h_params_by_dict(self, h_params_dict:dict) -> None:

@@ -60,9 +60,13 @@ class Util:
         assert result_id == 0, f'[Error]: Something wrong with the command [{command}]'
     
     @staticmethod
-    def cp(src_path:str, dst_path:str) -> None:
+    def cp(src_path:str, dst_path:str, inside_dir:bool = False) -> None:
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        Util.system(f'cp "{src_path}" "{dst_path}"')
+        if os.path.isdir(src_path):
+            src_path = os.path.join(src_path, '*') if inside_dir else f'"{src_path}"'
+            Util.system(f'cp -r {src_path} "{dst_path}"') 
+        else:
+            Util.system(f'cp "{src_path}" "{dst_path}"')
     
     @staticmethod
     def wget(link:str, save_dir:str) -> None:

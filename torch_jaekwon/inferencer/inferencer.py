@@ -8,7 +8,7 @@ import torch.nn as nn
 from tqdm import tqdm
 #torchjaekwon
 from torch_jaekwon import GetModule
-from ...util import UtilData 
+from ..util import UtilData 
 #internal
 
 class Inferencer():
