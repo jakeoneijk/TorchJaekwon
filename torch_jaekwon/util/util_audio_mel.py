@@ -138,6 +138,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         # plot line
         for key, value in line_dict.items():
             y = value['value']
+            if y is None: continue
             if value.get('scale', False):
                 y = y * mel_spec.shape[0]
             color = COLOR_DICT.get(value.get('color', ''), color_list.pop())
