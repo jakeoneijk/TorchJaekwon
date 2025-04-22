@@ -9,6 +9,7 @@ import numpy as np
 #torchjaekwon
 from .get_module import GetModule
 from .util import Util
+from .path import ARTIFACTS_DIRS
 
 #internal
 from h_params import HParams
@@ -109,11 +110,11 @@ class Controller():
         trainer.fit()
 
     def inference(self) -> None:
-        from torch_jaekwon.inference.inferencer.inferencer import Inferencer
+        from torch_jaekwon.inferencer.inferencer import Inferencer
         
         infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
         inferencer_args:dict = {
-            'output_dir': HParams().inference.output_dir,
+            'output_dir': ARTIFACTS_DIRS.inference_output,
             'experiment_name': HParams().mode.config_name,
             'model':  None,
             'model_class_name': HParams().model.class_name,
@@ -124,7 +125,7 @@ class Controller():
         inferencer_args.update(infer_class_meta['args'])
 
         inferencer_class:Type[Inferencer] = GetModule.get_module_class(
-            root_path = "./inference/inferencer", 
+            class_type = "inferencer", 
             module_name = infer_class_meta['name']
         )
         inferencer:Inferencer = inferencer_class(**inferencer_args)
@@ -189,23 +190,3 @@ class Controller():
             help="debug mode off",
             action='store_true'
         )
-
-        parser.add_argument(
-            "-lv",
-            "--log_visualizer",
-            type=str,
-            required=False,
-            default=None,
-            choices = ['tensorboard', 'wandb'],
-            help="",
-        )
-
-        args = parser.parse_args()
-
-        if args.config_path is not None: HParams().set_config(args.config_path)
-        if args.stage is not None: HParams().mode.stage = args.stage
-        if args.log_visualizer is not None: HParams().log.visualizer_type = args.log_visualizer
-        if args.resume: HParams().mode.train = "resume"
-        if args.debug_off: HParams().mode.debug_mode = False
-
-        return args

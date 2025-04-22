@@ -63,9 +63,6 @@ class Inference():
     ckpt_name:str = ["all","last_epoch"][0]
     pretrain_root_dir:str = ARTIFACTS_DIRS.log
     pretrain_dir:str = ""
-    
-    output_dir:str = "./Inference/Output"
-    
 
 @dataclass
 class Evaluate():
