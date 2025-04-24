@@ -190,3 +190,23 @@ class Controller():
             help="debug mode off",
             action='store_true'
         )
+
+        parser.add_argument(
+            "-lv",
+            "--log_visualizer",
+            type=str,
+            required=False,
+            default=None,
+            choices = ['tensorboard', 'wandb'],
+            help="",
+        )
+
+        args = parser.parse_args()
+
+        if args.config_path is not None: HParams().set_config(args.config_path)
+        if args.stage is not None: HParams().mode.stage = args.stage
+        if args.log_visualizer is not None: HParams().log.visualizer_type = args.log_visualizer
+        if args.resume: HParams().mode.train = "resume"
+        if args.debug_off: HParams().mode.debug_mode = False
+
+        return args
