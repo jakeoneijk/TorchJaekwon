@@ -1,6 +1,6 @@
 import logging
 from copy import deepcopy
-from typing import Any, Dict, List, Tuple, Union, Literal
+from typing import Any, Dict, Literal
 
 try: import lpips
 except: print('lpips is not installed')
@@ -8,13 +8,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_jaekwon.Model.Diffusion.DDPM.DDPM import DDPM
-from tqdm import tqdm
-
-from torch_jaekwon.Model.Diffusion.External.diffusers.DiffusersWrapper import DiffusersWrapper
-from torch_jaekwon.Model.Diffusion.External.diffusers.schedulers.scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
-from torch_jaekwon.Model.Diffusion.Distillation.FlashDiffusion.Utils import gaussian_mixture, append_dims, extract_into_tensor
-
+from ...ddpm.ddpm import DDPM
+from ...external.diffusers.diffusers_wrapper import DiffusersWrapper
+from ...external.diffusers.schedulers.scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
+from .utils import gaussian_mixture, append_dims, extract_into_tensor
 
 class FlashDiffusion(nn.Module):
 
@@ -35,10 +32,12 @@ class FlashDiffusion(nn.Module):
         K:list = [32, 32, 32, 32],
         num_iterations_per_K:list=[5000, 5000, 5000, 5000],
         timestep_distribution='mixture',
-        mode_probs=[[0.0, 0.0, 0.5, 0.5],
-                    [0.1, 0.3, 0.3, 0.3],
-                    [0.25, 0.25, 0.25, 0.25],
-                    [0.4, 0.2, 0.2, 0.2]],
+        mode_probs=[
+            [0.0, 0.0, 0.5, 0.5],
+            [0.1, 0.3, 0.3, 0.3],
+            [0.25, 0.25, 0.25, 0.25],
+            [0.4, 0.2, 0.2, 0.2]
+        ],
         guidance_scale_min:float=3.0,
         guidance_scale_max:float=13.0,
         mixture_num_components:int = 4,
@@ -73,9 +72,7 @@ class FlashDiffusion(nn.Module):
         self.disc_update_counter = 0
 
         if self.discriminator is None:
-            logging.warning(
-                "No discriminator provided. Adversarial loss will be ignored."
-            )
+            logging.warning("No discriminator provided. Adversarial loss will be ignored.")
             self.use_adversarial_loss = False
         else:
             self.use_adversarial_loss = True
@@ -102,7 +99,7 @@ class FlashDiffusion(nn.Module):
             'trained_betas': ddpm_module.betas,
             'prediction_type': output_type_dict[ddpm_module.model_output_type],
             'timestep_spacing': "trailing"
-            }
+        }
 
     def _encode_inputs(self, batch: Dict[str, Any]):
         """

@@ -3,8 +3,8 @@ from torch import Tensor, device
 
 import torch
 from tqdm import tqdm
-from torch_jaekwon.Util.UtilTorch import UtilTorch
-from torch_jaekwon.Model.Diffusion.DDPM import DDPM
+from .....util import UtilTorch as util_torch
+from ...ddpm.ddpm import DDPM
 
 class DiffusersWrapper:
     @staticmethod
@@ -43,7 +43,7 @@ class DiffusersWrapper:
         _, cond, additional_data_dict = ddpm_module.preprocess(x_start = None, cond=cond)
         if x_shape is None: x_shape = ddpm_module.get_x_shape(cond=cond)
         noise_scheduler.set_timesteps(num_steps)
-        model_device:device = UtilTorch.get_model_device(ddpm_module) if device is None else device
+        model_device = util_torch.get_model_device(ddpm_module) if device is None else device
         x:Tensor = torch.randn(x_shape, device = model_device)
         x = x * noise_scheduler.init_noise_sigma
         for t in tqdm(noise_scheduler.timesteps, desc='sample time step'):
