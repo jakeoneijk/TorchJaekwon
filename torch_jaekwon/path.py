@@ -8,7 +8,7 @@ CONFIG_DIR = "./config"
 
 @dataclass
 class ClassDirs:
-    preprocessor:str = './data/preprocessor'
+    preprocessor:str = './data/preprocess'
     trainer:str = './train/trainer'
     pytorch_dataset:str = './data/dataset'
     lr_scheduler:str = './train/optimizer/scheduler'
