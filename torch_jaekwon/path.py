@@ -13,7 +13,7 @@ class ClassDirs:
     pytorch_dataset:str = './data/dataset'
     lr_scheduler:str = './train/optimizer/scheduler'
     loss:str = './train/loss'
-    inferencer:str = './inferencer'
+    inferencer:str = './inference'
 CLASS_DIRS:dict = ClassDirs()
 
 @dataclass
