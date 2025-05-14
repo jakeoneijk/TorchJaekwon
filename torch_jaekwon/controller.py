@@ -110,7 +110,7 @@ class Controller():
         trainer.fit()
 
     def inference(self) -> None:
-        from torch_jaekwon.inferencer.inferencer import Inferencer
+        from torch_jaekwon.inference.inferencer import Inferencer
         
         infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
         inferencer_args:dict = {

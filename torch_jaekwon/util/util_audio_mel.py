@@ -160,7 +160,8 @@ class UtilAudioMelSpec(UtilAudioSTFT):
                         horizontalalignment='center',
                         verticalalignment='center'
                     )
-        axes.legend()
+        if line_dict:
+            axes.legend()
         plt.tight_layout()
         plt.savefig(save_path,dpi=dpi)
         plt.close()

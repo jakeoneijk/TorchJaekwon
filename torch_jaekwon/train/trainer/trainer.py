@@ -180,13 +180,13 @@ class Trainer():
         for metric_name in metrics:
             val:float = metrics[metric_name].avg
             log += f' {metric_name}: {val:.06f}'
-            self.log_writer.visualizer_log(
+            self.logger.visualizer_log(
                 x_axis_name=x_axis_name,
                 x_axis_value=x_axis_value,
                 y_axis_name=f'{train_state.value}/{metric_name}',
                 y_axis_value=val
             )
-        self.log_writer.print_and_log(log)
+        self.logger.print_and_log(log)
 
     def set_seeds(self, seed:float, strict=False) -> None:
         torch.manual_seed(seed)
@@ -211,7 +211,7 @@ class Trainer():
         self.init_loss()
         self.model_to_device(self.model)
         
-        self.log_writer:Logger = Logger(model=self.model)
+        self.logger:Logger = Logger(model=self.model)
         self.set_data_loader()
     
     def init_model_ema(self) -> None:
@@ -358,19 +358,19 @@ class Trainer():
                 self.log_current_state()
                 
         for _ in range(self.current_epoch, self.total_epoch):
-            self.log_writer.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.total_epoch} -----------------------')
-            self.log_writer.print_and_log(f'current best epoch: {self.best_valid_epoch}')
+            self.logger.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.total_epoch} -----------------------')
+            self.logger.print_and_log(f'current best epoch: {self.best_valid_epoch}')
             if self.best_valid_metric is not None:
                 for loss_name in self.best_valid_metric:
-                    self.log_writer.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
-            self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+                    self.logger.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
+            self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
             #Train
-            self.log_writer.print_and_log('train_start')
+            self.logger.print_and_log('train_start')
             self.run_epoch(self.data_loader_dict['train'],TrainState.TRAIN, metric_range = "step")
             
             #Valid
-            self.log_writer.print_and_log('valid_start')
+            self.logger.print_and_log('valid_start')
 
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
@@ -383,13 +383,13 @@ class Trainer():
                 self.log_current_state()
             
             self.current_epoch += 1
-            self.log_writer.log_every_epoch(model=self.model)
+            self.logger.log_every_epoch(model=self.model)
 
             if self.global_step >= self.total_step:
                 break
 
-        self.log_writer.print_and_log(f'best_epoch: {self.best_valid_epoch}')
-        self.log_writer.print_and_log('Training complete')
+        self.logger.print_and_log(f'best_epoch: {self.best_valid_epoch}')
+        self.logger.print_and_log('Training complete')
     
     def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step") -> dict:
         assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
@@ -417,7 +417,7 @@ class Trainer():
             loss,metric = self.run_step(data,metric,train_state)
 
             if isinstance(loss, torch.Tensor) and torch.isnan(loss).any():
-                path = os.path.join(self.log_writer.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
+                path = os.path.join(self.logger.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
                 UtilData.pickle_save(path,data)
                 self.save_module(self.model, name=f"nan_loss_step{self.global_step}")
                 self.save_checkpoint(f"nan_loss_step{self.global_step}.pth")
@@ -444,9 +444,9 @@ class Trainer():
         return metric
     
     def log_current_state(self,train_state:TrainState = None, is_log_media:bool = True) -> None:
-        self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
-        self.log_writer.print_and_log(f'save current state')
-        self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+        self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+        self.logger.print_and_log(f'save current state')
+        self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
 
         if train_state == TrainState.TRAIN or train_state == None:
             self.save_checkpoint()
@@ -455,8 +455,8 @@ class Trainer():
             with torch.no_grad():
                 self.log_media()
 
-        self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
-        self.log_writer.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+        self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+        self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
     def backprop(self,loss):
         if self.max_norm_value_for_gradient_clip is not None:
@@ -500,7 +500,7 @@ class Trainer():
             for model_type in model:
                 self.save_module(model[model_type], model_name + f'{model_type}_', name)
         else:
-            path = os.path.join(self.log_writer.log_path["root"],f'{model_name}{name}.pth')
+            path = os.path.join(self.logger.log_path["root"],f'{model_name}{name}.pth')
             if self.multi_gpu:
                 state_dict = model.module.state_dict()
             elif self.model_ema is not None:
@@ -510,7 +510,7 @@ class Trainer():
             torch.save(state_dict, path)
 
     def load_module(self,name = 'pretrained_best_epoch'):
-        path = os.path.join(self.log_writer.log_path["root"],f'{name}.pth')
+        path = os.path.join(self.logger.log_path["root"],f'{name}.pth')
         best_model_load = torch.load(path)
         self.model.load_state_dict(best_model_load)
     
@@ -554,8 +554,8 @@ class Trainer():
         if self.use_ema:
             train_state['model_ema'] = self.get_state_dict(self.model_ema)
 
-        path = os.path.join(self.log_writer.log_path["root"],save_name)
-        self.log_writer.print_and_log(save_name)
+        path = os.path.join(self.logger.log_path["root"],save_name)
+        self.logger.print_and_log(save_name)
         torch.save(train_state,path)
     
     def get_state_dict(self, module:Union[dict, nn.Module]) -> Union[dict, nn.Module]:
@@ -584,7 +584,7 @@ class Trainer():
             raise ValueError(f'Cannot load state_dict to {module}')
 
     def load_train(self, filename:str) -> None:
-        self.log_writer.print_and_log(f'load train from {filename}')
+        self.logger.print_and_log(f'load train from {filename}')
         cpt:dict = torch.load(filename,map_location='cpu')
         self.seed = cpt['seed']
         self.set_seeds(self.seed_strict)

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from HParams import HParams
 
 class SpectralLoss(nn.Module):
     def __init__(self):
