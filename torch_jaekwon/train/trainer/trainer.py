@@ -46,6 +46,7 @@ class Trainer():
         seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
         seed_strict:bool = False,
         # logging
+        logger:Logger = None,
         save_model_step_interval:int = None,
         save_model_epoch_interval:int = 1,
         log_step_interval:int = 100,
@@ -93,6 +94,7 @@ class Trainer():
         self.local_step:int = 0
 
         # logging
+        self.logger:Logger = logger
         self.save_model_step_interval:int = save_model_step_interval
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
@@ -211,7 +213,7 @@ class Trainer():
         self.init_loss()
         self.model_to_device(self.model)
         
-        self.logger:Logger = Logger(model=self.model)
+        self.logger.init_logger(model=self.model)
         self.set_data_loader()
     
     def init_model_ema(self) -> None:

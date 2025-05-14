@@ -57,9 +57,19 @@ class Controller():
                 preprocessor.preprocess_data()                           
 
     def train(self) -> None:
-        if self.train_mode == "resume": Util.print('resume the training', 'info')   
         import torch
         from torch_jaekwon.train.trainer.trainer import Trainer
+        from torch_jaekwon.train.logger.logger import Logger
+
+        logger = Logger(
+            experiment_name = HParams().mode.config_name,
+            use_time_on_experiment_name = False,
+            project_name = HParams().log.project_name,
+            visualizer_type = HParams().log.visualizer_type,
+            root_dir_path = f'{HParams().log.class_root_dir}/{HParams().mode.config_name}',
+            is_resume = self.train_mode == "resume"
+        )
+
         trainer_args = {
             # data
             'data_class_meta_dict': HParams().dataloader,
@@ -79,6 +89,7 @@ class Controller():
             'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
             'seed_strict': HParams().train.seed_strict,
             # logging
+            'logger': logger,
             'save_model_step_interval': getattr(HParams().train, 'save_model_step_interval', None),
             'save_model_epoch_interval': getattr(HParams().train, 'save_model_epoch_interval', 1),
             'log_step_interval': getattr(HParams().log, 'log_step_interval', 1),
