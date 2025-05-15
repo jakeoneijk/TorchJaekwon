@@ -18,6 +18,7 @@ class AudioListeningTableMaker:
     @staticmethod
     def make_table_from_config_path(yaml_path:str, output_dir:str = None, max_num_tr:int = 5) -> None:
         meta_data:dict = UtilData.yaml_load(yaml_path)
+        if meta_data['title'] is None: meta_data['title'] = UtilData.get_file_name(yaml_path)
         AudioListeningTableMaker.make_table(output_dir = output_dir, max_num_tr = max_num_tr, **meta_data)
 
     @staticmethod

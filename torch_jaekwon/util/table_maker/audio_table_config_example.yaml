@@ -1,4 +1,4 @@
-title: 'task title'
+title: 'task title' # can be null
 sub_title: 'sub_task_title'
 
 spec_type: x | stft | mel
