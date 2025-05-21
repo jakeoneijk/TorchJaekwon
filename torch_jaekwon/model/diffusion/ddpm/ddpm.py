@@ -38,7 +38,7 @@ class DDPM(nn.Module):
         super().__init__()
         # model
         if model_class_name is not None:
-            self.model = GetModule.get_model(model_name = model_class_name)
+            self.model = GetModule.get_model(module_name = model_class_name)
         else:
             self.model:nn.Module = model
         self.model_output_type:Literal['noise', 'x_start', 'v_prediction'] = model_output_type
@@ -106,8 +106,11 @@ class DDPM(nn.Module):
             batch_size:int = x_shape[0] 
             input_device:device = x_start.device
             t:Tensor = self.time_sampler.sample(batch_size).to(input_device)
-            if DDPM.make_decision(self.unconditional_prob):
-                cond:Optional[Union[dict,Tensor]] = self.get_unconditional_condition(cond=cond, condition_device=input_device)
+            if self.unconditional_prob > 0:
+                uncond_dict:dict = self.get_unconditional_condition(cond=cond, condition_device=input_device)
+                for cond_name, uncond in uncond_dict.items():
+                    dropout_mask = torch.bernoulli(torch.full((uncond.shape[0], *[1 for _ in range(len(uncond.shape) - 1)]), self.unconditional_prob, device=input_device)).to(torch.bool)
+                    cond[cond_name] = torch.where(dropout_mask, uncond, cond[cond_name])
             return self.p_losses(x_start, cond, is_cond_unpack, t)
         else:
             return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, additional_data_dict = additional_data_dict)
@@ -280,17 +283,6 @@ class DDPM(nn.Module):
             unconditional_conditioning = self.get_unconditional_condition(cond=cond)
             model_unconditioned_output = self.model(x, t, **unconditional_conditioning) if is_cond_unpack else self.model(x, t, unconditional_conditioning)
             return model_unconditioned_output + cfg_scale * (model_conditioned_output - model_unconditioned_output)
-        
-    @staticmethod
-    def make_decision(
-        probability:float #[0,1]
-    ) -> bool:
-        if probability == 0:
-            return False
-        if float(torch.rand(1)) < probability:
-            return True
-        else:
-            return False
     
     def get_unconditional_condition(
         self,
