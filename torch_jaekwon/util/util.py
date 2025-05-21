@@ -63,10 +63,10 @@ class Util:
     def cp(src_path:str, dst_path:str, inside_dir:bool = False) -> None:
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         if os.path.isdir(src_path):
-            src_path = os.path.join(src_path, '*') if inside_dir else f'"{src_path}"'
-            Util.system(f'cp -r {src_path} "{dst_path}"') 
+            src_path = os.path.join(src_path, '*') if inside_dir else f"'{src_path}'"
+            Util.system(f"cp -r {src_path} '{dst_path}'") 
         else:
-            Util.system(f'cp "{src_path}" "{dst_path}"')
+            Util.system(f"cp '{src_path}' '{dst_path}'")
     
     @staticmethod
     def wget(link:str, save_dir:str) -> None:
