@@ -5,6 +5,7 @@ import torch
 from tqdm import tqdm
 from .....util import UtilTorch as util_torch
 from ...ddpm.ddpm import DDPM
+from .schedulers.scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
 
 class DiffusersWrapper:
     @staticmethod
@@ -19,7 +20,7 @@ class DiffusersWrapper:
     @staticmethod
     def get_diffusers_scheduler_config(ddpm_module: DDPM, scheduler_args: dict):
         config:dict = {
-            'num_train_timesteps': ddpm_module.timesteps,
+            'num_train_timesteps': ddpm_module.time_sampler.timesteps,
             'trained_betas': ddpm_module.betas.to('cpu'),
             'prediction_type': DiffusersWrapper.get_diffusers_output_type_name(ddpm_module),
         }
@@ -29,10 +30,10 @@ class DiffusersWrapper:
     @staticmethod
     def infer(
         ddpm_module: DDPM, 
-        diffusers_scheduler_class,
-        x_shape:tuple,
+        diffusers_scheduler_class = DPMSolverMultistepScheduler,
+        x_shape:tuple = None,
         cond:Optional[dict] = None,
-        is_cond_unpack:bool = False,
+        is_cond_unpack:bool = True,
         num_steps: int = 20,
         scheduler_args: dict = {'timestep_spacing': 'trailing'},
         cfg_scale: float = None,
