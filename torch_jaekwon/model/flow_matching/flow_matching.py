@@ -136,7 +136,7 @@ class FlowMatching(nn.Module):
 
             output_cfg = output_uncond + cfg_scale * (output_cond - output_uncond)
             
-            if cfg_rescale is not None:
+            if cfg_rescale is not None and cfg_rescale != 0.0:
                 output_cond_std = output_cond.std(dim=1, keepdim=True)
                 output_cfg_std = output_cfg.std(dim=1, keepdim=True)
                 return cfg_rescale * (output_cfg * (output_cond_std/output_cfg_std)) + (1-cfg_rescale) * output_cfg

@@ -126,7 +126,6 @@ class Controller():
         infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
         inferencer_args:dict = {
             'output_dir': ARTIFACTS_DIRS.inference_output,
-            'experiment_name': HParams().mode.config_name,
             'model':  None,
             'model_class_name': HParams().model.class_name,
             'set_type': HParams().inference.set_type,
@@ -134,6 +133,7 @@ class Controller():
             'device': HParams().resource.device
         }
         inferencer_args.update(infer_class_meta['args'])
+        if 'save_dir_name' not in inferencer_args: inferencer_args['save_dir_name'] =  HParams().mode.config_name
 
         inferencer_class:Type[Inferencer] = GetModule.get_module_class(
             class_type = "inferencer", 

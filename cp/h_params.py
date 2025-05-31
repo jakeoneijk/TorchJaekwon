@@ -60,7 +60,7 @@ class Inference():
         'dir': ''
     }
 
-    ckpt_name:str = ["all","last_epoch"][0]
+    ckpt_name:str = ["all","last"][0]
     pretrain_root_dir:str = ARTIFACTS_DIRS.log
     pretrain_dir:str = ""
 

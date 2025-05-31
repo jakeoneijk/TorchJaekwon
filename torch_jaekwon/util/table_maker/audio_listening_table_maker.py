@@ -23,12 +23,12 @@ class AudioListeningTableMaker:
 
     @staticmethod
     def make_table(
+            output_dir:str = None,
             title:str = '',
             sub_title:str = '',
             audio_dir_meta_list:list = list(),
             audio_name_list:list = None,
             audio_name_list_ref_dir:str = None,
-            output_dir:str = None,
             sr:int = 44100,
             spec_type:Literal['mel', 'stft', 'x'] = 'mel',
             max_num_tr:int = 5,
@@ -40,14 +40,39 @@ class AudioListeningTableMaker:
         html_util = HTMLUtil(output_dir=output_dir)
         html_list = list()
         html_list.append(html_util.get_html_text(title))
-        html_list.append(html_util.get_html_text(sub_title, tag='h3'))
+        html_list.append(html_util.get_html_text(sub_title, tag='h2'))
 
+        audio_html_args:dict = {
+            'audio_dir_meta_list': audio_dir_meta_list,
+            'sr': sr,
+            'spec_type': spec_type,
+            'max_num_tr': max_num_tr,
+        }
+
+        if isinstance(audio_name_list, list):
+            html_list += AudioListeningTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
+        elif isinstance(audio_name_list, dict):
+            for audio_catetory_name, audio_name_list in tqdm(audio_name_list.items(), desc='audio category'):
+                html_list.append(html_util.get_html_text(audio_catetory_name, tag='h3'))
+                html_list += AudioListeningTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
+        if return_html: return html_list
+        else: html_util.save_html(html_list)
+    
+    @staticmethod
+    def get_html_list(
+        html_util:HTMLUtil,
+        audio_dir_meta_list:list,
+        audio_name_list:list,
+        sr:int = 44100,
+        spec_type:Literal['mel', 'stft', 'x'] = 'mel',
+        max_num_tr:int = 5,
+    ) -> list:
+        html_list = list()
         html_dict_list = list()
         for audio_name in tqdm(audio_name_list, desc='audio list'):
-            if len(html_dict_list) > max_num_tr or audio_name is None:
+            if len(html_dict_list) > max_num_tr:
                 html_list += html_util.get_table_html_list(html_dict_list)
                 html_dict_list = list()
-            if audio_name is None: continue
 
             table_row_dict_audio = dict()
             table_row_dict_spec = dict()
@@ -75,8 +100,8 @@ class AudioListeningTableMaker:
             html_dict_list.append(table_row_dict_spec)
         
         if len(html_dict_list) > 0: html_list += html_util.get_table_html_list(html_dict_list)
-        if return_html: return html_list
-        else: html_util.save_html(html_list)
+        return html_list
+
     
     @staticmethod
     def get_file_path(audio_name:str, audio_dir_meta:dict, ext:Literal['wav', 'png'] = 'wav', dir_path:str = None) -> str:

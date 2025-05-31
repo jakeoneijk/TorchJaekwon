@@ -6,6 +6,7 @@ except:  print('[error] there is no pandas package')
 
 import re
 import librosa
+import numpy as np
 
 from torch_jaekwon.util import Util, UtilAudio, UtilAudioMelSpec, UtilData
 
@@ -29,8 +30,15 @@ class HTMLUtil():
             '<meta name="viewport" content="width=device-width, initial-scale=1" />',
             '<meta name="theme-color" content="#000000" />',
             '<style>',
-            'h1, th {',
+            'h1, h2, h3, th, td {',
             'font-family: Arial, sans-serif;',
+            '}',
+            'h3 {',
+            'margin-top: 32px;',
+            'background: rgb(220, 220, 220);',
+            '}',
+            'th {',
+            'background: rgb(190, 190, 190);',
             '}',
             'td {',
             'font-family: Arial, sans-serif;',
@@ -151,21 +159,12 @@ class HTMLUtil():
 
         html_code_dict = dict()
         html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
-        if spec_type == 'mel':
-            mel_spec = self.mel_spec_util.get_hifigan_mel_spec(audio)
-            if len(mel_spec.shape) == 3: mel_spec = mel_spec[0]
-            img_path = f'{self.output_dir}/{self.media_save_dir_name}/img_{str(self.media_idx_dict["img"]).zfill(5)}.png'
-            self.media_idx_dict["img"] += 1
-            self.mel_spec_util.plot(save_path=img_path, mel_spec=mel_spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
-            img_path = f'./{self.media_save_dir_name}{img_path.split(self.media_save_dir_name)[-1]}'
-            html_code_dict['spec'] = self.get_html_img(img_path, width)
-        
-        if spec_type == 'stft':
-            stft_mag = self.mel_spec_util.stft_torch(audio)["mag"].squeeze()
-            if len(stft_mag.shape) == 3: stft_mag = stft_mag[0]
-            stft_db = librosa.amplitude_to_db(stft_mag)
+
+        if spec_type in ['mel', 'stft']:
+            spec:np.ndarray = self.mel_spec_util.get_hifigan_mel_spec(audio) if spec_type == 'mel' else librosa.amplitude_to_db(self.mel_spec_util.stft_torch(audio)["mag"].squeeze())
+            if len(spec.shape) == 3: spec = spec[0]
             path_dict = self.get_media_path('img')
-            self.mel_spec_util.mel_spec_plot(save_path=path_dict['abs'], mel_spec=stft_db)
+            self.mel_spec_util.plot(save_path=path_dict['abs'], mel_spec=spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         if spec_path is not None:

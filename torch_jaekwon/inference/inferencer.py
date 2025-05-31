@@ -15,7 +15,7 @@ class Inferencer():
     def __init__(
         self,
         output_dir:str,
-        experiment_name:str,
+        save_dir_name:str,
         model:Union[nn.Module,object],
         model_class_name:str,
         set_type:Literal[ 'single', 'dir', 'testset' ],
@@ -23,7 +23,7 @@ class Inferencer():
         device:torch.device,
     ) -> None:
         self.output_dir:str = output_dir
-        self.experiment_name:str = experiment_name
+        self.save_dir_name:str = save_dir_name
         
         self.device:torch.device = device
 
@@ -48,7 +48,7 @@ class Inferencer():
         return meta_data_list
 
     def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> Tuple[str,str]:
-        output_dir_path: str = f'''{self.output_dir}/{self.experiment_name}({pretrained_name})/{meta_data["test_name"]}'''
+        output_dir_path: str = f'''{self.output_dir}/{self.save_dir_name}({pretrained_name})/{meta_data["test_name"]}'''
         shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
         return output_dir_path, shared_output_dir_path
     
@@ -119,7 +119,7 @@ class Inferencer():
     ) -> List[str]:
         pretrain_dir = f"{pretrain_root_dir}/{pretrain_dir_name}"
         
-        if ckpt_name in ["all","last_epoch"]:
+        if ckpt_name in ["all","last"]:
             pretrain_name_list:List[str] = [
                 pretrain_module
                 for pretrain_module in os.listdir(pretrain_dir)
@@ -127,7 +127,7 @@ class Inferencer():
                 ]
             pretrain_name_list.sort()
 
-            if ckpt_name == "last_epoch":
+            if ckpt_name == "last":
                 pretrain_name_list = [pretrain_name_list[-1]]
         else:
             pretrain_name_list:List[str] = [ckpt_name]
@@ -142,5 +142,5 @@ class Inferencer():
         for key in key_list: 
             if '_orig_mod.' in key: pretrained_load[key.replace('_orig_mod.', '')] = pretrained_load.pop(key)
         self.model.load_state_dict(pretrained_load)
-        self.model = self.model.to(self.device)
+        self.model.to(self.device)
         self.model.eval()
