@@ -1,1 +1,1 @@
-python main.py -lv wandb -do
+python main.py -s train -lv wandb -do
