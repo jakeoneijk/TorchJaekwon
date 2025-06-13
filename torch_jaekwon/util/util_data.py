@@ -185,7 +185,8 @@ class UtilData:
             return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
     
     @staticmethod
-    def walk(dir_path:str, ext:list = ['.wav', '.mp3', '.flac']) -> list:
+    def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
+        if isinstance(ext, str): ext = [ext]
         dir_path = dir_path.replace('//','/')
         file_meta_list:list = list()
         for root, _, files in os.walk(dir_path):
