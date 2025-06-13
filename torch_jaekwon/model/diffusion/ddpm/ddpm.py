@@ -33,7 +33,8 @@ class DDPM(nn.Module):
         loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
         # classifier free guidance
         unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
-        cfg_scale:Optional[float] = None # classifer free guidance scale
+        cfg_scale:Optional[float] = None, # classifer free guidance scale
+        cfg_calc_type:Literal['batch', 'sequential'] = 'batch'
     ) -> None:
         super().__init__()
         # model
@@ -52,6 +53,7 @@ class DDPM(nn.Module):
         # classifier free guidance
         self.unconditional_prob:float = unconditional_prob
         self.cfg_scale:Optional[float] = cfg_scale
+        self.cfg_calc_type:Literal['batch', 'sequential'] = cfg_calc_type
     
     def set_noise_schedule(
         self,
@@ -268,21 +270,29 @@ class DDPM(nn.Module):
         x:Tensor,
         t:Tensor,
         cond:Optional[Union[dict,Tensor]],
-        is_cond_unpack:bool = True,
         cfg_scale:Optional[float] = None
     ) -> Tensor:
         if cfg_scale is None or cfg_scale == 1.0:
             if cond is None:
                 return self.model(x, t)
-            elif is_cond_unpack:
-                return self.model(x, t, **cond)
             else:
-                return self.model(x, t, cond)
+                return self.model(x, t, **cond)
         else:
-            model_conditioned_output = self.model(x, t, **cond) if is_cond_unpack else self.model(x, t, cond)
-            unconditional_conditioning = self.get_unconditional_condition(cond=cond)
-            model_unconditioned_output = self.model(x, t, **unconditional_conditioning) if is_cond_unpack else self.model(x, t, unconditional_conditioning)
-            return model_unconditioned_output + cfg_scale * (model_conditioned_output - model_unconditioned_output)
+            uncond_dict:dict = self.get_unconditional_condition(cond=cond)
+            uncond:dict = {key: uncond_dict.get(key, cond[key]) for key in cond}
+            if self.cfg_calc_type == 'sequential':
+                output_cond = self.model(x, t, **cond)
+                output_uncond = self.model(x, t, **uncond)
+            else:
+                cfg_x = torch.cat([x, x], dim=0)
+                cfg_t = torch.cat([t, t], dim=0)
+                cfg_cond = {key: torch.cat([cond[key], uncond[key]], dim=0) for key in cond}
+                output_cond_uncond = self.model(cfg_x, cfg_t, **cfg_cond)
+                output_cond, output_uncond = torch.chunk(output_cond_uncond, 2, dim=0)
+
+            output_cfg = output_uncond + cfg_scale * (output_cond - output_uncond)
+
+            return output_cfg
     
     def get_unconditional_condition(
         self,
@@ -293,7 +303,7 @@ class DDPM(nn.Module):
         print('Default Unconditional Condition. You might wanna overwrite this function')
         if cond_shape is None: cond_shape = cond.shape
         if cond is not None and isinstance(cond,Tensor): condition_device = cond.device
-        return (-11.4981 + torch.zeros(cond_shape)).to(condition_device)
+        return {'audio': (-11.4981 + torch.zeros(cond_shape)).to(condition_device)}
     
     def get_x_shape(self, cond:Optional[Union[dict,Tensor]] = None):
         return None

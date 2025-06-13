@@ -63,6 +63,7 @@ class EDM(DDPM):
     @torch.no_grad()
     def infer(
         self,
+        noise:Optional[Tensor] = None,
         x_shape:tuple = None,
         cond:Optional[Union[dict,Tensor]] = None,
         sampler_type:Literal['heun', 'lms', 'dpmpp_2s_ancestral', 'dpm_2', 'dpm_fast', 'dpm_adaptive', 'dpmpp_2m_sde', 'dpmpp_3m_sde'] = 'dpmpp_3m_sde',
@@ -72,13 +73,13 @@ class EDM(DDPM):
         rho:float = 1.0,
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
-
-        if x_shape is None: x_shape = self.get_x_shape(cond)
         model_device:device = UtilTorch.get_model_device(self.model)
-        noise:Tensor = torch.randn(x_shape, device = model_device)
-
         sigmas = e_sampling.get_sigmas_polyexponential(steps, sigma_min, sigma_max, rho, device=model_device)
-        noise = noise * sigmas[0]
+
+        if noise is None:
+            if x_shape is None: x_shape = self.get_x_shape(cond)
+            noise:Tensor = torch.randn(x_shape, device = model_device)
+            noise = noise * sigmas[0]
 
         sampling_args:dict = { 
             'model': self, 
