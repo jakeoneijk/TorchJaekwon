@@ -107,10 +107,11 @@ class HParams(Singleton):
         self.set_h_params_by_dict(config_dict)
     
     def set_config(self, config_path:str = None) -> None:
+        if config_path[0] not in ['/', '.']: config_path = f"./{config_path}"
         assert config_path.startswith(CONFIG_DIR), f"Config path must start with {CONFIG_DIR}"
         assert config_path.endswith('.yaml'), "Config path must end with .yaml"
         self.mode.config_path = config_path
-        self.mode.config_name = config_path.split(CONFIG_DIR)[-1].replace('.yaml', '')
+        self.mode.config_name = config_path.split(CONFIG_DIR + '/')[-1].replace('.yaml', '')
         self.mode.train_resume_path = f"{ARTIFACTS_DIRS.log}/{self.mode.config_name}"
         self.load_config()
     
