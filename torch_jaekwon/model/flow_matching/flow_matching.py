@@ -19,7 +19,7 @@ class FlowMatching(nn.Module):
     def __init__(
         self,
         # model
-        model_class_name:Optional[list] = None,
+        model_class_meta:Optional[dict] = None, #{name:[file_name, class_name], args: {}}
         model:Optional[nn.Module] = None,
         # time
         timestep_sampler:Literal['uniform', 'logit_normal'] = 'uniform',
@@ -33,8 +33,9 @@ class FlowMatching(nn.Module):
     ) -> None:
         super().__init__()
         # model
-        if model_class_name is not None:
-            self.model = GetModule.get_model(module_name = model_class_name)
+        if model_class_meta is not None:
+            model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_meta['name'])
+            self.model = model_class(**model_class_meta['args'])
         else:
             self.model:nn.Module = model
         # time

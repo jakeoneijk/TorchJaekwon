@@ -1,6 +1,10 @@
+#import os
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+
 import yaml
 import torch
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from torch_jaekwon.path import CONFIG_DIR, ARTIFACTS_DIRS
 
@@ -11,15 +15,15 @@ class Mode:
 
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
-    train:str = ["start","resume"][0]
-    resume_path:str = f"{ARTIFACTS_DIRS.log}/{config_name}"
-    debug_mode:bool = False
+    is_train_resume:bool = False
+    train_resume_path:str = f"{ARTIFACTS_DIRS.log}/{config_name}"
+    debug_mode:bool = True
+    #use_torch_compile:bool = False
 
 @dataclass
 class Resource:
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    multi_gpu = False
-    preprocess = {'num_workers': 20}
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    num_workers:int = 1
 
 @dataclass
 class Data:
@@ -28,47 +32,48 @@ class Data:
 
 @dataclass
 class Logging:
-    class_root_dir:str = ARTIFACTS_DIRS.log
     project_name:str = "ldm_enhance"
-    visualizer_type = ["tensorboard","wandb"][0]
-    use_currenttime_on_experiment_name:bool = False
+    log_tool:str = ["tensorboard","wandb"][0]
     log_step_interval:int = 40
 
 @dataclass
 class DataLoader:
-    dataloader = dict()
+    train = dict()
+    valid = dict()
+    #test = dict()
 
 @dataclass
 class Model:
-    class_name:str = ''
+    class_meta = dict()
     
 @dataclass
 class Train:
-    class_meta = { 'name' : 'Trainer', 'args' : {}}
+    class_meta = dict()
     seed_strict = False
     seed = (int)(torch.cuda.initial_seed() / (2**32))
-    save_model_after_epoch:int = 200
+    start_logging_epoch:int = 0
     save_model_epoch_interval:int = 100
     check_evalstep_first:bool = True
 
 @dataclass
 class Inference():
-    class_meta = {'name': 'Inferencer'}
-    set_type:str = [ 'single', 'dir', 'testset' ][0]
-    set_meta_dict = {
-        'single': "./Test/TestInput/commercial_song.wav",
-        'dir': ''
-    }
+    class_meta = dict()
+    set_type:str = ['single', 'dir', 'testset'][0]
+    testdata_path:list = field(default_factory=lambda: [
+        "./atrifacts/input/test_song.wav"
+    ])
+    testdata_dir_path:list = field(default_factory=lambda: [
+        "./atrifacts/input/test_dir1",
+        "./atrifacts/input/test_dir2"
+    ])
 
     ckpt_name:str = ["all","last"][0]
-    pretrain_root_dir:str = ARTIFACTS_DIRS.log
+    pretrain_root_dir_path:str = ARTIFACTS_DIRS.log
     pretrain_dir:str = ""
 
 @dataclass
 class Evaluate():
-    class_meta = { 'name': 'Evaluater', 'args': {}}
-    class_root_dir:str = "./Evaluater"
-    source_dir:str = ""
+    class_meta = dict()
 
 class Singleton(object):
   _instance = None
@@ -101,10 +106,12 @@ class HParams(Singleton):
             config_dict:dict = yaml.safe_load(yaml_file)
         self.set_h_params_by_dict(config_dict)
     
-    def set_config(self, config_name:str = None) -> None:
-        self.mode.config_name = config_name
-        self.mode.config_path = f"./{CONFIG_DIR}/{config_name}.yaml"
-        self.mode.resume_path = f"{ARTIFACTS_DIRS.log}/{self.mode.config_name}"
+    def set_config(self, config_path:str = None) -> None:
+        assert config_path.startswith(CONFIG_DIR), f"Config path must start with {CONFIG_DIR}"
+        assert config_path.endswith('.yaml'), "Config path must end with .yaml"
+        self.mode.config_path = config_path
+        self.mode.config_name = config_path.split(CONFIG_DIR)[-1].replace('.yaml', '')
+        self.mode.train_resume_path = f"{ARTIFACTS_DIRS.log}/{self.mode.config_name}"
         self.load_config()
     
     def set_h_params_by_dict(self, h_params_dict:dict) -> None:

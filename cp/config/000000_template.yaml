@@ -1,10 +1,11 @@
 data:
   config: #config for data
-    sample_rate: &sample_rate 16000
+    attr1: &attr1 10
   config_per_dataset_dict:
     dataset_name:
       preprocessor_class_meta_list: 
-        - { 'name': 'Preprocessor', 'args': {}}
+        - name: ['preprocessor', 'Preprocessor']
+          args: {}
 #####################################################################################################
 dataloader:
   train:
@@ -37,22 +38,26 @@ dataloader:
   #    args: {}
 #####################################################################################################
 model:
-  class_name: ['file_name', 'class_name']
-    #model1_name: ['model1', 'Model1']
-    #model2_name: ['model2', 'Model2']
-  class_meta_dict:
-    model_class_name: {}
+  class_meta:
+    name: ['file_name', 'class_name']
+    args: {}
+    #key_name1: #generator
+      #name: ['file_name1', 'class_name1']
+      #args: {}
+    #key_name2: #discriminator
+      #name: ['file_name2', 'class_name2']
+      #args: {}
 #####################################################################################################
 train:
   #total_epoch: 100000
   #total_step: 100000
+  #save_model_step_interval: 500
+
   class_meta:
-    name: 'Trainer'
+    name: ['trainer', 'Trainer']
     args: {}
       #model_ckpt_path: 'step.pth'
       #use_ema: False
-
-  log_writer_class_name: 'LogWriter'
 
   optimizer: 
     class_meta: 
@@ -61,22 +66,21 @@ train:
         lr: 0.0008
         betas: [0.9,0.98]
         weight_decay: 0.0
-    #name1:
+    #key_name1: #generator
     #  name: AdamW
     #  args: {'lr': 0.00005, betas: [0.8, 0.99]}
-    #  model_name_list: ['model_name1', 'model_name2'...]
-    #name2:
+    #  model_name_list: ['generator', 'model_name2'...]
+    #key_name2: #discriminator
     #  name: AdamW
     #  args: {'lr': 0.0001, betas: [0.8, 0.99]}
-    #  model_name_list: ['model_name1', 'model_name2'...]
+    #  model_name_list: ['discriminator', 'model_name2'...]
 
   scheduler:
     class_meta: 
-      name: "StepLR"
+      name: "StepLR" #["inverse_lr", "InverseLR"]
       args:
         step_size: 20000
         gamma: 0.5
-        
     interval: 'step' # Literal['step', 'epoch']
     frequency: 1
 
@@ -85,21 +89,17 @@ train:
       class_meta:
         name : 'L1Loss'
         args : {}
-      pred_name: '' # if model's output is dict, you can specify the key
-      target_name: '' # if target is dict, you can specify the key
+      #pred_name: '' # if model's output is dict, you can specify the key
+      #target_name: '' # if target is dict, you can specify the key
       weight: 1
-    
-  loss_list_for_performance_comparison: 
-    - loss_name
 #####################################################################################################
 inference:
   class_meta:
-    name: 'Inferencer'
+    name: ['inferencer', 'Inferencer']
     args: {}
-  #ckpt_name: 'step15000.pth'
 #####################################################################################################
 evaluate:
   class_meta:
-    name: 'Evaluater'
+    name: ['evaluator', 'Evaluator']
     args: 
       source_dir: ''

@@ -29,7 +29,7 @@ class Trainer():
         # data
         data_class_meta_dict:dict,
         # model
-        model_class_name:Union[list, dict],
+        model_class_meta_dict:dict, #{name:[file_name, class_name], args: {}}
         model_ckpt_path:str = None,
         # loss
         loss_meta_dict:dict = None,
@@ -50,7 +50,7 @@ class Trainer():
         save_model_step_interval:int = None,
         save_model_epoch_interval:int = 1,
         log_step_interval:int = 100,
-        start_logging_epoch:bool = 0,
+        start_logging_epoch:int = 0,
         # resource
         device:torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
         multi_gpu:bool = False,
@@ -64,7 +64,7 @@ class Trainer():
         self.data_loader_dict:dict = {state.value: None for state in TrainState}
 
         # model
-        self.model_class_name:Union[list, dict] = model_class_name
+        self.model_class_meta_dict:dict = model_class_meta_dict
         self.model:Union[nn.Module, list, dict] = None
         self.model_ckpt_path:str = model_ckpt_path
 
@@ -98,7 +98,7 @@ class Trainer():
         self.save_model_step_interval:int = save_model_step_interval
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
-        self.start_logging_epoch:bool = start_logging_epoch
+        self.start_logging_epoch:int = start_logging_epoch
 
         # resource
         self.device:torch.device = device
@@ -202,7 +202,7 @@ class Trainer():
         os.environ["PYTHONHASHSEED"] = str(seed)
 
     def init_train(self, dataset_dict=None):
-        self.model = self.init_model(self.model_class_name)
+        self.model = self.init_model(self.model_class_meta_dict)
         if self.model_ckpt_path is not None:
             ckpt:dict = torch.load(self.model_ckpt_path, map_location='cpu')
             self.model = self.load_state_dict(self.model, ckpt, is_model=True)
@@ -227,14 +227,15 @@ class Trainer():
         )
         self.model_ema = self.model_ema.to(self.device)
 
-    def init_model(self, model_class_name:Union[list, dict]) -> None:
-        if isinstance(model_class_name, list): assert len(model_class_name) == 2, "model_class_name should be list of [file_name, class_name]"
-        if isinstance(model_class_name, dict):
+    def init_model(self, model_class_meta_dict:Union[list, dict]) -> None:
+        model_class_name = model_class_meta_dict.get('name', None)
+        if model_class_name is None:
             model = dict()
             for name in model_class_name:
                 model[name] = self.init_model(model_class_name[name])
         else:
-            model:nn.Module = GetModule.get_model(model_class_name)
+            model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_name)
+            model:nn.Module = model_class(**model_class_meta_dict['args'])
             if not self.debug_mode and self.use_torch_compile:
                 model = torch.compile(model)
         return model

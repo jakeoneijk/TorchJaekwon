@@ -37,6 +37,7 @@ class AudioListeningTableMaker:
         if output_dir is None: output_dir = f'./output/{title}'
         if audio_name_list is None and audio_name_list_ref_dir is not None:
             audio_name_list = [meta['file_name'] for meta in UtilData.walk(audio_name_list_ref_dir)]
+            audio_name_list.sort()
         html_util = HTMLUtil(output_dir=output_dir)
         html_list = list()
         html_list.append(html_util.get_html_text(title))

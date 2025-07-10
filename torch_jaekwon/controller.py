@@ -22,8 +22,6 @@ class Controller():
         self.stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
 
         self.config_per_dataset_dict: Dict[str, dict] = HParams().data.config_per_dataset_dict
-        self.train_mode: Literal['start', 'resume'] = HParams().mode.train
-        self.train_resume_path: str = HParams().mode.resume_path
         self.eval_class_meta:dict = HParams().evaluate.class_meta # {'name': 'Evaluater', 'args': {}}
 
     def run(self) -> None:
@@ -44,7 +42,7 @@ class Controller():
                 preprocessor_class_name:str = preprocessor_meta['name']
                 preprocessor_args:dict = {
                     'data_name': data_name,
-                    'num_workers': HParams().resource.preprocess['num_workers'],
+                    'num_workers': HParams().resource.num_workers,
                     'device': HParams().resource.device,
                 }
                 preprocessor_args.update(preprocessor_meta['args'])
@@ -65,16 +63,16 @@ class Controller():
             experiment_name = HParams().mode.config_name,
             use_time_on_experiment_name = False,
             project_name = HParams().log.project_name,
-            visualizer_type = HParams().log.visualizer_type,
-            root_dir_path = f'{HParams().log.class_root_dir}/{HParams().mode.config_name}',
-            is_resume = self.train_mode == "resume"
+            visualizer_type = HParams().log.log_tool,
+            root_dir_path = f'{ARTIFACTS_DIRS.log}/{HParams().mode.config_name}',
+            is_resume = HParams().mode.is_train_resume,
         )
 
         trainer_args = {
             # data
             'data_class_meta_dict': HParams().dataloader,
             # model
-            'model_class_name': HParams().model.class_name,
+            'model_class_meta_dict': HParams().model.class_meta,
             # loss
             'loss_meta_dict': getattr(HParams().train, 'loss', None),
             # optimizer
@@ -114,9 +112,9 @@ class Controller():
         trainer:Trainer = trainer_class(**trainer_args)
         trainer.init_train()
         
-        if self.train_mode == "resume":
+        if HParams().mode.is_train_resume:
             Util.print('load the checkpoint', 'info')
-            trainer.load_train(self.train_resume_path + "/train_checkpoint.pth")
+            trainer.load_train(HParams().mode.train_resume_path + "/train_checkpoint.pth")
         
         trainer.fit()
 
@@ -129,7 +127,10 @@ class Controller():
             'model':  None,
             'model_class_name': HParams().model.class_name,
             'set_type': HParams().inference.set_type,
-            'set_meta_dict': HParams().inference.set_meta_dict,
+            'set_meta_dict': {
+                'single': HParams().inference.testdata_path,
+                'dir': HParams().inference.testdata_dir_path
+            },
             'device': HParams().resource.device
         }
         inferencer_args.update(infer_class_meta['args'])
@@ -141,7 +142,7 @@ class Controller():
         )
         inferencer:Inferencer = inferencer_class(**inferencer_args)
         inferencer.inference(
-            pretrained_root_dir = HParams().inference.pretrain_root_dir,
+            pretrained_root_dir = HParams().inference.pretrain_root_dir_path,
             pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
             ckpt_name = HParams().inference.ckpt_name
         )
@@ -170,54 +171,50 @@ class Controller():
         parser = argparse.ArgumentParser()
 
         parser.add_argument(
-            "-c",
-            "--config_path",
-            type=str,
-            required=False,
-            default=None,
-            help="",
-        )
-
-        parser.add_argument(
-            "-s",
-            "--stage",
-            type=str,
-            required=False,
-            default=None,
-            choices = ['preprocess', 'train', 'inference', 'evaluate'],
-            help="",
-        )
-
-        parser.add_argument(
             '-r',
             '--resume',
             help='train resume',
             action='store_true'
         )
 
-        parser.add_argument(
-            "-do",
-            "--debug_off",
-            help="debug mode off",
-            action='store_true'
-        )
+        primitive_types = (str, int, float, bool)
+        str2bool = lambda v: v if isinstance(v, bool) else True if v.lower() in ('yes', 'true', 't', '1') else False if v.lower() in ('no', 'false', 'f', '0') else (_ for _ in ()).throw(ValueError("Boolean value expected."))
+        type_mapper = lambda t: str2bool if t == bool else t
 
-        parser.add_argument(
-            "-lv",
-            "--log_visualizer",
-            type=str,
-            required=False,
-            default=None,
-            choices = ['tensorboard', 'wandb'],
-            help="",
-        )
+        arg_list_from_h_params:list = [
+            {
+                'arg_name': attr_name, 
+                'module_name': module_name, 
+                'attr_name':attr_name, 
+                'type': type_mapper(type(value[0]) if isinstance(value, list) else type(value)),
+                'nargs': '*' if isinstance(value, list) else None
+            }
+            for module_name, instance in HParams().__dict__.items() 
+            for attr_name, value in instance.__dict__.items() 
+            if isinstance(value, primitive_types) or isinstance(value, list) #and all(isinstance(item, primitive_types) for item in value)
+        ]
+
+        arg_name_list_from_h_params = [h_prams_arg['arg_name'] for h_prams_arg in arg_list_from_h_params]
+        assert len(arg_name_list_from_h_params) == len(set(arg_name_list_from_h_params)), "Duplicate argument names found in HParams."
+
+        for h_prams_arg in arg_list_from_h_params:
+            parser.add_argument(
+                *[f'--{h_prams_arg["arg_name"]}'],
+                nargs= h_prams_arg['nargs'],
+                type=h_prams_arg['type'],
+                required=False,
+                default=None,
+                help="",
+            )       
 
         args = parser.parse_args()
-
+        
+        for h_prams_arg in arg_list_from_h_params:
+            value = getattr(args, h_prams_arg['arg_name'])
+            if value is not None:
+                setattr(getattr(HParams(), h_prams_arg['module_name']), h_prams_arg['attr_name'], value)
+                
         if args.config_path is not None: HParams().set_config(args.config_path)
-        if args.stage is not None: HParams().mode.stage = args.stage
-        if args.log_visualizer is not None: HParams().log.visualizer_type = args.log_visualizer
-        if args.resume: HParams().mode.train = "resume"
-        if args.debug_off: HParams().mode.debug_mode = False
+        if args.resume: HParams().mode.is_train_resume = True
 
         return args

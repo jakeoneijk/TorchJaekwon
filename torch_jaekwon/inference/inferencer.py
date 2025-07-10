@@ -17,7 +17,7 @@ class Inferencer():
         output_dir:str,
         save_dir_name:str,
         model:Union[nn.Module,object],
-        model_class_name:str,
+        model_class_meta:dict, #{name:[file_name, class_name], args: {}}
         set_type:Literal[ 'single', 'dir', 'testset' ],
         set_meta_dict: dict,
         device:torch.device,
@@ -27,8 +27,8 @@ class Inferencer():
         
         self.device:torch.device = device
 
-        assert model_class_name is not None or model is not None, "model_class_name or model must be not None"
-        self.model:Union[nn.Module,object] = self.get_model(model_class_name) if model is None else model
+        assert model_class_meta is not None or model is not None, "model_class_meta or model must be not None"
+        self.model:Union[nn.Module,object] = self.get_model(model_class_meta) if model is None else model
         self.shared_dir_name:str = '_shared_'
 
         self.set_type:Literal[ 'single', 'dir', 'testset' ] = set_type
@@ -83,8 +83,9 @@ class Inferencer():
     ==============================================================
     '''
 
-    def get_model(self, model_class_name:str) -> nn.Module:
-        return GetModule.get_model(model_class_name) if (model_class_name not in [None,'']) else None
+    def get_model(self, model_class_meta:dict) -> nn.Module:
+        model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_meta['name'])
+        return model_class(**model_class_meta['args'])
 
     def inference(
         self,

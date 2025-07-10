@@ -13,7 +13,7 @@ class GetModule:
     @staticmethod
     def get_module_class(
         root_path:str = None, # if class_type is not None, don't need to input root_path
-        class_type:Literal['preprocessor', 'trainer', 'data_loader', 'pytorch_dataset', 'lr_scheduler', 'loss'] = None,
+        class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
         module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
     ) -> type:
         if class_type is not None:
@@ -31,26 +31,6 @@ class GetModule:
         module_path:str = GetModule.get_import_path_of_module(root_path, file_name)
         module_from = importlib.import_module(module_path)
         return getattr(module_from, class_name)
-    
-    @staticmethod
-    def get_model(
-        module_name:Union[tuple, list] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
-        root_path:str = './model'
-    ) -> nn.Module:
-        assert isinstance(module_name, (tuple, list)), f'''[GetModule] module_name should be tuple or list. {module_name}'''
-        class_module = GetModule.get_module_class(root_path = root_path, module_name = module_name)
-        argument_getter:Callable[[],dict] = getattr(class_module,'get_argument_of_this_model',lambda: dict())
-        model_parameter:dict = argument_getter()
-        if not model_parameter:
-            try: 
-                from h_params import HParams
-                model_parameter = HParams().model.class_meta_dict.get(module_name[1],{})
-                if not model_parameter: 
-                    Util.print(f'''[GetModule] Model [{module_name}] doesn't have changed arguments''', 'info')
-            except: 
-                Util.print(f'''[GetModule] Model [{module_name}] doesn't have changed arguments''', 'info')
-        model:nn.Module = class_module(**model_parameter)
-        return model
     
     @staticmethod
     def get_import_path_of_module(

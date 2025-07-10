@@ -9,11 +9,13 @@ CONFIG_DIR = "./config"
 @dataclass
 class ClassDirs:
     preprocessor:str = './data/preprocess'
+    model:str = './model'
     trainer:str = './train/trainer'
     pytorch_dataset:str = './data/dataset'
     lr_scheduler:str = './train/optimizer/scheduler'
     loss:str = './train/loss'
     inferencer:str = './inference'
+    evaluator:str = './evaluate/evaluator'
 CLASS_DIRS:dict = ClassDirs()
 
 @dataclass

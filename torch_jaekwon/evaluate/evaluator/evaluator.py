@@ -9,7 +9,7 @@ import torch
 from ...util import UtilData
 #internal import
 
-class Evaluater():
+class Evaluator():
     def __init__(
         self,
         source_dir:str,
