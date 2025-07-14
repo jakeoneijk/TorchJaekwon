@@ -11,6 +11,17 @@ except: print('''Can't import torch.nn''')
 
 class GetModule:
     @staticmethod
+    def get_module(
+        root_path:str = None, # if class_type is not None, don't need to input root_path
+        class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
+        module_name:tuple = None,
+        arg_dict:dict = dict(),
+    ) -> Callable:
+        module_class = GetModule.get_module_class(root_path, class_type, module_name)
+        module_instance = module_class(**arg_dict)
+        return module_instance
+    
+    @staticmethod
     def get_module_class(
         root_path:str = None, # if class_type is not None, don't need to input root_path
         class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,

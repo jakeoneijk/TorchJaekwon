@@ -3,23 +3,23 @@ from typing import Literal
 import os
 import unicodedata
 from tqdm import tqdm
-from ...util import Util, UtilData
-from ..table_maker import HTMLUtil
+from .. import Util, UtilData
+from . import HTMLUtil
 
 TD_WIDTH = 300
 BLANK_COMPONENT = f'<div style="width:{TD_WIDTH}px"> X <div>'
 
-class AudioListeningTableMaker:
+class MediaTableMaker:
     @staticmethod
     def get_yaml_example(output_dir:str = './') -> None:
-        file_path:str = f'{os.path.dirname(__file__)}/audio_table_config_example.yaml'
+        file_path:str = f'{os.path.dirname(__file__)}/media_table_config_example.yaml'
         Util.system(f'cp {file_path} {output_dir}')
 
     @staticmethod
     def make_table_from_config_path(yaml_path:str, output_dir:str = None, max_num_tr:int = 5) -> None:
         meta_data:dict = UtilData.yaml_load(yaml_path)
         if meta_data['title'] is None: meta_data['title'] = UtilData.get_file_name(yaml_path)
-        AudioListeningTableMaker.make_table(output_dir = output_dir, max_num_tr = max_num_tr, **meta_data)
+        MediaTableMaker.make_table(output_dir = output_dir, max_num_tr = max_num_tr, **meta_data)
 
     @staticmethod
     def make_table(
@@ -51,11 +51,11 @@ class AudioListeningTableMaker:
         }
 
         if isinstance(audio_name_list, list):
-            html_list += AudioListeningTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
+            html_list += MediaTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
         elif isinstance(audio_name_list, dict):
             for audio_catetory_name, audio_name_list in tqdm(audio_name_list.items(), desc='audio category'):
                 html_list.append(html_util.get_html_text(audio_catetory_name, tag='h3'))
-                html_list += AudioListeningTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
+                html_list += MediaTableMaker.get_html_list(html_util=html_util, audio_name_list=audio_name_list, **audio_html_args)
         if return_html: return html_list
         else: html_util.save_html(html_list)
     
@@ -80,12 +80,12 @@ class AudioListeningTableMaker:
             table_row_dict_audio['name'] = f'''<div style="width:{TD_WIDTH}px; overflow-wrap: break-word;">{audio_name}<div>'''
             for audio_dir_meta in audio_dir_meta_list:
                 audio_dir_name = audio_dir_meta.get('name', audio_dir_meta['dir'].split('/')[-1])
-                audio_path:str = AudioListeningTableMaker.get_file_path(audio_name, audio_dir_meta)
+                audio_path:str = MediaTableMaker.get_file_path(audio_name, audio_dir_meta)
                 if os.path.isfile(audio_path):
                     img_path = None
                     spec_type_for_audio = spec_type
                     if 'img_dir' in audio_dir_meta:
-                        img_path:str = AudioListeningTableMaker.get_file_path(audio_name, audio_dir_meta, ext='png', dir_path=audio_dir_meta['img_dir'])
+                        img_path:str = MediaTableMaker.get_file_path(audio_name, audio_dir_meta, ext='png', dir_path=audio_dir_meta['img_dir'])
                         spec_type_for_audio = None
                     media_html_dict:dict = html_util.get_html_audio(audio_path = audio_path, sample_rate=sr, spec_type=spec_type_for_audio, spec_path=img_path)
                 else:
