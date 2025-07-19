@@ -12,11 +12,12 @@ authors = [
   { name = "Jaekwon Im", email = "jakeoneijk@kaist.ac.kr" }
 ]
 dependencies = [
-  "numpy",
   "tqdm",
   "psutil",
-  "pyyaml",
+  "numpy",
   "matplotlib",
+  "pyyaml",
+  "moviepy",
   "librosa",
   "wandb",
   "tensorboardX",
