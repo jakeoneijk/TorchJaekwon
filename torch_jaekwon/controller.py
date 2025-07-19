@@ -125,7 +125,7 @@ class Controller():
         inferencer_args:dict = {
             'output_dir': ARTIFACTS_DIRS.inference_output,
             'model':  None,
-            'model_class_name': HParams().model.class_name,
+            'model_class_meta': HParams().model.class_meta,
             'set_type': HParams().inference.set_type,
             'set_meta_dict': {
                 'single': HParams().inference.testdata_path,
@@ -142,29 +142,23 @@ class Controller():
         )
         inferencer:Inferencer = inferencer_class(**inferencer_args)
         inferencer.inference(
-            pretrained_root_dir = HParams().inference.pretrain_root_dir_path,
+            pretrained_root_dir = HParams().inference.pretrain_root_dir,
             pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
             ckpt_name = HParams().inference.ckpt_name
         )
 
     def evaluate(self) -> None:
-        from torch_jaekwon.Evaluater.Evaluater import Evaluater
-        evaluater_class:Type[Evaluater] = GetModule.get_module_class(
-            root_path="./Evaluater", 
+        from torch_jaekwon.evaluate.evaluator.evaluator import Evaluator
+        evaluater_class:Type[Evaluator] = GetModule.get_module_class(
+            class_type='evaluator', 
             module_name=self.eval_class_meta['name']
         )
         evaluater_args:dict = self.eval_class_meta['args']
         evaluater_args.update({
-            'device': HParams().resource.device
+            'device': HParams().resource.device,
+            'evaluation_result_dir': f'{ARTIFACTS_DIRS.evaluation_result}/{HParams().mode.config_name}'
         })
-        if evaluater_args.get('source_dir','') == '':
-            source_dir_prefix:str = f'{HParams().inference.output_dir}/{HParams().mode.config_name}'
-            source_dir_parent:str = '/'.join(source_dir_prefix.split('/')[:-1])
-            source_dir_tag:str = source_dir_prefix.split('/')[-1]
-            source_dir_name_candidate = [dir_name for dir_name in os.listdir(source_dir_parent) if source_dir_tag in dir_name]
-            source_dir_name_candidate.sort()
-            evaluater_args['source_dir'] = f'{source_dir_parent}/{source_dir_name_candidate[-1]}'
-        evaluater:Evaluater = evaluater_class(**evaluater_args)
+        evaluater:Evaluator = evaluater_class(**evaluater_args)
         evaluater.evaluate()
     
     def set_argparse(self) -> None:

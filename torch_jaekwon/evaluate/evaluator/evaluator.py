@@ -13,7 +13,8 @@ class Evaluator():
     def __init__(
         self,
         source_dir:str,
-        reference_dir:str = None,
+        reference_dir:str,
+        evaluation_result_dir:str,
         sort_result_by_metric:bool = True,
         device:torch.device = torch.device('cpu')
     ) -> None:
@@ -21,6 +22,8 @@ class Evaluator():
         self.reference_dir:str = reference_dir
         self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
+        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{UtilData.get_file_name(self.source_dir)}'
+        os.makedirs(self.evaluation_result_dir,exist_ok=True)
     
     '''
     ==============================================================
@@ -46,19 +49,16 @@ class Evaluator():
     def evaluate(self) -> None:
         eval_dir_list:List[str] = self.get_eval_dir_list()
 
-        evaluation_result_dir:str = f"{self.source_dir}/_evaluation"
-        os.makedirs(evaluation_result_dir,exist_ok=True)
-
         for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):
             meta_data_list: List[dict] = self.get_meta_data_list(eval_dir)
             result_dict:dict = self.get_result_dict(meta_data_list)
             result_dict['statistic'].update(self.set_eval(eval_dir=eval_dir))
 
             test_set_name:str = eval_dir.split('/')[-1]
-            UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
+            UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
             if self.sort_result_by_metric:
                 for metric_name in result_dict['metric_name_list']:
-                    UtilData.yaml_save(f'{evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
+                    UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
         result_dict_list:List[dict] = list()

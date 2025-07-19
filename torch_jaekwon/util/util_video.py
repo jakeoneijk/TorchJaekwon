@@ -3,14 +3,11 @@ from typing import Literal, Tuple, Optional, Union
 import os
 import subprocess
 import numpy as np
-try: from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip
-except: print('moviepy is not installed. Please install it using `pip install moviepy`')
+from moviepy import VideoFileClip, AudioFileClip, ImageClip
 try: from pytube import YouTube
 except: print('pytube is not installed. Please install it using `pip install pytube`')
 try: from pytubefix import YouTube as YouTubeFix
 except: print('pytubefix is not installed. Please install it using `pip install pytubefix`')
-try: from pydub import AudioSegment
-except: print('pydub is not installed. Please install it using `pip install pydub`')
 
 from torch_jaekwon.util import util
 
@@ -66,8 +63,6 @@ class UtilVideo:
             else:
                 yt_args['adaptive'] = True
             steam_list = yt.streams.filter(**yt_args).order_by('resolution').desc()
-            if len(steam_list) == 0:
-                return None
             stream = None
             while stream is None and resolution_idx >= 0:
                 stream_list_filtered = [s for s in steam_list if s.resolution == resolution_list[resolution_idx]]
@@ -91,7 +86,7 @@ class UtilVideo:
     ) -> str:
         video = VideoFileClip(video_path)
         audio = video.audio
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        util.make_parent_dir(output_path)
         audio.write_audiofile(output_path, codec='pcm_s16le')
         return output_path
 
@@ -104,18 +99,18 @@ class UtilVideo:
         video_duration_sec:float = None,
         audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = 'aac',
     ) -> VideoFileClip:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        video_clip = UtilVideo.read(file_path=video_path, fps=fps)
+        util.make_parent_dir(output_path)
+        video_read_args = {'file_path': video_path, 'fps': fps}
         if video_duration_sec is not None:
-            video_clip = video_clip.subclip(0, video_duration_sec)
+            video_read_args['start_sec'] = 0
+            video_read_args['end_sec'] = video_duration_sec
+        video_clip = UtilVideo.read(**video_read_args)
         video_clip = video_clip.set_audio(AudioFileClip(audio_path))
-        video_clip.write_videofile(
-            output_path, 
-            audio=True, 
+        UtilVideo.write(
+            file_path = output_path, 
+            video = video_clip, 
+            fps = fps,
             audio_codec = audio_codec,
-            fps=fps, 
-            verbose=False, 
-            logger=None
         )
         return video_clip
     
