@@ -11,7 +11,7 @@ from torch_jaekwon.path import CONFIG_DIR, ARTIFACTS_DIRS
 @dataclass
 class Mode:
     config_name:str = str()
-    config_path:str = f"./{CONFIG_DIR}/{config_name}.yaml"
+    config_path:str = str() #f"./{CONFIG_DIR}/{config_name}.yaml"
 
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
@@ -100,7 +100,7 @@ class HParams(Singleton):
         self.load_config()
     
     def load_config(self) -> None:
-        if self.mode.config_path is None:
+        if not self.mode.config_path:
             return
         with open(self.mode.config_path, 'r') as yaml_file:
             config_dict:dict = yaml.safe_load(yaml_file)

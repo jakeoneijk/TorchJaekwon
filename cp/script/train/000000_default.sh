@@ -4,4 +4,5 @@ python main.py \
 --stage train \
 --log_tool wandb \
 --debug_mode false \
-#--config_path ${CONFIG_PATH}
+#--config_path ${CONFIG_PATH} \
+#-r

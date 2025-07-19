@@ -9,9 +9,9 @@ def run():
     controller = Controller()
     controller.run()
 
-def run_multiple(config_name_list:list) -> None:
-    for config_name in tqdm(config_name_list, desc='config_name_list'):
-        HParams().set_config(config_name)
+def run_multiple(config_path_list:list) -> None:
+    for config_path in tqdm(config_path_list, desc='config_name_list'):
+        HParams().set_config(config_path)
         controller = Controller()
         controller.run()
 

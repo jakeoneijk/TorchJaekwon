@@ -187,6 +187,7 @@ class UtilData:
     @staticmethod
     def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
         if isinstance(ext, str): ext = [ext]
+        ext = [e if e.startswith('.') else f'.{e}' for e in ext]
         dir_path = dir_path.replace('//','/')
         file_meta_list:list = list()
         for root, _, files in os.walk(dir_path):

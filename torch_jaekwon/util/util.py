@@ -81,3 +81,13 @@ class Util:
             Util.system(f'''tar -xzvf {file_path} -C {unzip_dir}''')
         else:
             Util.system(f'''unzip {file_path} -d {unzip_dir}''')
+    
+    @staticmethod
+    def norm_path(file_path:str) -> str:
+        if file_path[0] not in ['/', '.']:
+            return f"./{file_path}"
+        return file_path
+    
+    @staticmethod
+    def make_parent_dir(file_path:str) -> None:
+        os.makedirs(os.path.dirname(Util.norm_path(file_path)), exist_ok=True)

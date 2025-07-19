@@ -10,3 +10,5 @@ from torch_jaekwon.util.util_data import UtilData
 from torch_jaekwon.util.util_data import UtilData as util_data
 from torch_jaekwon.util.util_torch import UtilTorch
 from torch_jaekwon.util.util_torch import UtilTorch as util_torch
+from torch_jaekwon.util.util_video import UtilVideo
+from torch_jaekwon.util.util_video import UtilVideo as util_video
