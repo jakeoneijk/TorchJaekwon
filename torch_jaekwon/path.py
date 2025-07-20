@@ -23,7 +23,7 @@ class ArtifactsDirs:
     root:str = './artifacts'
     data:str = f'{root}/data'
     preprocessed_data:str = f'{data}/preprocessed'
-    log:str = f'{root}/log'
-    inference_output:str = f'{root}/inference_output'
-    evaluation_result:str = f'{root}/evaluation_result'
+    train:str = f'{root}/train'
+    inference:str = f'{root}/inference'
+    evaluate:str = f'{root}/evaluate'
 ARTIFACTS_DIRS = ArtifactsDirs()

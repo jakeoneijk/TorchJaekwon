@@ -69,8 +69,8 @@ class HTMLUtil():
         mel_spec_config = UtilAudioMelSpec.get_default_config(audio_sr)
         self.mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
     
+    @staticmethod
     def get_table_html_list(
-        self,
         dict_list: List[dict],
         use_pandas:bool = False
     ) -> List[str]:
