@@ -1,3 +1,5 @@
+import os
+# os.environ["ARTIFACTS_ROOT"] = "/your/custom/path"
 from tqdm import tqdm
 
 from torch_jaekwon.controller import Controller

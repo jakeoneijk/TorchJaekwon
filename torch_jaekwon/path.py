@@ -18,12 +18,14 @@ class ClassDirs:
     evaluator:str = './evaluate/evaluator'
 CLASS_DIRS:dict = ClassDirs()
 
+# export ARTIFACTS_ROOT=/path/to/your/output
+ARTIFACTS_ROOT = os.environ.get("ARTIFACTS_ROOT", "./artifacts")
+
 @dataclass
 class ArtifactsDirs:
-    root:str = './artifacts'
-    data:str = f'{root}/data'
-    preprocessed_data:str = f'{data}/preprocessed'
-    train:str = f'{root}/train'
-    inference:str = f'{root}/inference'
-    evaluate:str = f'{root}/evaluate'
+    data:str = f'{ARTIFACTS_ROOT}/data'
+    preprocessed_data:str = f'{ARTIFACTS_ROOT}/data/preprocessed'
+    train:str = f'{ARTIFACTS_ROOT}/train'
+    inference:str = f'{ARTIFACTS_ROOT}/inference'
+    evaluate:str = f'{ARTIFACTS_ROOT}/evaluate'
 ARTIFACTS_DIRS = ArtifactsDirs()
