@@ -65,11 +65,11 @@ class TableMaker:
                 table_row_dict_list[0][NAME_TAG] = get_str_html(data_name)
                 for model_meta in model_meta_list:
                     model_name = get_str_html(model_meta.get(NAME_TAG, model_meta['dir'].split('/')[-1]))
-                    data_type = model_meta.get('data_type', 'audio')
-                    if data_type == 'function':
+                    ext = model_meta.get('ext', 'wav')
+                    if ext == 'function':
                         table_row_dict_list[0][model_name] = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
-                    elif data_type == 'audio':
-                        raise NotImplementedError(f"Data type '{data_type}' is not implemented.")
+                    elif ext == 'wav':
+                        raise NotImplementedError(f"ext '{ext}' is not implemented.")
                         '''
                         audio_path:str = TableMaker.get_file_path(media_name, comparison_meta)
                     if os.path.isfile(audio_path):
@@ -91,7 +91,7 @@ class TableMaker:
             html_dict_list += table_row_dict_list
                         '''
                     else:
-                        raise NotImplementedError(f"Data type '{data_type}' is not implemented.")
+                        raise NotImplementedError(f"ext '{ext}' is not implemented.")
                     print('')
                 html_dict_list += table_row_dict_list
             if len(html_dict_list) > 0:
