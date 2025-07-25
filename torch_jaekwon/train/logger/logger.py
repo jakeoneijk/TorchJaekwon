@@ -45,7 +45,7 @@ class Logger():
                     wandb_meta_data:dict = UtilData.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
                     wandb.init(id=wandb_meta_data['id'], project=project_name, resume = 'must')
                 except:
-                    Util.print("Failed to resume wandb. Please check the wandb_meta.yaml file", type='error')
+                    Util.print("Failed to resume wandb. Please check the wandb_meta.yaml file", msg_type='error')
                     wandb.init(project=project_name)
             else: 
                 wandb.init(project=project_name)

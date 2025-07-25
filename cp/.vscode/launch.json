@@ -25,5 +25,19 @@
                 "preprocess"
             ],
         },
+        {
+            "name": "train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            //"env": {"name":"CUDA_VISIBLE_DEVICES", "value":"0"},
+            "args": [
+                "--config_path",
+                "config/config1.yaml",
+                "--stage",
+                "train"
+            ],
+        },
     ]
 }
