@@ -1,0 +1,21 @@
+# title: 'task title'
+# sub_title: 'sub_task_title'
+# transpose: true
+
+# audio_spec_type: x | stft | mel
+
+data_name_list: # List | Dict[str, List]
+  - singer/wav/song_name
+
+#data_name_list_ref_dir: 'path/to/ref_dir' 
+
+model_meta_list:
+  - name: 'model_name' # if you don't use this, name will be the dir_name
+    dir: 'output_dir' # path of the dir
+    # file_name: null|'pred' # if file name is the dirname and there is file, you can specify file name
+    # file_name_pre_post_fix: ['prefix','postfix'] # prefix_file_name_postfix
+    # use_only_name: false # if it is true, use data_name.split('/')[-1]
+    # file_strict: False # if it is True, it will raise error if there is no audio file in the dir. defualt is True
+    # ext: 'wav' # 'wav' | 'function'
+    ## audio ##
+    # img_dir: 'img_dir' # path of the img dir

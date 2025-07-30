@@ -1,5 +1,6 @@
-from typing import Literal
+from typing import Literal, List
 import os, sys
+import re
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -36,6 +37,10 @@ class Util:
         color:str = template_dict.get(msg_type, {}).get('color', '')
         prefix:str = template_dict.get(msg_type, {}).get('prefix', '')
         print(f"{color + prefix + text + END}")
+    
+    @staticmethod
+    def get_num_in_str(text:str) -> List[int]:
+        return [int(n) for n in re.findall(r'\d+', text)]
 
     @staticmethod
     def set_sys_path_to_parent_dir(

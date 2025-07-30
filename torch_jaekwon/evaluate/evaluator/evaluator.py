@@ -41,6 +41,9 @@ class Evaluator():
         meta_data:dict
     ) -> dict: #{'name':name_of_testcase,'metric_name1':value1,'metric_name2':value2... }
         pass
+
+    def get_ref_free_eval_result(self, meta_data_list:List[dict]) -> dict:
+        return {'result':dict()}
     '''
     ==============================================================
     abstract method end
@@ -52,24 +55,27 @@ class Evaluator():
         for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):
             meta_data_list: List[dict] = self.get_meta_data_list(eval_dir)
             result_dict:dict = self.get_result_dict(meta_data_list)
-            result_dict['statistic'].update(self.set_eval(eval_dir=eval_dir))
 
             test_set_name:str = eval_dir.split('/')[-1]
-            UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_mean_median_std.yaml',result_dict['statistic'])
+            UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}.yaml',result_dict['result'])
             if self.sort_result_by_metric:
-                for metric_name in result_dict['metric_name_list']:
-                    UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result'], key = metric_name))
+                for metric_name in result_dict['result']:
+                    UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
-        result_dict_list:List[dict] = list()
-        for meta_data in tqdm(meta_data_list,desc='get result'):
-            result_dict_list.append(self.get_result_dict_for_one_testcase(meta_data))
-        
-        metric_name_list:list = [metric_name for metric_name in list(result_dict_list[0].keys()) if type(result_dict_list[0][metric_name]) in [float]]
-        metric_name_list.sort()
-        mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict_list,metric_name_list)
+        result_dict:dict = self.get_ref_free_eval_result(meta_data_list)
 
-        return {'metric_name_list': metric_name_list, 'result':result_dict_list, 'statistic':mean_median_std_dict}
+        result_per_sample:List[dict] = list()
+        for meta_data in tqdm(meta_data_list,desc='get result'):
+            result_per_sample.append(self.get_result_dict_for_one_testcase(meta_data))
+        
+        metric_name_list:list = [metric_name for metric_name in list(result_per_sample[0].keys()) if type(result_per_sample[0][metric_name]) in [float]]
+        metric_name_list.sort()
+        mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_per_sample, metric_name_list)
+
+        result_dict['result_per_sample'] = result_per_sample
+        result_dict['result'].update(mean_median_std_dict)
+        return result_dict
     
     def get_mean_median_std_from_dict_list(self,dict_list:List[dict],metric_name_list:List[str]):
         result_list_dict:dict = {metric_name: list() for metric_name in metric_name_list}
@@ -83,6 +89,3 @@ class Evaluator():
             result_dict[metric_name]['median'] = float(np.median(result_list_dict[metric_name]))
             result_dict[metric_name]['std'] = float(np.std(result_list_dict[metric_name]))
         return result_dict
-    
-    def set_eval(self, eval_dir:str) -> dict: #key: metric_name
-        return dict()

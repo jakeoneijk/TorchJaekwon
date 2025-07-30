@@ -64,7 +64,7 @@ class Controller():
             use_time_on_experiment_name = False,
             project_name = HParams().log.project_name,
             visualizer_type = HParams().log.log_tool,
-            root_dir_path = f'{ARTIFACTS_DIRS.log}/{HParams().mode.config_name}',
+            root_dir_path = f'{ARTIFACTS_DIRS.train}/{HParams().mode.config_name}',
             is_resume = HParams().mode.is_train_resume,
         )
 
@@ -123,7 +123,7 @@ class Controller():
         
         infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
         inferencer_args:dict = {
-            'output_dir': ARTIFACTS_DIRS.inference_output,
+            'output_dir': ARTIFACTS_DIRS.inference,
             'model':  None,
             'model_class_meta': HParams().model.class_meta,
             'set_type': HParams().inference.set_type,
@@ -156,7 +156,7 @@ class Controller():
         evaluater_args:dict = self.eval_class_meta['args']
         evaluater_args.update({
             'device': HParams().resource.device,
-            'evaluation_result_dir': f'{ARTIFACTS_DIRS.evaluation_result}/{HParams().mode.config_name}'
+            'evaluation_result_dir': f'{ARTIFACTS_DIRS.evaluate}/{HParams().mode.config_name}'
         })
         evaluater:Evaluator = evaluater_class(**evaluater_args)
         evaluater.evaluate()

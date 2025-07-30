@@ -1,6 +1,7 @@
 #import os
 #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+#os.environ["ARTIFACTS_ROOT"] = "/your/custom/path"
 
 import yaml
 import torch
@@ -16,7 +17,7 @@ class Mode:
     stage:str = {0:"preprocess", 1:"train", 2:"inference", 3:"evaluate"}[0]
 
     is_train_resume:bool = False
-    train_resume_path:str = f"{ARTIFACTS_DIRS.log}/{config_name}"
+    train_resume_path:str = f"{ARTIFACTS_DIRS.train}/{config_name}"
     debug_mode:bool = True
     #use_torch_compile:bool = False
 
@@ -68,7 +69,7 @@ class Inference():
     ])
 
     ckpt_name:str = ["all","last"][0]
-    pretrain_root_dir_path:str = ARTIFACTS_DIRS.log
+    pretrain_root_dir_path:str = ARTIFACTS_DIRS.train
     pretrain_dir:str = ""
 
 @dataclass
@@ -112,7 +113,7 @@ class HParams(Singleton):
         assert config_path.endswith('.yaml'), "Config path must end with .yaml"
         self.mode.config_path = config_path
         self.mode.config_name = config_path.split(CONFIG_DIR + '/')[-1].replace('.yaml', '')
-        self.mode.train_resume_path = f"{ARTIFACTS_DIRS.log}/{self.mode.config_name}"
+        self.mode.train_resume_path = f"{ARTIFACTS_DIRS.train}/{self.mode.config_name}"
         self.load_config()
     
     def set_h_params_by_dict(self, h_params_dict:dict) -> None:

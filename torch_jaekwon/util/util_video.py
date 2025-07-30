@@ -3,7 +3,7 @@ from typing import Literal, Tuple, Optional, Union
 import os
 import subprocess
 import numpy as np
-from moviepy import VideoFileClip, AudioFileClip, ImageClip
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip
 try: from pytube import YouTube
 except: print('pytube is not installed. Please install it using `pip install pytube`')
 try: from pytubefix import YouTube as YouTubeFix
@@ -24,6 +24,7 @@ class UtilVideo:
         if fps is not None:
             video = video.set_fps(fps)
         if start_sec is not None:
+            end_sec = min(end_sec, video.duration)
             video = video.subclip(start_sec, end_sec)
         return video
     
@@ -33,7 +34,7 @@ class UtilVideo:
         video:VideoFileClip,
         fps:int = None,
         codec='libx264',
-        audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = None,
+        audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = 'aac',
         logger=None
     ) -> None:
         util.make_parent_dir(file_path)
@@ -48,31 +49,34 @@ class UtilVideo:
     
     @staticmethod
     def download_youtube(
-        url:str,
-        save_path:str,
+        url:str = None,
+        video_id:str = None,
+        save_path:str = None,
         resolution:Literal['360p', '480p', '720p', '1080p'] = '1080p',
         audio:bool = False,
     ) -> VideoFileClip:
+        assert url is not None or video_id is not None, "Either url or video_id should be provided."
+        if video_id is not None:
+            url = f'https://www.youtube.com/watch?v={video_id}'
         util.make_parent_dir(save_path)
         def download(yt, save_path, resolution) -> str:
-            resolution_list:list = ['360p', '480p', '720p', '1080p']
-            resolution_idx:int = resolution_list.index(resolution)
             yt_args = {'file_extension': 'mp4'}
             if audio:
                 yt_args['progressive'] = True
             else:
                 yt_args['adaptive'] = True
-            steam_list = yt.streams.filter(**yt_args).order_by('resolution').desc()
-            stream = None
-            while stream is None and resolution_idx >= 0:
-                stream_list_filtered = [s for s in steam_list if s.resolution == resolution_list[resolution_idx]]
-                if len(stream_list_filtered) == 0: 
-                    resolution_idx -= 1
-                    continue
-                stream = stream_list_filtered[0]
+            try:
+                stream_list = yt.streams.filter(**yt_args).order_by('resolution').desc()
+                stream_list = [stream for stream in stream_list if util.get_num_in_str(stream.resolution)[0] <=  util.get_num_in_str(resolution)[0]]
+                stream = stream_list[0]
+                if util.get_num_in_str(stream.resolution)[0] != util.get_num_in_str(resolution)[0]:
+                    util.print(f"Warning: The requested resolution {resolution} is not available. Downloading the closest available resolution: {stream.resolution}", msg_type='warning')
                 download_path = stream.download(output_path='/'.join(save_path.split('/')[:-1]), filename=save_path.split('/')[-1])
                 return download_path
-            raise ValueError(f"There is no available streams.")
+            except Exception as e:
+                if os.path.exists(save_path): os.remove(save_path)
+                util.print(f"Download error: {e}", msg_type='error')
+                return None
         try:
             return download(YouTube(url), save_path, resolution)
         except Exception as e:

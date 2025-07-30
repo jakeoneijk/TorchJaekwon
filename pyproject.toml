@@ -17,7 +17,7 @@ dependencies = [
   "numpy",
   "matplotlib",
   "pyyaml",
-  "moviepy",
+  "moviepy==1.0.3",
   "librosa",
   "wandb",
   "tensorboardX",

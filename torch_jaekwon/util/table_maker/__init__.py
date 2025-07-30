@@ -1,2 +1,2 @@
 from torch_jaekwon.util.table_maker.jupyter_notebook_util import HTMLUtil
-from torch_jaekwon.util.table_maker.media_table_maker import MediaTableMaker
+from torch_jaekwon.util.table_maker.table_maker import TableMaker
