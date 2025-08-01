@@ -5,10 +5,11 @@ from torch import Tensor
 import os
 import torch
 import torch.nn as nn
+import numpy as np
 from tqdm import tqdm
 #torchjaekwon
 from torch_jaekwon import GetModule
-from ..util import UtilData 
+from ..util import UtilData, util_torch
 #internal
 
 class Inferencer():
@@ -21,6 +22,7 @@ class Inferencer():
         set_type:Literal[ 'single', 'dir', 'testset' ],
         set_meta_dict: dict,
         device:torch.device,
+        batch_size:int = 1,
     ) -> None:
         self.output_dir:str = output_dir
         self.save_dir_name:str = save_dir_name
@@ -33,6 +35,7 @@ class Inferencer():
 
         self.set_type:Literal[ 'single', 'dir', 'testset' ] = set_type
         self.set_meta_dict:dict = set_meta_dict
+        self.batch_size:int = batch_size
     
     '''
     ==============================================================
@@ -50,7 +53,7 @@ class Inferencer():
     def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> Tuple[str,str]:
         output_dir_path: str = f'''{self.output_dir}/{self.save_dir_name}({pretrained_name})/{meta_data["test_name"]}'''
         shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
-        return output_dir_path, shared_output_dir_path
+        return {'output_dir_path': output_dir_path, 'shared_output_dir_path': shared_output_dir_path}
     
     def read_data_dict_by_meta_data(self, meta_data:dict) -> dict:
         '''
@@ -69,14 +72,12 @@ class Inferencer():
     def post_process(self, data_dict: dict) -> dict:
         return data_dict
 
-    def save_data(self, output_dir_path:str, shared_output_dir_path:str, meta_data:dict, data_dict:dict) -> None:
+    def save_data(self, meta_data:dict, data_dict:dict) -> None:
         pass
     
     @torch.no_grad()
-    def update_data_dict_by_model_inference(self, data_dict: dict) -> dict:
-        if type(data_dict["model_input"]) == Tensor:
-            data_dict["pred"] = self.model(data_dict["model_input"].to(self.device))
-        return data_dict
+    def model_inference(self, data_dict: dict) -> dict:
+        return {'pred': self.model(data_dict["model_input"].to(self.device))}
     '''
     ==============================================================
     abstract method end
@@ -103,14 +104,21 @@ class Inferencer():
             self.pretrained_load(pretrained_path) 
             pretrained_name:str = UtilData.get_file_name(file_path=pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
-            for meta_data in tqdm(meta_data_list,desc='inference by meta data'):
-                output_dir_path, shared_output_dir_path = self.get_output_dir_path(pretrained_name=pretrained_name,meta_data=meta_data)
-                if output_dir_path is None: continue
-                data_dict:dict = self.read_data_dict_by_meta_data(meta_data=meta_data)
-                data_dict = self.update_data_dict_by_model_inference(data_dict)
-                data_dict:dict = self.post_process(data_dict)
-
-                self.save_data(output_dir_path, shared_output_dir_path, meta_data, data_dict)    
+            meta_data_list = [{'save_meta': self.get_output_dir_path(pretrained_name=pretrained_name,meta_data=meta_data), **meta_data} for meta_data in meta_data_list]
+            meta_data_list = [meta_data for meta_data in meta_data_list if meta_data['save_meta'] is not None]
+            meta_data_list = util_torch.chunk_list(data_list=meta_data_list, size=self.batch_size)
+            
+            for batch_meta_data in tqdm(meta_data_list,desc='inference by meta data'):
+                data_dict_list:list = list()
+                for meta_data in batch_meta_data:
+                    data_dict_list.append(self.read_data_dict_by_meta_data(meta_data=meta_data))
+                batch_dict:dict = util_torch.get_batch_dict(data_list=data_dict_list)
+                batch_dict.update(self.model_inference(batch_dict))
+                data_dict_list:List[dict] = util_torch.unwrap_batch_dict(batch_dict=batch_dict)
+                
+                for data_dict, meta_data in zip(data_dict_list, batch_meta_data):
+                    data_dict:dict = self.post_process(data_dict)
+                    self.save_data(meta_data, data_dict)    
                     
     def get_pretrained_path_list(
         self,

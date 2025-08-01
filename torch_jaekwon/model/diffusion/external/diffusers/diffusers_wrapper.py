@@ -53,7 +53,6 @@ class DiffusersWrapper:
                 denoiser_input, 
                 torch.full((x_shape[0],), t, device=model_device, dtype=torch.long), 
                 cond, 
-                is_cond_unpack, 
                 cfg_scale = ddpm_module.cfg_scale if cfg_scale is None else cfg_scale
             )
             x = noise_scheduler.step( model_output, t, x, return_dict=False)[0]

@@ -1,4 +1,4 @@
-from typing import Any,Dict,Tuple
+from typing import Any,Dict,Tuple, List
 from torch import Tensor, dtype, device
 from numpy import ndarray
 
@@ -7,6 +7,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
@@ -176,3 +177,31 @@ class UtilTorch:
             else:
                 param_names_dict['excluded'].append(name)
         return parameters, param_names_dict
+    
+    @staticmethod
+    def chunk_list(data_list, size):
+        return [data_list[i:i + size] for i in range(0, len(data_list), size)]
+    
+    @staticmethod
+    def get_batch_dict(data_list:List[dict]) -> dict:
+        batch_dict = dict()
+        for key in data_list[0].keys():
+            value_list = [data[key] for data in data_list]
+            if isinstance(value_list[0], Tensor):
+                batch_dict[key] = torch.stack(value_list, dim=0)
+            elif isinstance(value_list[0], ndarray):
+                batch_dict[key] = np.stack(value_list, axis=0)
+            else:
+                batch_dict[key] = value_list
+        return batch_dict
+    
+    @staticmethod
+    def unwrap_batch_dict(batch_dict:dict) -> List[dict]:
+        data_list = list()
+        batch_size:int = len(batch_dict[list(batch_dict.keys())[0]])
+        for i in range(batch_size):
+            unwrapped_data_dict = dict()
+            for key, value in batch_dict.items():
+                unwrapped_data_dict[key] = value[i]
+            data_list.append(unwrapped_data_dict)
+        return data_list
