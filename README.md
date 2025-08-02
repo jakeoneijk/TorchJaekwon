@@ -9,23 +9,21 @@ This is my personal repository for the efficiency of my research.
 
 * Install TorchJaekwon
     ```
-    source ./cp/Script/1_install_torchjk.sh
+    source install_torchjk.sh
     ```
 
-* Copy the files and directories in 'cp' to the new project directory.
+* Init project based on torch_jaekwon.
     ```
-    .
-    └── TorchJaekwon
-        └── cp
+    python init_project.py -d target_path
     ```
 
 ## Usage
 ### Basic
 ```shell
-> python Main.py [-s STAGE_NAME]
+> python main.py
 
 arguments:
-    -s STAGE_NAME, --stage STAGE_NAME
+    --stage STAGE_NAME
     #STAGE of the system. choices = ['preprocess', 'train', 'inference', 'evaluate']
 ```
 
