@@ -15,15 +15,40 @@
             "name": "main",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
             "console": "integratedTerminal",
-            //"env": {"name":"CUDA_VISIBLE_DEVICES", "value":"0"},
+            "justMyCode": true,
+            "env": {
+                //"CUDA_VISIBLE_DEVICES": "0",
+                //"ARTIFACTS_ROOT": "artifacts",
+                //"SOURCE_DATA_DIR": "artifacts/data/source",
+            },
+            "program": "main.py",
             "args": [
-                "--config_path",
-                "config/config1.yaml",
-                "--stage",
-                "preprocess" // preprocess | train | inference | evaluate
+                //"--config_path", "config/config1.yaml",
+                "--stage", "preprocess", // preprocess | train | inference | evaluate
+                // "--num_workers", "10"
             ],
         },
+        {
+            "name": "main w torchrun",
+            "type": "debugpy",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "module": "torch.distributed.run",
+            "env": {
+                //"CUDA_VISIBLE_DEVICES": "0",
+                //"ARTIFACTS_ROOT": "artifacts",
+                //"SOURCE_DATA_DIR": "artifacts/data/source",
+            },
+            "args": [
+                "--standalone",
+                "--nproc_per_node=1",
+                "main.py",
+                //"--config_path", "config/config1.yaml",
+                "--stage", "preprocess", // preprocess | train | inference | evaluate
+                // "--num_workers", "10"
+            ],
+        }
     ]
 }

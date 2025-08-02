@@ -74,10 +74,16 @@ class Util:
             Util.system(f"cp '{src_path}' '{dst_path}'")
     
     @staticmethod
-    def wget(link:str, save_dir:str) -> None:
-        os.makedirs(save_dir, exist_ok=True)
-        Util.system(f'wget {link} -P {save_dir}')
-    
+    def wget(link:str, save_path:str = None, save_dir:str = None) -> None:
+        command:str = f'wget {link}'
+        if save_path is not None:
+            Util.make_parent_dir(save_path)
+            command += f' -O {save_path}'
+        elif save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
+            command += f' -P {save_dir}'
+        Util.system(command)
+
     @staticmethod
     def unzip(file_path:str, unzip_dir:str) -> None:
         os.makedirs(unzip_dir, exist_ok=True)

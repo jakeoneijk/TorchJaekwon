@@ -29,3 +29,5 @@ class ArtifactsDirs:
     inference:str = f'{ARTIFACTS_ROOT}/inference'
     evaluate:str = f'{ARTIFACTS_ROOT}/evaluate'
 ARTIFACTS_DIRS = ArtifactsDirs()
+
+SOURCE_DATA_DIR = os.environ.get('SOURCE_DATA_DIR', f'{ARTIFACTS_ROOT}/data/source')

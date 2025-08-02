@@ -1,6 +1,3 @@
-from typing import List
-
-from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 import os
 import time
@@ -8,7 +5,7 @@ import torch
 from tqdm import tqdm
 from ...path import ARTIFACTS_DIRS
 
-class Preprocessor(ABC):
+class Preprocessor():
     def __init__(
         self,
         data_name:str = None,
@@ -67,14 +64,12 @@ class Preprocessor(ABC):
         self.final_process(result_list)
         print("{:.3f} s".format(time.time() - start_time))
 
-    @abstractmethod
     def get_meta_data_param(self) -> list:
         '''
         meta_data_param_list = list()
         '''
         raise NotImplementedError
     
-    @abstractmethod
     def preprocess_one_data(self, param:dict) -> None:
         '''
         ex) (subset, file_name) = param

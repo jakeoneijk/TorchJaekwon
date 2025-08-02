@@ -1,8 +1,8 @@
 data:
-  config: #config for data
+  config: # config for data
     attr1: &attr1 10
   config_per_dataset_dict:
-    dataset_name:
+    dataset_name: # change to your dataset name
       preprocessor_class_meta_list: 
         - name: ['preprocessor', 'Preprocessor']
           args: {}
