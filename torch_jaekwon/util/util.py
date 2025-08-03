@@ -1,6 +1,8 @@
 from typing import Literal, List
 import os, sys
+import psutil
 import re
+import torch
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -14,7 +16,35 @@ UNDERLINE = '\033[4m'
 END = '\033[0m'
 
 class Util:
-    @staticmethod 
+    @staticmethod
+    def get_resource_usage(
+        verbose=True,
+        min_available_ram_mb:float = 1000.0,
+    )-> dict:
+        log_dict = dict()
+        process = psutil.Process(os.getpid())
+        log_dict['ram_usage_mb'] = process.memory_info().rss / 1024 ** 2
+        virtual_mem = psutil.virtual_memory()
+        log_dict['ram_available_mb'] = virtual_mem.available / 1024 ** 2
+        log_dict['ram_total_mb'] = virtual_mem.total / 1024 ** 2
+
+        log_dict['cpu_usage_percent'] = process.cpu_percent(interval=0.1)
+
+        if torch.cuda.is_available():
+            log_dict['cuda_allocated_mb'] = torch.cuda.memory_allocated() / 1024 ** 2
+            log_dict['cuda_reserved_mb'] = torch.cuda.memory_reserved() / 1024 ** 2
+
+        if verbose: 
+            message = [f'[{key}]: {value:.2f}'for key, value in log_dict.items()]
+            message = ' | '.join(message)
+            Util.print(message, msg_type='info')
+
+        if min_available_ram_mb is not None and log_dict['ram_available_mb'] < min_available_ram_mb:
+            Util.print(f"Available RAM ({log_dict['available_ram_mb']:.2f} MB) below threshold ({min_available_ram_mb} MB). Exiting.", msg_type='error')
+            sys.exit(1)
+        return log_dict
+
+    @staticmethod
     def print(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
         template_dict:dict = {
             'info': {

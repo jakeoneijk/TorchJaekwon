@@ -3,13 +3,13 @@ from typing import List, Tuple,Union, Literal
 from torch import Tensor
 #package
 import os
+import gc
 import torch
 import torch.nn as nn
-import numpy as np
 from tqdm import tqdm
 #torchjaekwon
 from torch_jaekwon import GetModule
-from ..util import UtilData, util_torch
+from ..util import UtilData, util_torch, util
 #internal
 
 class Inferencer():
@@ -55,7 +55,7 @@ class Inferencer():
         shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
         return {'output_dir_path': output_dir_path, 'shared_output_dir_path': shared_output_dir_path}
     
-    def read_data_dict_by_meta_data(self, meta_data:dict) -> dict:
+    def read_data_dict(self, meta_data:dict) -> dict:
         '''
         {
             "model_input":
@@ -68,6 +68,7 @@ class Inferencer():
         data_dict = dict()
         data_dict["gt"] = dict()
         data_dict["pred"] = dict()
+        return data_dict
     
     def post_process(self, data_dict: dict) -> dict:
         return data_dict
@@ -111,15 +112,19 @@ class Inferencer():
             for batch_meta_data in tqdm(meta_data_list,desc='inference by meta data'):
                 data_dict_list:list = list()
                 for meta_data in batch_meta_data:
-                    data_dict_list.append(self.read_data_dict_by_meta_data(meta_data=meta_data))
+                    data_dict_list.append(self.read_data_dict(meta_data=meta_data))
                 batch_dict:dict = util_torch.get_batch_dict(data_list=data_dict_list)
                 batch_dict.update(self.model_inference(batch_dict))
                 data_dict_list:List[dict] = util_torch.unwrap_batch_dict(batch_dict=batch_dict)
                 
                 for data_dict, meta_data in zip(data_dict_list, batch_meta_data):
                     data_dict:dict = self.post_process(data_dict)
-                    self.save_data(meta_data, data_dict)    
-                    
+                    self.save_data(meta_data, data_dict)
+
+                util.get_resource_usage()  # Log resources after each batch
+                torch.cuda.empty_cache()
+                gc.collect()
+
     def get_pretrained_path_list(
         self,
         pretrain_root_dir:str,
