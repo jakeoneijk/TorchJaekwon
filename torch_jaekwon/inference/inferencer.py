@@ -121,7 +121,7 @@ class Inferencer():
                     data_dict:dict = self.post_process(data_dict)
                     self.save_data(meta_data, data_dict)
 
-                util.get_resource_usage()  # Log resources after each batch
+                util.get_resource_usage(verbose=False)  # Log resources after each batch
                 torch.cuda.empty_cache()
                 gc.collect()
 
