@@ -155,6 +155,8 @@ class Controller():
         )
         evaluater_args:dict = self.eval_class_meta['args']
         evaluater_args.update({
+            'pred_dir_path': HParams().evaluate.eval_dir_path_pred,
+            'gt_dir_path': HParams().evaluate.eval_dir_path_gt,
             'device': HParams().resource.device,
             'evaluation_result_dir': f'{ARTIFACTS_DIRS.evaluate}/{HParams().mode.config_name}'
         })
@@ -189,6 +191,7 @@ class Controller():
         ]
 
         arg_name_list_from_h_params = [h_prams_arg['arg_name'] for h_prams_arg in arg_list_from_h_params]
+        arg_name_list_from_h_params.sort()
         assert len(arg_name_list_from_h_params) == len(set(arg_name_list_from_h_params)), "Duplicate argument names found in HParams."
 
         for h_prams_arg in arg_list_from_h_params:
@@ -202,13 +205,13 @@ class Controller():
             )       
 
         args = parser.parse_args()
+
+        if args.config_path is not None: HParams().set_config(args.config_path)
+        if args.resume: HParams().mode.is_train_resume = True
         
         for h_prams_arg in arg_list_from_h_params:
             value = getattr(args, h_prams_arg['arg_name'])
             if value is not None:
                 setattr(getattr(HParams(), h_prams_arg['module_name']), h_prams_arg['attr_name'], value)
-                
-        if args.config_path is not None: HParams().set_config(args.config_path)
-        if args.resume: HParams().mode.is_train_resume = True
 
         return args

@@ -75,6 +75,8 @@ class Inference():
 @dataclass
 class Evaluate():
     class_meta = dict()
+    eval_dir_path_gt:str = ""
+    eval_dir_path_pred:str = ""
 
 class Singleton(object):
   _instance = None

@@ -12,17 +12,17 @@ from ...util import UtilData
 class Evaluator():
     def __init__(
         self,
-        source_dir:str,
-        reference_dir:str,
+        pred_dir_path:str,
+        gt_dir_path:str,
         evaluation_result_dir:str,
         sort_result_by_metric:bool = True,
         device:torch.device = torch.device('cpu')
     ) -> None:
-        self.source_dir:str = source_dir
-        self.reference_dir:str = reference_dir
+        self.pred_dir_path:str = pred_dir_path
+        self.gt_dir_path:str = gt_dir_path
         self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
-        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{UtilData.get_file_name(self.source_dir)}'
+        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{UtilData.get_file_name(self.pred_dir_path)}'
         os.makedirs(self.evaluation_result_dir,exist_ok=True)
     
     '''
@@ -31,7 +31,7 @@ class Evaluator():
     ==============================================================
     '''
     def get_eval_dir_list(self) -> List[str]:
-        return [self.source_dir]
+        return [self.pred_dir_path]
 
     def get_meta_data_list(self, eval_dir:str) -> List[dict]:
         pass
