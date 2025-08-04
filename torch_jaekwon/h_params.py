@@ -19,7 +19,7 @@ class Mode:
     is_train_resume:bool = False
     train_resume_path:str = f"{ARTIFACTS_DIRS.train}/{config_name}"
     debug_mode:bool = True
-    #use_torch_compile:bool = False
+    use_torch_compile:bool = True
 
 @dataclass
 class Resource:

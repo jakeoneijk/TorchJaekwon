@@ -10,9 +10,7 @@ import numpy as np
 from .get_module import GetModule
 from .util import Util
 from .path import ARTIFACTS_DIRS
-
-#internal
-from h_params import HParams
+from .h_params import HParams
 
 class Controller():
     def __init__(self) -> None:

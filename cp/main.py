@@ -1,4 +1,4 @@
-from h_params import HParams
+from torch_jaekwon.h_params import HParams
 HParams()
 
 from tqdm import tqdm
