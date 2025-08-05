@@ -40,19 +40,32 @@ class UtilAudio:
         origin_sr:int,
         target_sr:int,
         resample_module:Literal['librosa', 'resample_poly', 'torchaudio'] = 'torchaudio',
-        resample_type:str = "kaiser_fast",
+        resample_type:str = None,
     ) -> Union[ndarray, Tensor]:
         if(origin_sr == target_sr): return audio
         #print(f"resample audio {origin_sr} to {target_sr}")
         if resample_module == 'librosa':
-            return librosa.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type)
+            return librosa.resample(audio, orig_sr=origin_sr, target_sr=target_sr, res_type=resample_type if resample_type is not None else "kaiser_fast")
         elif resample_module == 'resample_poly':
             return resample_poly(x = audio, up = target_sr, down = origin_sr)
         elif resample_module == 'torchaudio':
             if isinstance(audio, ndarray): audio = torch.FloatTensor(audio)
             #transforms.Resample precomputes and caches the kernel used for resampling, while functional.resample computes it on the fly
             #so using torchaudio.transforms.Resample will result in a speedup when resampling multiple waveforms using the same parameters
-            resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr).to(audio.device)
+            if resample_type is None:
+                resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr).to(audio.device)
+            elif resample_type == 'kaiser_best':
+                # https://pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html#kaiser-best
+                resampler = torchaudio.transforms.Resample(
+                    orig_freq = origin_sr,
+                    new_freq = target_sr,
+                    lowpass_filter_width=64,
+                    rolloff=0.9475937167399596,
+                    resampling_method='sinc_interp_kaiser',
+                    beta=14.769656459379492,
+                )
+            else:
+                raise ValueError(f"Unknown resample_type: {resample_type}")
             return resampler(audio)
     
     @staticmethod
@@ -103,21 +116,30 @@ class UtilAudio:
         if sample_length is not None:
             audio_data = UtilData.fix_length(audio_data, sample_length, dim = -1)
             
-        if mono is not None:
-            if mono and len(audio_data.shape) == 2 and audio_data.shape[0] == 2:
-                audio_data = torch.mean(audio_data, axis=0, keepdim=True)  if isinstance(audio_data, torch.Tensor) else np.mean(audio_data,axis=0) 
-            elif not mono and (len(audio_data.shape) == 1 or audio_data.shape[0] == 1):
-                stereo_audio = torch.zeros((2,len(audio_data.squeeze())))
-                stereo_audio[0,...] = audio_data.squeeze()
-                stereo_audio[1,...] = audio_data.squeeze()
-                audio_data = stereo_audio
+        audio_data = UtilAudio.convert_audio_channels(audio_data, mono=mono)
         
         if isinstance(audio_data, Tensor) and return_type == ndarray:
             audio_data = audio_data.cpu().detach().numpy()
-
-        assert (((len(audio_data.shape)==2) and audio_data.shape[0] in [1,2])),f'[read audio shape problem] path: {audio_path} shape: {audio_data.shape}'
-            
+    
         return audio_data, original_sr if sample_rate is None else sample_rate
+    
+    @staticmethod
+    def convert_audio_channels(
+        audio: Tensor, #[channel, time]
+        mono:bool = None,
+    ) -> Tensor:
+        assert len(audio.shape) == 2, f'[Error] audio must be [channel, time], but got {audio.shape}'
+        assert audio.shape[0] in [1,2], f'[Error] audio must be mono or stereo, but got {audio.shape[0]} channels'
+        
+        if mono is None: return audio
+        if mono and audio.shape[0] == 2:
+            audio = torch.mean(audio, axis=0, keepdim=True)
+        elif not mono and audio.shape[0] == 1:
+            stereo_audio = torch.zeros((2,len(audio.squeeze())))
+            stereo_audio[0,...] = audio.squeeze()
+            stereo_audio[1,...] = audio.squeeze()
+            audio = stereo_audio
+        return audio
     
     @staticmethod
     def write(
