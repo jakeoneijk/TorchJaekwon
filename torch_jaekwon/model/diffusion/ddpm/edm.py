@@ -4,7 +4,7 @@ from typing import Optional, Union, Literal
 import math
 import torch
 
-from ....util import UtilData, UtilTorch
+from ....util import util_data, util_torch
 from .ddpm import DDPM
 from ..external.k_diffusion import sampling as e_sampling
 from ..external.k_diffusion.utils import append_dims
@@ -57,7 +57,7 @@ class EDM(DDPM):
         alphas = alphas[:, *[ None for _ in range(len(x_start.shape) - 1) ]]
         sigmas = sigmas[:, *[ None for _ in range(len(x_start.shape) - 1) ]]
         
-        noise = UtilData.default(noise, lambda: torch.randn_like(x_start))
+        noise = util_data.default(noise, lambda: torch.randn_like(x_start))
         return x_start * alphas + noise * sigmas
     
     @torch.no_grad()
@@ -73,7 +73,7 @@ class EDM(DDPM):
         rho:float = 1.0,
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
-        model_device:device = UtilTorch.get_model_device(self.model)
+        model_device:device = util_torch.get_model_device(self.model)
         sigmas = e_sampling.get_sigmas_polyexponential(steps, sigma_min, sigma_max, rho, device=model_device)
 
         if noise is None:

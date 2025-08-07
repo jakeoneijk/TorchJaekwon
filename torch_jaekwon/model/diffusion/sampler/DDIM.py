@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 
-from torch_jaekwon.Util.UtilTorch import UtilTorch
+from ....util import util_torch
 from torch_jaekwon.Model.Diffusion.DDPM.DDPM import DDPM
 from torch_jaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
 
@@ -12,7 +12,7 @@ class DDIM(object):
     def __init__(self, ddpm_model:DDPM):
         self.ddpm_model:DDPM = ddpm_model
         self.ddpm_num_timesteps:int = ddpm_model.timesteps
-        self.device:torch.device = UtilTorch.get_model_device(self.ddpm_model)
+        self.device:torch.device = util_torch.get_model_device(self.ddpm_model)
 
     def register_buffer(self, name, attr):
         if type(attr) == torch.Tensor:

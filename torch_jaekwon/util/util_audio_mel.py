@@ -7,14 +7,12 @@ import os
 import torch
 import numpy as np
 import librosa
-try: import librosa.display
-except: print('can not import librosa display')
 from librosa.filters import mel as librosa_mel_fn
 try: import matplotlib.pyplot as plt
 except: print('matplotlib is uninstalled')
 #torchjaekwon
 from .util_audio_stft import UtilAudioSTFT
-from .util_torch import UtilTorch
+from . import util_torch
 
 class UtilAudioMelSpec(UtilAudioSTFT):
     def __init__(
@@ -114,7 +112,7 @@ class UtilAudioMelSpec(UtilAudioSTFT):
         plt.rc('legend', labelcolor='white')
         plt.grid(False)
         if isinstance(mel_spec, Tensor):
-            mel_spec = UtilTorch.to_np(mel_spec)
+            mel_spec = util_torch.to_np(mel_spec)
         COLOR_DICT = {
             'blue': 'blue',
             'darkblue':'darkblue',

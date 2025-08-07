@@ -3,12 +3,12 @@ from torch import Tensor, device
 
 import torch
 
-from torch_jaekwon.Util.UtilTorch import UtilTorch
+from ....util import util_torch
 from torch_jaekwon.Model.Diffusion.DDPM.DDPM import DDPM
 from torch_jaekwon.Model.Diffusion.Sampler.dpm_solver_pytorch import DPM_Solver, NoiseScheduleVP, model_wrapper
 
 class DpmSolverForDDPM:
-    def __init__(self,ddpm_module:DDPM) -> None:
+    def __init__(self, ddpm_module: DDPM) -> None:
         self.ddpm_module = ddpm_module
 
     @torch.no_grad()
@@ -18,7 +18,7 @@ class DpmSolverForDDPM:
               steps:int = 20,
               order:Optional[int] = None,
               ) -> Tensor:
-        model_device:device = UtilTorch.get_model_device(self.ddpm_module)
+        model_device:device = util_torch.get_model_device(self.ddpm_module)
         noise_schedule = NoiseScheduleVP(schedule='discrete', betas=self.ddpm_module.betas)
         model_fn = model_wrapper(self.get_model_wrapper_args(noise_schedule, cond))
         dpm_solver = DPM_Solver(model_fn, noise_schedule, algorithm_type="dpmsolver++")

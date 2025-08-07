@@ -10,9 +10,7 @@ import librosa
 try: import librosa.display
 except: print('can not import librosa display')
 
-from .util_audio import UtilAudio
-
-class UtilAudioSTFT(UtilAudio):
+class UtilAudioSTFT():
     def __init__(self,nfft:int, hop_size:int):
         super().__init__()
         self.nfft = nfft

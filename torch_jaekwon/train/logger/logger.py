@@ -12,7 +12,7 @@ except: print('Didnt import following packages: wandb')
 try: from tensorboardX import SummaryWriter
 except: print('Didnt import following packages: tensorboardX')
 
-from ...util import Util, UtilAudioSTFT, UtilTorch, UtilData
+from ...util import util, UtilAudioSTFT, util_torch, util_data
 
 class Logger():
     def __init__(
@@ -37,22 +37,22 @@ class Logger():
 
         self.visualizer_type:Literal['wandb','tensorboard'] = visualizer_type
         self.is_resume:bool = is_resume
-        if self.is_resume: Util.print('resume the training', 'info')
+        if self.is_resume: util.log('resume the training', 'info')
 
         if self.visualizer_type == 'wandb':
             if self.is_resume:
                 try:
-                    wandb_meta_data:dict = UtilData.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
+                    wandb_meta_data:dict = util_data.yaml_load(f'''{self.log_path['root']}/wandb_meta.yaml''')
                     wandb.init(id=wandb_meta_data['id'], project=project_name, resume = 'must')
                 except:
-                    Util.print("Failed to resume wandb. Please check the wandb_meta.yaml file", msg_type='error')
+                    util.log("Failed to resume wandb. Please check the wandb_meta.yaml file", msg_type='error')
                     wandb.init(project=project_name)
             else: 
                 wandb.init(project=project_name)
             wandb.run.name = self.experiment_name
             wandb.run.save()
 
-            UtilData.yaml_save(f'''{self.log_path['root']}/wandb_meta.yaml''', data={
+            util_data.yaml_save(f'''{self.log_path['root']}/wandb_meta.yaml''', data={
                 'id': wandb.run.id,
                 'name': wandb.run.name,
             })
@@ -88,8 +88,8 @@ class Logger():
     
     def log_model_parameters(self, file, model: Union[nn.Module, dict], model_name:str = ''):
         if isinstance(model, nn.Module):
-            file.write(f'''Model {model_name} Total parameters: {format(UtilTorch.get_param_num(model)['total'], ',d')}'''+'\n')
-            file.write(f'''Model {model_name} Trainable parameters: {format(UtilTorch.get_param_num(model)['trainable'], ',d')}'''+'\n')
+            file.write(f'''Model {model_name} Total parameters: {format(util_torch.get_param_num(model)['total'], ',d')}'''+'\n')
+            file.write(f'''Model {model_name} Trainable parameters: {format(util_torch.get_param_num(model)['trainable'], ',d')}'''+'\n')
         else:
             for model_name in model:
                 self.log_model_parameters(file, model[model_name], model_name)
@@ -149,7 +149,7 @@ class Logger():
         else:
             wandb_audio_list = list()
             for audio_name in audio_dict:
-                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}({UtilData.pretty_num(global_step)})', sample_rate=sample_rate))
+                wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}({util_data.pretty_num(global_step)})', sample_rate=sample_rate))
             wandb.log({name: wandb_audio_list, 'global_step': global_step})
     
     def plot_spec(
@@ -169,7 +169,7 @@ class Logger():
             wandb_mel_list = list()
             for audio_name in spec_dict:
                 UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
-                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}({UtilData.pretty_num(global_step)})'))
+                wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}({util_data.pretty_num(global_step)})'))
             wandb.log({name: wandb_mel_list, 'global_step': global_step})
     
     def log_every_epoch(self,model:nn.Module):

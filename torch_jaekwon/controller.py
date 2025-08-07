@@ -8,7 +8,7 @@ import numpy as np
 
 #torchjaekwon
 from .get_module import GetModule
-from .util import Util
+from .util import util
 from .path import ARTIFACTS_DIRS
 from .h_params import HParams
 
@@ -111,7 +111,7 @@ class Controller():
         trainer.init_train()
         
         if HParams().mode.is_train_resume:
-            Util.print('load the checkpoint', 'info')
+            util.log('load the checkpoint', 'info')
             trainer.load_train(HParams().mode.train_resume_path + "/train_checkpoint.pth")
         
         trainer.fit()

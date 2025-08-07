@@ -3,7 +3,7 @@ from torch import Tensor, device
 
 import torch
 from tqdm import tqdm
-from .....util import UtilTorch as util_torch
+from .....util import util_torch
 from ...ddpm.ddpm import DDPM
 from .schedulers.scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
 

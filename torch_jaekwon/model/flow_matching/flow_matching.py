@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from ...get_module import GetModule
-from ...util import UtilData, UtilTorch
+from ...util import util_data, util_torch
 from ..diffusion.ddpm.time_sampler import TimeSampler
 from .sampler import Sampler as flow_sampler
 
@@ -76,7 +76,7 @@ class FlowMatching(nn.Module):
         _, cond, additional_data_dict = self.preprocess(None, cond)
 
         if x_shape is None: x_shape = self.get_x_shape(cond)
-        model_device:device = UtilTorch.get_model_device(self.model)
+        model_device:device = util_torch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
 
         sigma_max = min(sigma_max, 1)
@@ -101,7 +101,7 @@ class FlowMatching(nn.Module):
         t:Tensor, 
         noise:Optional[Tensor] = None
     ):
-        noise:Tensor = UtilData.default(noise, lambda: torch.randn_like(x_start))
+        noise:Tensor = util_data.default(noise, lambda: torch.randn_like(x_start))
         x_noisy:Tensor = self.q_sample(x_start=x_start, t=t, noise=noise)
         model_output:Tensor = self.apply_model(x_noisy, t, cond)
 
@@ -152,7 +152,7 @@ class FlowMatching(nn.Module):
         alphas = alphas[:, *[ None for _ in range(len(x_start.shape) - 1) ]]
         sigmas = sigmas[:, *[ None for _ in range(len(x_start.shape) - 1) ]]
         
-        noise = UtilData.default(noise, lambda: torch.randn_like(x_start))
+        noise = util_data.default(noise, lambda: torch.randn_like(x_start))
         return x_start * alphas + noise * sigmas
     
     def get_target(self, x_start, noise, t):

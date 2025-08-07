@@ -48,7 +48,7 @@ class TorchrunPreprocessor():
         raise NotImplementedError("Subclasses must implement this method.")
 
     def final_process(self) -> None:
-        util.print("Finish preprocess", msg_type='success')
+        util.log("Finish preprocess", msg_type='success')
 
     def preprocess_data(self) -> None:
         dataset:Dataset = self.get_dataset()
@@ -61,8 +61,8 @@ class TorchrunPreprocessor():
             },
             shuffle=False
         )
-        util.print(f'Number of samples: {len(dataset)}', msg_type='info')
-        util.print(f'Number of batches: {len(dataloader)}', msg_type='info')
+        util.log(f'Number of samples: {len(dataset)}', msg_type='info')
+        util.log(f'Number of batches: {len(dataloader)}', msg_type='info')
         for data in tqdm(dataloader):
             self.preprocess_batch(data)
         distributed.barrier()

@@ -12,7 +12,7 @@ try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
 from ...get_module import GetModule
-from ...util import Util, UtilData, UtilTorch
+from ...util import util, util_data, util_torch
 from ..logger.logger import Logger
 from ..average_meter import AverageMeter
 #internal import
@@ -109,14 +109,14 @@ class Trainer():
         self.debug_mode = debug_mode
         self.use_torch_compile = use_torch_compile
         if debug_mode:
-            Util.print("debug mode is on", msg_type='warning')
+            util.log("debug mode is on", msg_type='warning')
             torch.autograd.set_detect_anomaly(True)
         else:
-            Util.print("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", msg_type='info')
+            util.log("debug mode is off. \n  - [off] torch.autograd.set_detect_anomaly", msg_type='info')
             if self.use_torch_compile: 
-                Util.print("\n  - [on] torch.compile", msg_type='info')
+                util.log("\n  - [on] torch.compile", msg_type='info')
             else:
-                Util.print("\n  - [off] torch.compile", msg_type='warning')
+                util.log("\n  - [off] torch.compile", msg_type='warning')
 
         # evaluation
         self.best_valid_metric:dict[str,AverageMeter] = None
@@ -293,7 +293,7 @@ class Trainer():
             lr_scheduler_args.update({'optimizer': optimizer})
             lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
             if hasattr(lr_scheduler, 'interval') and getattr(lr_scheduler, 'interval', None) != self.lr_scheduler_interval:
-                Util.print(
+                util.log(
                     text = f'lr_scheduler interval ({self.lr_scheduler_interval}) is not same as interval of {lr_scheduler_name} ({lr_scheduler.interval}).', 
                     msg_type='warning'
                 )
@@ -421,7 +421,7 @@ class Trainer():
 
             if isinstance(loss, torch.Tensor) and torch.isnan(loss).any():
                 path = os.path.join(self.logger.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
-                UtilData.pickle_save(path,data)
+                util_data.pickle_save(path,data)
                 self.save_module(self.model, name=f"nan_loss_step{self.global_step}")
                 self.save_checkpoint(f"nan_loss_step{self.global_step}.pth")
                 raise ValueError(f'loss is nan at step {self.global_step}')
@@ -575,7 +575,7 @@ class Trainer():
     def load_state_dict(self, module:Union[dict, nn.Module], state_dict:dict, is_model:bool = False) -> Union[dict, nn.Module]:
         if hasattr(module, 'load_state_dict'):
             if is_model:
-                module = UtilTorch.load_model(module, state_dict)
+                module = util_torch.load_model(module, state_dict)
             else:
                 module.load_state_dict(state_dict)
             return module

@@ -9,7 +9,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from ....get_module import GetModule
-from ....util import UtilData, UtilTorch
+from ....util import util_data, util_torch
 from .time_sampler import TimeSampler
 from .diffusion_util import DiffusionUtil
 from .beta_schedule import BetaSchedule
@@ -71,25 +71,25 @@ class DDPM(nn.Module):
         alphas_cumprod:ndarray = np.cumprod(alphas, axis=0)
         alphas_cumprod_prev:ndarray = np.append(1., alphas_cumprod[:-1])
 
-        self.betas:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'betas', value = betas)
-        self.alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'alphas_cumprod', value = alphas_cumprod)
-        self.alphas_cumprod_prev:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'alphas_cumprod_prev', value = alphas_cumprod_prev)
+        self.betas:Tensor = util_torch.register_buffer(model = self, variable_name = 'betas', value = betas)
+        self.alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'alphas_cumprod', value = alphas_cumprod)
+        self.alphas_cumprod_prev:Tensor = util_torch.register_buffer(model = self, variable_name = 'alphas_cumprod_prev', value = alphas_cumprod_prev)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'sqrt_alphas_cumprod', value = np.sqrt(alphas_cumprod))
-        self.sqrt_one_minus_alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'sqrt_one_minus_alphas_cumprod', value = np.sqrt(1. - alphas_cumprod))
-        self.log_one_minus_alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'log_one_minus_alphas_cumprod', value = np.log(1. - alphas_cumprod))
-        self.sqrt_recip_alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'sqrt_recip_alphas_cumprod', value = np.sqrt(1. / alphas_cumprod))
-        self.sqrt_recipm1_alphas_cumprod:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'sqrt_recipm1_alphas_cumprod', value = np.sqrt(1. / alphas_cumprod - 1))
+        self.sqrt_alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'sqrt_alphas_cumprod', value = np.sqrt(alphas_cumprod))
+        self.sqrt_one_minus_alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'sqrt_one_minus_alphas_cumprod', value = np.sqrt(1. - alphas_cumprod))
+        self.log_one_minus_alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'log_one_minus_alphas_cumprod', value = np.log(1. - alphas_cumprod))
+        self.sqrt_recip_alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'sqrt_recip_alphas_cumprod', value = np.sqrt(1. / alphas_cumprod))
+        self.sqrt_recipm1_alphas_cumprod:Tensor = util_torch.register_buffer(model = self, variable_name = 'sqrt_recipm1_alphas_cumprod', value = np.sqrt(1. / alphas_cumprod - 1))
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
         # above: equal to 1. / (1. / (1. - alpha_cumprod_tm1) + alpha_t / beta_t)
-        self.posterior_variance:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_variance', value = posterior_variance)
+        self.posterior_variance:Tensor = util_torch.register_buffer(model = self, variable_name = 'posterior_variance', value = posterior_variance)
         # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
-        self.posterior_log_variance_clipped:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_log_variance_clipped', value = np.log(np.maximum(posterior_variance, 1e-20)))
-        self.posterior_mean_coef1:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_mean_coef1', value = betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
-        self.posterior_mean_coef2:Tensor = UtilTorch.register_buffer(model = self, variable_name = 'posterior_mean_coef2', value = (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
+        self.posterior_log_variance_clipped:Tensor = util_torch.register_buffer(model = self, variable_name = 'posterior_log_variance_clipped', value = np.log(np.maximum(posterior_variance, 1e-20)))
+        self.posterior_mean_coef1:Tensor = util_torch.register_buffer(model = self, variable_name = 'posterior_mean_coef1', value = betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
+        self.posterior_mean_coef2:Tensor = util_torch.register_buffer(model = self, variable_name = 'posterior_mean_coef2', value = (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
     
     def forward(
         self,
@@ -126,7 +126,7 @@ class DDPM(nn.Module):
         t:Tensor, 
         noise:Optional[Tensor] = None
     ):
-        noise:Tensor = UtilData.default(noise, lambda: torch.randn_like(x_start))
+        noise:Tensor = util_data.default(noise, lambda: torch.randn_like(x_start))
         x_noisy:Tensor = self.q_sample(x_start=x_start, t=t, noise=noise)
         model_output:Tensor = self.apply_model(x_noisy, t, cond, is_cond_unpack)
 
@@ -156,7 +156,7 @@ class DDPM(nn.Module):
         '''
         noisy x sample for forward process
         '''
-        noise = UtilData.default(noise, lambda: torch.randn_like(x_start))
+        noise = util_data.default(noise, lambda: torch.randn_like(x_start))
         return (
             DiffusionUtil.extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
             DiffusionUtil.extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
@@ -183,7 +183,7 @@ class DDPM(nn.Module):
         additional_data_dict:dict
     ) -> Tensor:
         if x_shape is None: x_shape = self.get_x_shape(cond)
-        model_device:device = UtilTorch.get_model_device(self.model)
+        model_device:device = util_torch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
         for i in tqdm(reversed(range(0, self.time_sampler.timesteps)), desc='sample time step', total=self.time_sampler.timesteps):
             x = self.p_sample(x = x, t = torch.full((x_shape[0],), i, device= model_device, dtype=torch.long), cond = cond, is_cond_unpack = is_cond_unpack)

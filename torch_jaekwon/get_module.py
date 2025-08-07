@@ -4,7 +4,6 @@ import os
 import importlib
 
 from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS
-from torch_jaekwon.util import Util
 
 try: import torch.nn as nn
 except: print('''Can't import torch.nn''')

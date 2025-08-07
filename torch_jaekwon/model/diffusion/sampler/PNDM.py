@@ -5,7 +5,7 @@ from tqdm import tqdm
 import torch
 from collections import deque
 
-from torch_jaekwon.Util.UtilTorch import UtilTorch
+from ....util import util_torch
 from torch_jaekwon.Model.Diffusion.DDPM.DDPM import DDPM
 
 from torch_jaekwon.Model.Diffusion.DDPM.DiffusionUtil import DiffusionUtil
@@ -25,7 +25,7 @@ class PNDM:
         _, cond, additional_data_dict = self.ddpm_module.preprocess(x_start = None, cond=cond)
         if x_shape is None: x_shape = self.ddpm_module.get_x_shape(cond=cond)
         total_timesteps:int = self.ddpm_module.timesteps
-        model_device:device = UtilTorch.get_model_device(self.ddpm_module)
+        model_device:device = util_torch.get_model_device(self.ddpm_module)
         x:Tensor = torch.randn(x_shape, device = model_device)
         self.noise_list = deque(maxlen=4)
 
