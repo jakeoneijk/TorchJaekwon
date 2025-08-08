@@ -114,7 +114,7 @@ class DDPM(nn.Module):
                 for cond_name, uncond in uncond_dict.items():
                     dropout_mask = torch.bernoulli(torch.full((uncond.shape[0], *[1 for _ in range(len(uncond.shape) - 1)]), self.unconditional_prob, device=input_device)).to(torch.bool)
                     cond[cond_name] = torch.where(dropout_mask, uncond, cond[cond_name])
-            return self.p_losses(x_start, cond, is_cond_unpack, t)
+            return self.p_losses(x_start, cond, t)
         else:
             return self.infer(x_shape = x_shape, cond = cond, is_cond_unpack = is_cond_unpack, additional_data_dict = additional_data_dict)
     
@@ -122,13 +122,12 @@ class DDPM(nn.Module):
         self, 
         x_start:Tensor,
         cond:Optional[Union[dict,Tensor]],
-        is_cond_unpack:bool,
         t:Tensor, 
         noise:Optional[Tensor] = None
     ):
         noise:Tensor = util_data.default(noise, lambda: torch.randn_like(x_start))
         x_noisy:Tensor = self.q_sample(x_start=x_start, t=t, noise=noise)
-        model_output:Tensor = self.apply_model(x_noisy, t, cond, is_cond_unpack)
+        model_output:Tensor = self.apply_model(x_noisy, t, cond)
 
         if self.model_output_type == 'x_start':
             target:Tensor = x_start
