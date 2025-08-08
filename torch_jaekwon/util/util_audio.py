@@ -49,18 +49,19 @@ def resample(
         return resample_poly(x = audio, up = target_sr, down = origin_sr)
     elif resample_module == 'torchaudio':
         if isinstance(audio, ndarray): audio = torch.FloatTensor(audio)
-        resampler:nn.Module = get_torch_resampler(origin_sr, target_sr, resample_type)
+        resampler:nn.Module = get_torch_resampler(origin_sr, target_sr, resample_type, device=audio.device)
         return resampler(audio)
 
 def get_torch_resampler(
     origin_sr:int,
     target_sr:int,
     resample_type:str = None,
+    device:Optional[torch.device] = None
 ) -> nn.Module:
     #transforms.Resample precomputes and caches the kernel used for resampling, while functional.resample computes it on the fly
     #so using torchaudio.transforms.Resample will result in a speedup when resampling multiple waveforms using the same parameters
     if resample_type is None:
-        resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr).to(audio.device)
+        resampler = torchaudio.transforms.Resample(orig_freq = origin_sr, new_freq = target_sr)
     elif resample_type == 'kaiser_best':
         # https://pytorch.org/audio/stable/tutorials/audio_resampling_tutorial.html#kaiser-best
         resampler = torchaudio.transforms.Resample(
@@ -73,6 +74,8 @@ def get_torch_resampler(
         )
     else:
         raise ValueError(f"Unknown resample_type: {resample_type}")
+    if device is not None:
+        resampler = resampler.to(device)
     return resampler
 
 def read(

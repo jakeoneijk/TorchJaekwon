@@ -140,7 +140,7 @@ class Controller():
         )
         inferencer:Inferencer = inferencer_class(**inferencer_args)
         inferencer.inference(
-            pretrained_root_dir = HParams().inference.pretrain_root_dir,
+            pretrained_root_dir = HParams().inference.pretrain_root_dir_path,
             pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
             ckpt_name = HParams().inference.ckpt_name
         )

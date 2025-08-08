@@ -12,7 +12,7 @@ except: print('Didnt import following packages: wandb')
 try: from tensorboardX import SummaryWriter
 except: print('Didnt import following packages: tensorboardX')
 
-from ...util import util, UtilAudioSTFT, util_torch, util_data
+from ...util import util, util_torch, util_data, util_audio_stft, util_audio
 
 class Logger():
     def __init__(
@@ -32,6 +32,7 @@ class Logger():
             "root": root_dir_path,
             "console": f'{root_dir_path}/log.txt',
             "visualizer":f'{root_dir_path}/tb',
+            "log_media": f'{root_dir_path}/log_media'
         }
         os.makedirs(self.log_path["visualizer"],exist_ok=True)
 
@@ -120,29 +121,30 @@ class Logger():
         sample_rate:int = 16000,
         is_plot_spec:bool = False,
         is_plot_mel:bool = True,
-        mel_spec_args:Optional[dict] = None
+        mel_spec_args:Optional[dict] = None,
+        log_local:bool = False, # if True, save audio in local path
     ) -> None:
 
-        self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step)
+        self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step, log_local=log_local)
         if is_plot_mel:
-            from ...util import UtilAudioMelSpec
+            from ...util.util_audio_mel import UtilAudioMelSpec
             if mel_spec_args is None:
                 mel_spec_args = UtilAudioMelSpec.get_default_config(sample_rate=sample_rate)
             mel_spec_util = UtilAudioMelSpec(**mel_spec_args)
             mel_dict = dict()
             for audio_name in audio_dict:
                 mel_dict[audio_name] = mel_spec_util.get_hifigan_mel_spec(audio=audio_dict[audio_name],return_type='ndarray')
-            self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict, global_step=global_step)
-        
-    
+            self.plot_spec(name = name + '_mel_spec', spec_dict = mel_dict, global_step=global_step, log_local=log_local)
+
+
     def plot_wav(
         self, 
         name:str, #test case name, you could make structure by using /. ex) 'audio/test_set_1'
         audio_dict:Dict[str,ndarray], #{'audio name': 1d audio array},
         sample_rate:int,
-        global_step:int
+        global_step:int,
+        log_local:bool = False, # if True, save audio in local path
     ) -> None:
-        
         if self.visualizer_type == 'tensorboard':
             for audio_name in audio_dict:
                 self.tensorboard_writer.add_audio(f'{name}/{audio_name}', audio_dict[audio_name], sample_rate=sample_rate, global_step=global_step)
@@ -150,6 +152,8 @@ class Logger():
             wandb_audio_list = list()
             for audio_name in audio_dict:
                 wandb_audio_list.append(wandb.Audio(audio_dict[audio_name], caption=f'{audio_name}({util_data.pretty_num(global_step)})', sample_rate=sample_rate))
+                if log_local:
+                    util_audio.write(f"{self.log_path['log_media']}/{global_step:09d}/{name}_{audio_name}.wav", audio_dict[audio_name], sample_rate=sample_rate)
             wandb.log({name: wandb_audio_list, 'global_step': global_step})
     
     def plot_spec(
@@ -159,16 +163,17 @@ class Logger():
         vmin=-6.0, 
         vmax=1.5,
         transposed=False, 
-        global_step=0
+        global_step=0,
+        log_local:bool = False, # if True, save spec in local path
     ) -> None:
         if self.visualizer_type == 'tensorboard':
             for audio_name in spec_dict:
-                figure = UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed)
+                figure = util_audio_stft.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed)
                 self.tensorboard_writer.add_figure(f'{name}/{audio_name}',figure,global_step=global_step)
         else:
             wandb_mel_list = list()
             for audio_name in spec_dict:
-                UtilAudioSTFT.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
+                util_audio_stft.spec_to_figure(spec_dict[audio_name], vmin=vmin, vmax=vmax,transposed=transposed,save_path=f'''{self.log_path['root']}/temp_img_{audio_name}.png''')
                 wandb_mel_list.append(wandb.Image(f'''{self.log_path['root']}/temp_img_{audio_name}.png''', caption=f'{audio_name}({util_data.pretty_num(global_step)})'))
             wandb.log({name: wandb_mel_list, 'global_step': global_step})
     

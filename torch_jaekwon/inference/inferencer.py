@@ -9,7 +9,7 @@ import torch.nn as nn
 from tqdm import tqdm
 #torchjaekwon
 from torch_jaekwon import GetModule
-from ..util import UtilData, util_torch, util
+from ..util import util_data, util_torch, util
 #internal
 
 class Inferencer():
@@ -103,7 +103,7 @@ class Inferencer():
 
         for pretrained_path in pretrained_path_list:
             self.pretrained_load(pretrained_path) 
-            pretrained_name:str = UtilData.get_file_name(file_path=pretrained_path)
+            pretrained_name:str = util_data.get_file_name(file_path=pretrained_path)
             meta_data_list:List[dict] = self.get_inference_meta_data_list()
             meta_data_list = [{'save_meta': self.get_output_dir_path(pretrained_name=pretrained_name,meta_data=meta_data), **meta_data} for meta_data in meta_data_list]
             meta_data_list = [meta_data for meta_data in meta_data_list if meta_data['save_meta'] is not None]

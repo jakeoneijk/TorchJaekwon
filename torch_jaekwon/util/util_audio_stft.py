@@ -10,6 +10,24 @@ import librosa
 try: import librosa.display
 except: print('can not import librosa display')
 
+def spec_to_figure(
+    spec,
+    vmin:float = -6.0, 
+    vmax:float = 1.5,
+    fig_size:tuple = (12,6),
+    dpi = 400,
+    transposed=False,
+    save_path=None
+) -> None:
+    if isinstance(spec, torch.Tensor):
+        spec = spec.squeeze().cpu().numpy()
+    spec = spec.squeeze()
+    fig = plt.figure(figsize=fig_size, dpi = dpi)
+    plt.pcolor(spec.T if transposed else spec, vmin=vmin, vmax=vmax)
+    if save_path is not None:
+        plt.savefig(save_path,dpi=dpi)
+    plt.close()
+    return fig
 class UtilAudioSTFT():
     def __init__(self,nfft:int, hop_size:int):
         super().__init__()
@@ -100,21 +118,3 @@ class UtilAudioSTFT():
         plt.colorbar()
         if save_path is not None:
             plt.savefig(save_path,dpi=dpi)
-
-    @staticmethod
-    def spec_to_figure(spec,
-                       vmin:float = -6.0, 
-                       vmax:float = 1.5,
-                       fig_size:tuple = (12,6),
-                       dpi = 400,
-                       transposed=False,
-                       save_path=None):
-        if isinstance(spec, torch.Tensor):
-            spec = spec.squeeze().cpu().numpy()
-        spec = spec.squeeze()
-        fig = plt.figure(figsize=fig_size, dpi = dpi)
-        plt.pcolor(spec.T if transposed else spec, vmin=vmin, vmax=vmax)
-        if save_path is not None:
-            plt.savefig(save_path,dpi=dpi)
-        plt.close()
-        return fig

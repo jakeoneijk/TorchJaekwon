@@ -33,7 +33,7 @@ class Data:
 
 @dataclass
 class Logging:
-    project_name:str = "ldm_enhance"
+    project_name:str = "project"
     log_tool:str = ["tensorboard","wandb"][0]
     log_step_interval:int = 40
 

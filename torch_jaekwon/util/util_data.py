@@ -115,7 +115,7 @@ def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int
 
         assert(data_segment.shape[segment_axis] == segment_len),'Error[UtilData.save_data_segment] segment length error!!'
         if ext == 'pkl':
-            UtilData.pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
+            util_data.pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
 
 
 def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0) -> Tensor:
@@ -153,7 +153,7 @@ def fix_length(
     length:int,
     dim:int = -1
 ) -> Tensor:
-    assert len(data.shape) in [1,2,3], "Error[UtilData.fix_length] only support when data.shape is 1, 2 or 3"
+    assert len(data.shape) in [1,2,3], "Error[util_data.fix_length] only support when data.shape is 1, 2 or 3"
     if data.shape[dim] < length:
         if isinstance(data,Tensor):
             return F.pad(data, (0,length - data.shape[dim]), "constant", 0)
@@ -162,7 +162,7 @@ def fix_length(
     elif data.shape[dim] == length:
         return data
     else:
-        assert dim == -1, "Error[UtilData.fix_length] slicing when dim is not -1 not implemented yet"
+        assert dim == -1, "Error[util_data.fix_length] slicing when dim is not -1 not implemented yet"
         return data[..., :length]
 
 
@@ -184,10 +184,10 @@ def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
         for filename in tqdm(files, desc=f'walk {root}'):
             if os.path.splitext(filename)[-1] in ext:
                 file_meta_list.append({
-                    'file_name': UtilData.get_file_name( file_path = filename ),
+                    'file_name': get_file_name( file_path = filename ),
                     'file_path': f'{root}/{filename}',
                     'file_path_relative': os.path.relpath(f'{root}/{filename}', dir_path),
-                    'dir_name': UtilData.get_file_name(root),
+                    'dir_name': get_file_name(root),
                     'dir_path': root,
                     'dir_path_relative': os.path.relpath(root, dir_path),
                 })

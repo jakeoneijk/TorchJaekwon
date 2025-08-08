@@ -36,12 +36,12 @@ class Preprocessor():
         meta_param_list:list = self.get_meta_data_param()
         print(f'length of meta data: {len(meta_param_list)}')
         result_list = list()
+        start_time:float = time.time()
         for start_idx in tqdm(range(0,len(meta_param_list),self.max_meta_data_len),desc='sub meta param list'):
             sub_meta_param_list = meta_param_list[start_idx:start_idx+self.max_meta_data_len]
             if sub_meta_param_list is None:
                 print('meta_param_list is None, So we skip preprocess data')
                 return
-            start_time:float = time.time()
             if self.num_workers > 2:
                 with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
                     # pool.map(self.preprocess_one_data, sub_meta_param_list)
