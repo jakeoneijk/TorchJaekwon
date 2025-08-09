@@ -108,7 +108,6 @@ class Controller():
             module_name = trainer_class_name
         )
         trainer:Trainer = trainer_class(**trainer_args)
-        trainer.init_train()
         
         if HParams().mode.is_train_resume:
             util.log('load the checkpoint', 'info')

@@ -35,7 +35,7 @@ class Trainer():
         loss_meta_dict:dict = None,
         # optimizer
         optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
-        optimizer_step_unit:int = 1,
+        optimizer_step_interval:int = 1,
         lr_scheduler_class_meta_dict:dict = None,
         lr_scheduler_interval:Literal['step','epoch'] = 'step',
         max_norm_value_for_gradient_clip:float = None,
@@ -60,28 +60,26 @@ class Trainer():
         use_torch_compile:bool = True
     ) -> None:
         # data
-        self.data_class_meta_dict:dict = data_class_meta_dict
-        self.data_loader_dict:dict = {state.value: None for state in TrainState}
+        self.data_loader_dict:dict = self.set_data_loader(data_class_meta_dict)
 
         # model
-        self.model_class_meta_dict:dict = model_class_meta_dict
-        self.model:Union[nn.Module, list, dict] = None
-        self.model_ckpt_path:str = model_ckpt_path
+        self.model:Union[nn.Module, list, dict] = self.init_model(model_class_meta_dict)
+        if model_ckpt_path is not None:
+            ckpt:dict = torch.load(model_ckpt_path, map_location='cpu')
+            self.model = self.load_state_dict(self.model, ckpt, is_model=True)
+        self.model_to_device(self.model)
 
         # loss
-        self.loss_meta_dict:dict = loss_meta_dict
-        self.loss_fn_dict:dict = dict()
+        self.loss_fn_dict:dict = self.init_loss(loss_meta_dict)
 
         # optimizer
-        self.optimizer_class_meta_dict:dict = optimizer_class_meta_dict
-        self.optimizer_step_unit:int = optimizer_step_unit
-        self.lr_scheduler_class_meta_dict:dict = lr_scheduler_class_meta_dict
+        self.optimizer:torch.optim.Optimizer = self.init_optimizer(optimizer_class_meta_dict)
+        self.optimizer_step_interval:int = optimizer_step_interval
+        self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
         self.use_ema:bool = use_ema
-        self.model_ema:nn.Module = None
-        self.optimizer:torch.optim.Optimizer = None
-        self.lr_scheduler:torch.optim.lr_scheduler = None
+        self.model_ema:nn.Module = self.init_model_ema() if use_ema else None
         
         # train paremeters
         self.total_step:int = total_step
@@ -95,6 +93,7 @@ class Trainer():
 
         # logging
         self.logger:Logger = logger
+        self.logger.init_logger(model=self.model)
         self.save_model_step_interval:int = save_model_step_interval
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
@@ -200,24 +199,9 @@ class Trainer():
         np.random.seed(seed)
         random.seed(seed)
         os.environ["PYTHONHASHSEED"] = str(seed)
-
-    def init_train(self, dataset_dict=None):
-        self.model = self.init_model(self.model_class_meta_dict)
-        if self.model_ckpt_path is not None:
-            ckpt:dict = torch.load(self.model_ckpt_path, map_location='cpu')
-            self.model = self.load_state_dict(self.model, ckpt, is_model=True)
-        if self.use_ema: self.init_model_ema()
-        self.optimizer = self.init_optimizer(self.optimizer_class_meta_dict)
-        if self.lr_scheduler_class_meta_dict is not None:
-            self.lr_scheduler = self.init_lr_scheduler(self.optimizer, self.lr_scheduler_class_meta_dict)
-        self.init_loss()
-        self.model_to_device(self.model)
-        
-        self.logger.init_logger(model=self.model)
-        self.set_data_loader()
     
-    def init_model_ema(self) -> None:
-        self.model_ema = EMA(
+    def init_model_ema(self) -> nn.Module:
+        model_ema = EMA(
             self.model,
             beta=0.9999,
             power=3/4,
@@ -225,7 +209,8 @@ class Trainer():
             update_after_step=1,
             include_online_model=False
         )
-        self.model_ema = self.model_ema.to(self.device)
+        model_ema = model_ema.to(self.device)
+        return model_ema
 
     def init_model(self, model_class_meta_dict:Union[list, dict]) -> None:
         model_class_name = model_class_meta_dict.get('name', None)
@@ -279,7 +264,7 @@ class Trainer():
         if isinstance(optimizer, dict):
             lr_scheduler = dict()
             for key in optimizer:
-                lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], self.lr_scheduler_class_meta_dict[key])
+                lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], lr_scheduler_class_meta_dict[key])
         else:
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
             lr_scheduler_class = getattr( 
@@ -299,11 +284,12 @@ class Trainer():
                 )
         return lr_scheduler
 
-    def init_loss(self) -> None:
-        if self.loss_meta_dict is None: return
-        for loss_name in self.loss_meta_dict:
-            loss_class_name:Union[str,tuple] = self.loss_meta_dict[loss_name]['class_meta']['name']
-            loss_args:dict = self.loss_meta_dict[loss_name]['class_meta']['args']
+    def init_loss(self, loss_meta_dict) -> dict:
+        if loss_meta_dict is None: return
+        loss_fn_dict = dict()
+        for loss_name in loss_meta_dict:
+            loss_class_name:Union[str,tuple] = loss_meta_dict[loss_name]['class_meta']['name']
+            loss_args:dict = loss_meta_dict[loss_name]['class_meta']['args']
             loss_class:Type[torch.nn.Module] = getattr(
                 torch.nn, 
                 loss_class_name if isinstance(loss_class_name, str) else loss_class_name[1], 
@@ -311,7 +297,8 @@ class Trainer():
             )
             if loss_class is None:
                 loss_class = GetModule.get_module_class(class_type='loss', module_name=loss_class_name)
-            self.loss_fn_dict[loss_name] = loss_class(**loss_args)
+            loss_fn_dict[loss_name] = loss_class(**loss_args)
+        return loss_fn_dict
     
     def model_to_device(self, model:Union[nn.Module, dict], device = None) -> None:
         if isinstance(model, dict):
@@ -334,9 +321,10 @@ class Trainer():
                     data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
         return data_dict
     
-    def set_data_loader(self) -> None:
-        for subset_name in self.data_loader_dict:
-            subset_meta_dict:dict = getattr(self.data_class_meta_dict, subset_name, None)
+    def set_data_loader(self, data_class_meta_dict) -> dict:
+        data_loader_dict:dict = {state.value: None for state in TrainState}
+        for subset_name in data_loader_dict:
+            subset_meta_dict:dict = getattr(data_class_meta_dict, subset_name, None)
             if subset_meta_dict is None: continue
             dataset_class:type = GetModule.get_module_class(
                 class_type='pytorch_dataset',
@@ -351,7 +339,8 @@ class Trainer():
                 )
                 collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
                 data_loader_args['collate_fn'] = collater
-            self.data_loader_dict[subset_name] = DataLoader(**data_loader_args)
+            data_loader_dict[subset_name] = DataLoader(**data_loader_args)
+        return data_loader_dict
     
     def fit(self) -> None:
         if self.check_evalstep_first:
@@ -465,14 +454,14 @@ class Trainer():
         if self.max_norm_value_for_gradient_clip is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
 
-        if self.optimizer_step_unit == 1:
+        if self.optimizer_step_interval == 1:
             self.on_before_zero_grad()
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
         else:
             loss.backward()
-            if (self.global_step + 1) % self.optimizer_step_unit == 0:
+            if (self.global_step + 1) % self.optimizer_step_interval == 0:
                 self.optimizer.step()
                 self.on_before_zero_grad()
                 self.optimizer.zero_grad()
