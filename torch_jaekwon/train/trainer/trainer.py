@@ -52,7 +52,7 @@ class Trainer():
         log_step_interval:int = 100,
         start_logging_epoch:int = 0,
         # resource
-        device:torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
+        device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         multi_gpu:bool = False,
         # additional
         check_evalstep_first:bool = False,
@@ -63,11 +63,11 @@ class Trainer():
         self.data_loader_dict:dict = self.set_data_loader(data_class_meta_dict)
 
         # model
-        self.model:Union[nn.Module, list, dict] = self.init_model(model_class_meta_dict)
+        self.model:Union[nn.Module, list, dict] = self.init_model(model_class_meta_dict, debug_mode=debug_mode, use_torch_compile=use_torch_compile)
         if model_ckpt_path is not None:
             ckpt:dict = torch.load(model_ckpt_path, map_location='cpu')
             self.model = self.load_state_dict(self.model, ckpt, is_model=True)
-        self.model_to_device(self.model)
+        self.model_to_device(self.model, device=device)
 
         # loss
         self.loss_fn_dict:dict = self.init_loss(loss_meta_dict)
@@ -75,8 +75,8 @@ class Trainer():
         # optimizer
         self.optimizer:torch.optim.Optimizer = self.init_optimizer(optimizer_class_meta_dict)
         self.optimizer_step_interval:int = optimizer_step_interval
-        self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
+        self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
         self.use_ema:bool = use_ema
         self.model_ema:nn.Module = self.init_model_ema() if use_ema else None
@@ -212,7 +212,7 @@ class Trainer():
         model_ema = model_ema.to(self.device)
         return model_ema
 
-    def init_model(self, model_class_meta_dict:Union[list, dict]) -> None:
+    def init_model(self, model_class_meta_dict:Union[list, dict], debug_mode:bool = False, use_torch_compile:bool = True) -> None:
         model_class_name = model_class_meta_dict.get('name', None)
         if model_class_name is None:
             model = dict()
@@ -221,7 +221,7 @@ class Trainer():
         else:
             model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_name)
             model:nn.Module = model_class(**model_class_meta_dict['args'])
-            if not self.debug_mode and self.use_torch_compile:
+            if not debug_mode and use_torch_compile:
                 model = torch.compile(model)
         return model
     
@@ -305,10 +305,7 @@ class Trainer():
             for model_name in model:
                 self.model_to_device(model[model_name])
         else:
-            if device is None:
-                model = model.to(self.device)
-            else:
-                model = model.to(device)
+            model = model.to(device if device is not None else self.device)
 
     def data_dict_to_device(self,data_dict:dict) -> dict:
         for feature_name in data_dict:
@@ -326,11 +323,11 @@ class Trainer():
         for subset_name in data_loader_dict:
             subset_meta_dict:dict = getattr(data_class_meta_dict, subset_name, None)
             if subset_meta_dict is None: continue
-            dataset_class:type = GetModule.get_module_class(
+            dataset = GetModule.get_module(
                 class_type='pytorch_dataset',
-                module_name = subset_meta_dict['dataset_class_meta']["name"]
+                module_name = subset_meta_dict['dataset_class_meta']["name"],
+                arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
-            dataset = dataset_class(**subset_meta_dict['dataset_class_meta']['args'])
             data_loader_args:dict = {'dataset': dataset, **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
                 collater_class:type = GetModule.get_module_class(

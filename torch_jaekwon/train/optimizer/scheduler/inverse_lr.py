@@ -19,7 +19,7 @@ class InverseLR(torch.optim.lr_scheduler._LRScheduler):
     """
 
     def __init__(self, optimizer, inv_gamma=1., power=1., warmup=0., final_lr=0.,
-                 last_epoch=-1, verbose=False):
+                 last_epoch=-1):
         self.inv_gamma = inv_gamma
         self.power = power
         if not 0. <= warmup < 1:
@@ -27,7 +27,7 @@ class InverseLR(torch.optim.lr_scheduler._LRScheduler):
         self.warmup = warmup
         self.final_lr = final_lr
         self.interval = "step"
-        super().__init__(optimizer, last_epoch, verbose)
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self):
         if not self._get_lr_called_within_step:

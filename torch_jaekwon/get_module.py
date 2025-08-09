@@ -16,7 +16,7 @@ class GetModule:
         module_name:tuple = None,
         arg_dict:dict = dict(),
     ) -> Callable:
-        module_class = GetModule.get_module_class(root_path, class_type, module_name)
+        module_class:type = GetModule.get_module_class(root_path, class_type, module_name)
         module_instance = module_class(**arg_dict)
         return module_instance
     

@@ -125,7 +125,7 @@ def kl_div_gaussian(mean1:Tensor, logvar1:Tensor, mean2:Tensor, logvar2:Tensor) 
 def load_model(model:nn.Module, state_dict:dict, strict:bool = True) -> nn.Module:
     is_model_comiled: bool = "_orig_mod." in list(model.state_dict().keys())[0]
     is_state_dict_comiled: bool = "_orig_mod." in list(state_dict.keys())[0]
-    if is_model_comiled and is_state_dict_comiled or not is_model_comiled and not is_state_dict_comiled:
+    if is_model_comiled == is_state_dict_comiled:
         model.load_state_dict(state_dict, strict=strict)
     elif not is_model_comiled and is_state_dict_comiled:
         state_dict = state_dict_unwrap_torch_compile(state_dict)
