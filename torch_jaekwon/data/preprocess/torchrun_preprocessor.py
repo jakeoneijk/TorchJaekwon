@@ -5,9 +5,16 @@ import torch
 import torch.distributed as distributed
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import default_collate
 
 from ...util import util, util_torch_distributed
 from ...path import ARTIFACTS_DIRS
+
+def filter_none_collate(batch):
+    batch = list(filter(lambda x: x is not None, batch))
+    if len(batch) == 0:
+        return None
+    return default_collate(batch)
 
 class TorchrunPreprocessor():
     def __init__(
@@ -58,12 +65,14 @@ class TorchrunPreprocessor():
                 'drop_last': False,
                 'batch_size': self.batch_size,
                 'num_workers': self.num_workers,
+                'collate_fn': filter_none_collate,
             },
-            shuffle=False
+            shuffle=False,
         )
         util.log(f'Number of samples: {len(dataset)}', msg_type='info')
         util.log(f'Number of batches: {len(dataloader)}', msg_type='info')
         for data in tqdm(dataloader):
+            if data is None: continue
             self.preprocess_batch(data)
         distributed.barrier()
         if util_torch_distributed.is_main_process():
