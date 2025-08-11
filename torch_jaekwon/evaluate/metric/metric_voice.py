@@ -16,7 +16,8 @@ except: print('Warning: fastdtw is not installed')
 try: from skimage.metrics import structural_similarity as ssim
 except: print('Warning: skimage is not installed')
 #torchjaekwon import
-from ...util import UtilAudio, UtilAudioMelSpec
+from ...util import util_audio
+from ...util.util_audio_mel import UtilAudioMelSpec
 #internal import
 
 class MetricVoice:
@@ -185,10 +186,10 @@ class MetricVoice:
     def get_sispnr(source, target, eps = 1e-12):
         # scale_invariant_spectrogram_to_noise_ratio
         # in log scale
-        output, target = UtilAudio.energy_unify(source, target)
+        output, target = util_audio.energy_unify(source, target)
         noise = output - target
         # print(pow_p_norm(target) , pow_p_norm(noise), pow_p_norm(target) / (pow_p_norm(noise) + EPS))
-        sp_loss = 10 * torch.log10((UtilAudio.pow_p_norm(target) / (UtilAudio.pow_p_norm(noise) + eps) + eps))
+        sp_loss = 10 * torch.log10((util_audio.pow_p_norm(target) / (util_audio.pow_p_norm(noise) + eps) + eps))
         return float(sp_loss)
     
     @staticmethod

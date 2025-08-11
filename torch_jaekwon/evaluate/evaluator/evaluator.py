@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 #torchjaekwon import
-from ...util import UtilData
+from ...util import util_data
 #internal import
 
 class Evaluator():
@@ -22,7 +22,7 @@ class Evaluator():
         self.gt_dir_path:str = gt_dir_path
         self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
-        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{UtilData.get_file_name(self.pred_dir_path)}'
+        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{util_data.get_file_name(self.pred_dir_path)}'
         os.makedirs(self.evaluation_result_dir,exist_ok=True)
     
     '''
@@ -57,10 +57,10 @@ class Evaluator():
             result_dict:dict = self.get_result_dict(meta_data_list)
 
             test_set_name:str = eval_dir.split('/')[-1]
-            UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}.yaml',result_dict['result'])
+            util_data.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}.yaml',result_dict['result'])
             if self.sort_result_by_metric:
                 for metric_name in result_dict['result']:
-                    UtilData.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',UtilData.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
+                    util_data.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',util_data.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
         result_dict:dict = self.get_ref_free_eval_result(meta_data_list)
