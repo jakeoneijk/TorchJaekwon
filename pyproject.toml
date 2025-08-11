@@ -24,7 +24,8 @@ dependencies = [
   "ema-pytorch==0.2.3",
   "torchdiffeq",
   "torchsde",
-  "safetensors"
+  "safetensors",
+  "av"
 ]
 
 [tool.setuptools.packages.find]

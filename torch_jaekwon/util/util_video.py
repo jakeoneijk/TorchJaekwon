@@ -1,16 +1,19 @@
 from typing import Literal, Tuple, Optional, Union
+from torch import Tensor
+from numpy import ndarray
 
 import os
+import av
+import numpy as np
 import subprocess
 from torio.io import StreamingMediaDecoder
-import numpy as np
 from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip
 try: from pytube import YouTube
 except: print('pytube is not installed. Please install it using `pip install pytube`')
 try: from pytubefix import YouTube as YouTubeFix
 except: print('pytubefix is not installed. Please install it using `pip install pytubefix`')
 
-from torch_jaekwon.util import util, util_audio
+from torch_jaekwon.util import util, util_audio, util_torch
 
 
 def read_stream(
@@ -85,21 +88,64 @@ def read(
 
 def write(
     file_path:str,
-    video:VideoFileClip,
+    video:Union[VideoFileClip, Tensor, ndarray], # [Time, Channel, Height, Width]
     fps:int = None,
-    codec='libx264',
+    bit_rate:Optional[int] = None, # 10 * 1e6, 10 Mbps
+    codec:Literal['h264', 'libx264']='h264',
+    audio:Union[Tensor, ndarray] = None, # [Channel, Time]
+    sample_rate:Optional[int] = None,
     audio_codec:Literal['aac', 'pcm_s16le', 'pcm_s32le'] = 'aac',
     logger=None
 ) -> None:
     util.make_parent_dir(file_path)
-    video.write_videofile(
-        filename = file_path,
-        fps = fps, 
-        codec=codec,
-        audio = True,
-        audio_codec = audio_codec,
-        logger=logger
-    )
+    if isinstance(video, Tensor) or isinstance(video, ndarray):
+        if isinstance(video, Tensor): video = util_torch.to_np(video)
+        if isinstance(audio, Tensor): audio = util_torch.to_np(audio)
+        assert video.dtype == 'uint8', "Video tensor must be of type uint8."
+        assert video.min() >= 0 and video.max() <= 255, "Video tensor values must be in the range [0, 255]."
+        assert len(video.shape) == 4, "Video tensor must have 4 dimensions: [Time, Channel, Height, Width]."
+        assert len(audio.shape) == 2, "Audio tensor must have 2 dimensions: [Channel, Time]."
+
+        container = av.open(file_path, mode='w')
+
+        video_stream:av.VideoStream = container.add_stream(codec, rate=fps)
+        video_stream.width = video.shape[-1]
+        video_stream.height = video.shape[-2]
+        video_stream.pix_fmt = 'yuv420p'
+        if bit_rate is not None: video_stream.codec_context.bit_rate = bit_rate
+
+        audio_stream = container.add_stream(audio_codec, rate=sample_rate)
+
+        for frame_idx in range(video.shape[0]):
+            img = video[frame_idx].transpose(1, 2, 0)
+            img = av.VideoFrame.from_ndarray(img, format='rgb24')
+            for packet in video_stream.encode(img):
+                container.mux(packet)
+        for packet in video_stream.encode():
+            container.mux(packet)
+        
+        audio_frame = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio), format='fltp', layout='mono' if audio.shape[0] == 1 else 'stereo')
+        audio_frame.sample_rate = sample_rate
+
+        for packet in audio_stream.encode(audio_frame):
+            container.mux(packet)
+
+        for packet in audio_stream.encode():
+            container.mux(packet)
+
+        container.close()
+
+    elif isinstance(video, VideoFileClip):
+        video.write_videofile(
+            filename = file_path,
+            fps = fps, 
+            codec=codec,
+            audio = True,
+            audio_codec = audio_codec,
+            logger=logger
+        )
+    else:
+        raise TypeError(f"Unsupported video type: {type(video)}. Expected VideoFileClip or Tensor.")
 
 
 def download_youtube(
