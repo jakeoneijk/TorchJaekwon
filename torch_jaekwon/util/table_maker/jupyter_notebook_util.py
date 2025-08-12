@@ -8,7 +8,8 @@ import re
 import librosa
 import numpy as np
 
-from torch_jaekwon.util import Util, UtilAudio, UtilAudioMelSpec, UtilData
+from torch_jaekwon.util import util, util_audio, util_data
+from torch_jaekwon.util.util_audio_mel import UtilAudioMelSpec
 
 LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
@@ -116,7 +117,7 @@ class HTMLUtil():
         for idx in range(1, len(final_html_list)):
             indent_depth += self.get_indent_depth_changed(final_html_list[idx - 1], final_html_list[idx])
             final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
-        UtilData.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
+        util_data.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
     
     def get_html_text(
         self, 
@@ -152,9 +153,9 @@ class HTMLUtil():
     ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
-            audio, sr = UtilAudio.read(audio_path = audio_path, sample_rate=sample_rate)
+            audio, sr = util_audio.read(audio_path = audio_path, sample_rate=sample_rate)
             path_dict = self.get_media_path('audio')
-            UtilAudio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
+            util_audio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
             audio_path = path_dict['relative']
 
         html_code_dict = dict()
@@ -169,7 +170,7 @@ class HTMLUtil():
         
         if spec_path is not None:
             path_dict = self.get_media_path('img')
-            Util.cp(spec_path, path_dict["abs"])
+            util.cp(spec_path, path_dict["abs"])
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         return html_code_dict

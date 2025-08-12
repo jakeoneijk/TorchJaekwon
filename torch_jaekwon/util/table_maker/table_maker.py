@@ -3,7 +3,7 @@ from typing import Literal, Callable
 import os
 import unicodedata
 from tqdm import tqdm
-from .. import Util, UtilData
+from .. import util, util_data
 from . import HTMLUtil
 
 TD_WIDTH = 300
@@ -14,7 +14,7 @@ class TableMaker:
     @staticmethod
     def get_yaml_example(output_dir:str = './') -> None:
         file_path:str = f'{os.path.dirname(__file__)}/media_table_config_example.yaml'
-        Util.system(f'cp {file_path} {output_dir}')
+        util.system(f'cp {file_path} {output_dir}')
 
     @staticmethod
     def make_table_from_config_path(
@@ -23,8 +23,8 @@ class TableMaker:
         max_num_tr:int = 5,
         get_item:Callable = None
     ) -> None:
-        meta_data:dict = UtilData.yaml_load(yaml_path)
-        if not meta_data.get('title',None): meta_data['title'] = UtilData.get_file_name(yaml_path)
+        meta_data:dict = util_data.yaml_load(yaml_path)
+        if not meta_data.get('title',None): meta_data['title'] = util_data.get_file_name(yaml_path)
         TableMaker.make_table(output_dir = output_dir, max_num_tr = max_num_tr, get_item = get_item, **meta_data)
 
     @staticmethod
@@ -45,7 +45,7 @@ class TableMaker:
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
         if data_name_list is None and data_name_list_ref_dir is not None:
-            data_name_list = [meta['file_name'] for meta in UtilData.walk(data_name_list_ref_dir)]
+            data_name_list = [meta['file_name'] for meta in util_data.walk(data_name_list_ref_dir)]
             data_name_list.sort()
         html_util = HTMLUtil(output_dir=output_dir)
         html_list = list()
