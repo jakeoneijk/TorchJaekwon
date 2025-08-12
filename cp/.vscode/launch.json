@@ -23,31 +23,14 @@
                 //"SOURCE_DATA_DIR": "artifacts/data/source",
             },
             "program": "main.py",
+            //"module": "torch.distributed.run",
             "args": [
-                //"--config_path", "config/config1.yaml",
+                //"--standalone", "--nproc_per_node=1", "main.py", // if you want to use torch.distributed
+                //"--config_path", 
+                //"config/config1.yaml",
                 "--stage", "preprocess", // preprocess | train | inference | evaluate
-                // "--num_workers", "10"
-            ],
-        },
-        {
-            "name": "main w torchrun",
-            "type": "debugpy",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "module": "torch.distributed.run",
-            "env": {
-                //"CUDA_VISIBLE_DEVICES": "0",
-                //"ARTIFACTS_ROOT": "artifacts",
-                //"SOURCE_DATA_DIR": "artifacts/data/source",
-            },
-            "args": [
-                "--standalone",
-                "--nproc_per_node=1",
-                "main.py",
-                //"--config_path", "config/config1.yaml",
-                "--stage", "preprocess", // preprocess | train | inference | evaluate
-                // "--num_workers", "10"
+                // **[preprocess]**
+                //"--num_workers", "10"
             ],
         }
     ]
