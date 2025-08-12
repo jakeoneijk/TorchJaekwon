@@ -16,6 +16,6 @@ model_meta_list:
     #file_name_pre_post_fix: ['prefix','postfix'] # prefix_file_name_postfix
     #use_only_name: false # if it is true, use data_name.split('/')[-1]
     #file_strict: False # if it is True, it will raise error if there is no audio file in the dir. defualt is True
-    #ext: 'wav' # 'wav' | 'function' (Define get_item(meta_data))
+    #ext: 'wav' # 'wav' | 'function' (Define get_item(meta_data) -> {'item':None, 'type':None})
     ## audio ##
     #img_dir: 'img_dir' # path of the img dir

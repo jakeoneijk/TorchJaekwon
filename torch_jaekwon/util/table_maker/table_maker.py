@@ -21,7 +21,7 @@ class TableMaker:
         yaml_path:str, 
         output_dir:str = None, 
         max_num_tr:int = 5,
-        get_item:Callable = lambda meta_data: None 
+        get_item:Callable = lambda meta_data: {'item':None, 'type':None} 
     ) -> None:
         meta_data:dict = util_data.yaml_load(yaml_path)
         if not meta_data.get('title',None): meta_data['title'] = util_data.get_file_name(yaml_path)
@@ -38,7 +38,7 @@ class TableMaker:
         max_num_tr:int = 5,
         return_html:bool = False,
         transpose:bool = False,
-        get_item:Callable = lambda meta_data: None,
+        get_item:Callable = lambda meta_data: {'item':None, 'type':None},
         audio_config:dict = None,
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
@@ -64,9 +64,14 @@ class TableMaker:
                 for model_meta in model_meta_list:
                     model_name = get_str_html(model_meta.get(NAME_TAG, model_meta['dir'].split('/')[-1]))
                     ext = model_meta.get('ext', 'wav')
+                    item_dict = dict()
                     if ext == 'function':
-                        table_row_dict_list[0][model_name] = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
-                    elif ext == 'wav':
+                        item_dict = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
+                        if item_dict['type'] is None:
+                            table_row_dict_list[0][model_name] = item_dict['item']
+                        else:
+                            raise NotImplementedError(f"item type '{item_dict['type']}' is not implemented.")
+                    if ext == 'wav':
                         raise NotImplementedError(f"ext '{ext}' is not implemented.")
                         '''
                         audio_path:str = TableMaker.get_file_path(media_name, comparison_meta)
@@ -90,7 +95,6 @@ class TableMaker:
                         '''
                     else:
                         raise NotImplementedError(f"ext '{ext}' is not implemented.")
-                    print('')
                 html_dict_list += table_row_dict_list
             if len(html_dict_list) > 0:
                 html_list += TableMaker.get_table_html_list(html_dict_list, transpose=transpose)
