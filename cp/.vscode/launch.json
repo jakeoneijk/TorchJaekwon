@@ -28,9 +28,21 @@
                 //"--standalone", "--nproc_per_node=1", "main.py", // if you want to use torch.distributed
                 //"--config_path", 
                 //"config/config1.yaml",
+                
                 "--stage", "preprocess", // preprocess | train | inference | evaluate
+
                 // **[preprocess]**
                 //"--num_workers", "10"
+                
+                // **[train]**
+                //"--check_evalstep_first", "False",
+                //"--log_tool", "wandb",
+
+                // **[inference]**
+                //"--ckpt_name", ".pth",
+                
+                // **[evaluate]**
+                //"--eval_dir_path_pred", "artifacts/inference/",
             ],
         }
     ]
