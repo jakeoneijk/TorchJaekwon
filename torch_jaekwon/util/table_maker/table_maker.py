@@ -66,11 +66,13 @@ class TableMaker:
                     ext = model_meta.get('ext', 'wav')
                     item_dict = dict()
                     if ext == 'function':
-                        item_dict = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
-                        if item_dict['type'] is None:
-                            table_row_dict_list[0][model_name] = item_dict['item']
+                        item_dict:dict = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
+                        item = item_dict.get('item', None)
+                        item_type:str = item_dict.get('type', None)
+                        if item_type is None:
+                            table_row_dict_list[0][model_name] = item
                         else:
-                            raise NotImplementedError(f"item type '{item_dict['type']}' is not implemented.")
+                            raise NotImplementedError(f"item type '{item_type}' is not implemented.")
                     if ext == 'wav':
                         raise NotImplementedError(f"ext '{ext}' is not implemented.")
                         '''
