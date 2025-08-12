@@ -21,7 +21,7 @@ class TableMaker:
         yaml_path:str, 
         output_dir:str = None, 
         max_num_tr:int = 5,
-        get_item:Callable = None
+        get_item:Callable = lambda meta_data: None 
     ) -> None:
         meta_data:dict = util_data.yaml_load(yaml_path)
         if not meta_data.get('title',None): meta_data['title'] = util_data.get_file_name(yaml_path)
@@ -38,10 +38,8 @@ class TableMaker:
         max_num_tr:int = 5,
         return_html:bool = False,
         transpose:bool = False,
-        get_item:Callable = None,
-        # audio
-        audio_sr:int = 44100,
-        audio_spec_type:Literal['mel', 'stft', 'x'] = 'mel',
+        get_item:Callable = lambda meta_data: None,
+        audio_config:dict = None,
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
         if data_name_list is None and data_name_list_ref_dir is not None:
