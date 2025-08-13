@@ -95,8 +95,6 @@ class TableMaker:
                     table_row_dict_spec[comparison_name] = media_html_dict.get('spec', BLANK_COMPONENT)
             html_dict_list += table_row_dict_list
                         '''
-                    else:
-                        raise NotImplementedError(f"ext '{ext}' is not implemented.")
                 html_dict_list += table_row_dict_list
             if len(html_dict_list) > 0:
                 html_list += TableMaker.get_table_html_list(html_dict_list, transpose=transpose)
