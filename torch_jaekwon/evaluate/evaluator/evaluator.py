@@ -36,13 +36,13 @@ class Evaluator():
     def get_meta_data_list(self, eval_dir:str) -> List[dict]:
         pass
 
-    def get_result_dict_for_one_testcase(
+    def get_sample_wise_result(
         self,
         meta_data:dict
     ) -> dict: #{'name':name_of_testcase,'metric_name1':value1,'metric_name2':value2... }
         pass
 
-    def get_ref_free_eval_result(self, meta_data_list:List[dict]) -> dict:
+    def get_set_wise_result(self, meta_data_list:List[dict]) -> dict:
         return {'result':dict()}
     '''
     ==============================================================
@@ -63,17 +63,16 @@ class Evaluator():
                     util_data.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',util_data.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
-        result_dict:dict = self.get_ref_free_eval_result(meta_data_list)
+        result_dict:dict = self.get_set_wise_result(meta_data_list)
 
-        result_per_sample:List[dict] = list()
+        result_dict['result_per_sample'] = list()
         for meta_data in tqdm(meta_data_list,desc='get result'):
-            result_per_sample.append(self.get_result_dict_for_one_testcase(meta_data))
-        
-        metric_name_list:list = [metric_name for metric_name in list(result_per_sample[0].keys()) if type(result_per_sample[0][metric_name]) in [float]]
-        metric_name_list.sort()
-        mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_per_sample, metric_name_list)
+            result_dict['result_per_sample'].append(self.get_sample_wise_result(meta_data))
 
-        result_dict['result_per_sample'] = result_per_sample
+        metric_name_list:list = [metric_name for metric_name in list(result_dict['result_per_sample'][0].keys()) if type(result_dict['result_per_sample'][0][metric_name]) in [float]]
+        metric_name_list.sort()
+        mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict['result_per_sample'], metric_name_list)
+
         result_dict['result'].update(mean_median_std_dict)
         return result_dict
     
