@@ -117,7 +117,6 @@ def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int
         if ext == 'pkl':
             util_data.pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
 
-
 def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0) -> Tensor:
     if shape_length == len(feature.shape):
         return feature
@@ -131,22 +130,18 @@ def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0
     
     return feature
 
-
 def sort_dict_list( dict_list: List[dict], key:str, reverse:bool = False):
     return sorted(dict_list, key = lambda dictionary: dictionary[key], reverse=reverse)
-
 
 def random_segment(data:ndarray, data_length:int) -> ndarray:
     max_data_start = len(data) - data_length
     data_start = random.randint(0, max_data_start)
     return data[data_start:data_start+data_length]
 
-
 def default(val, d):
     if val is not None:
         return val
     return d() if isfunction(d) else d
-
 
 def fix_length(
     data:Union[ndarray,Tensor],
@@ -165,16 +160,19 @@ def fix_length(
         assert dim == -1, "Error[util_data.fix_length] slicing when dim is not -1 not implemented yet"
         return data[..., :length]
 
-
 def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> list:
     if ext is None:
         return os.listdir(dir_name)
-    elif isinstance(ext,list):
-        return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext]
-    else:
-        return [{'file_name': file_name, 'file_path':f'{dir_name}/{file_name}'} for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] == ext]
-
-
+    if isinstance(ext, str): ext = [ext]
+    return [
+        {
+            'file_name': get_file_name(file_path = file_name), 
+            'file_path':f'{dir_name}/{file_name}',
+            'source_data_relpath': util.source_data_relpath(f'{dir_name}/{file_name}'),
+        } 
+        for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext
+    ]
+    
 def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
     if isinstance(ext, str): ext = [ext]
     ext = [e if e.startswith('.') else f'.{e}' for e in ext]
@@ -186,17 +184,16 @@ def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
                 file_meta_list.append({
                     'file_name': get_file_name( file_path = filename ),
                     'file_path': f'{root}/{filename}',
-                    'file_path_relative': os.path.relpath(f'{root}/{filename}', dir_path),
+                    'file_relpath': os.path.relpath(f'{root}/{filename}', dir_path),
+                    'source_data_relpath': util.source_data_relpath(f'{root}/{filename}'),
                     'dir_name': get_file_name(root),
                     'dir_path': root,
                     'dir_path_relative': os.path.relpath(root, dir_path),
                 })
     return file_meta_list
 
-
 def get_dir_name_list(root_dir:str) -> list:
     return [dir_name for dir_name in os.listdir(root_dir) if os.path.isdir(f'{root_dir}/{dir_name}')]
-
 
 def pretty_num(number:float) -> str:
     if number < 1000:
@@ -207,7 +204,6 @@ def pretty_num(number:float) -> str:
         return f'{round(number/1000000,5)}M'
     else:
         return f'{round(number/1000000000,5)}B'
-
 
 def extract_num_from_str(string:str) -> float:
     return float(''.join([c for c in string if c.isdigit() or c == '.']))

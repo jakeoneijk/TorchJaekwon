@@ -46,7 +46,7 @@ class Model:
 class Train:
     class_meta = dict()
     seed_strict = False
-    seed = (int)(torch.cuda.initial_seed() / (2**32))
+    seed = int(torch.cuda.initial_seed() / (2**32)) if torch.cuda.is_available() else int(torch.initial_seed() / (2**32))
     start_logging_epoch:int = 0
     save_model_epoch_interval:int = 100
     check_evalstep_first:bool = True

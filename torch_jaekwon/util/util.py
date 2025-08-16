@@ -3,6 +3,7 @@ import os, sys
 import psutil
 import re
 import torch
+from torch_jaekwon.path import SOURCE_DATA_DIR
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -14,7 +15,6 @@ RED = '\033[91m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 END = '\033[0m'
-
 
 def get_resource_usage(
     verbose=True,
@@ -43,7 +43,6 @@ def get_resource_usage(
         sys.exit(1)
     return log_dict
 
-
 def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
     template_dict:dict = {
         'info': {
@@ -67,10 +66,8 @@ def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None
     prefix:str = template_dict.get(msg_type, {}).get('prefix', '')
     print(f"{color + prefix + text + END}")
 
-
 def get_num_in_str(text:str) -> List[int]:
     return [int(n) for n in re.findall(r'\d+', text)]
-
 
 def set_sys_path_to_parent_dir(
     file:str, # __file__
@@ -78,7 +75,6 @@ def set_sys_path_to_parent_dir(
 ) -> None:
     dir:str = get_ancestor_dir_path(file, depth_to_dir_from_file)
     sys.path[0] = os.path.abspath(dir)
-
 
 def get_ancestor_dir_path(
     file:str, # __file__
@@ -88,11 +84,9 @@ def get_ancestor_dir_path(
     for _ in range(depth_to_dir_from_file): dir = os.path.dirname(dir)
     return dir
 
-
 def system(command:str) -> None:
     result_id:int = os.system(command)
     assert result_id == 0, f'[Error]: Something wrong with the command [{command}]'
-
 
 def cp(src_path:str, dst_path:str, inside_dir:bool = False) -> None:
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
@@ -101,7 +95,6 @@ def cp(src_path:str, dst_path:str, inside_dir:bool = False) -> None:
         system(f"cp -r {src_path} '{dst_path}'") 
     else:
         system(f"cp '{src_path}' '{dst_path}'")
-
 
 def wget(link:str, save_path:str = None, save_dir:str = None) -> None:
     command:str = f'wget {link}'
@@ -113,7 +106,6 @@ def wget(link:str, save_path:str = None, save_dir:str = None) -> None:
         command += f' -P {save_dir}'
     system(command)
 
-
 def unzip(file_path:str, unzip_dir:str) -> None:
     os.makedirs(unzip_dir, exist_ok=True)
     file_name:str = file_path.split('/')[-1]
@@ -122,12 +114,18 @@ def unzip(file_path:str, unzip_dir:str) -> None:
     else:
         system(f'''unzip {file_path} -d {unzip_dir}''')
 
-
 def norm_path(file_path:str) -> str:
     if file_path[0] not in ['/', '.']:
         return f"./{file_path}"
     return file_path
 
+def source_data_relpath(file_path:str) -> str:
+    file_path_abs:str = os.path.abspath(file_path)
+    source_data_dir_path_abs:str = os.path.abspath(SOURCE_DATA_DIR)
+    if file_path_abs.startswith(source_data_dir_path_abs):
+        return os.path.relpath(file_path_abs, start=source_data_dir_path_abs)
+    else:
+        return None
 
 def make_parent_dir(file_path:str) -> None:
     os.makedirs(os.path.dirname(norm_path(file_path)), exist_ok=True)
