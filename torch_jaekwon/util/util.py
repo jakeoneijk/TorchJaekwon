@@ -3,7 +3,6 @@ import os, sys
 import psutil
 import re
 import torch
-from torch_jaekwon.path import SOURCE_DATA_DIR
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -118,14 +117,6 @@ def norm_path(file_path:str) -> str:
     if file_path[0] not in ['/', '.']:
         return f"./{file_path}"
     return file_path
-
-def source_data_relpath(file_path:str) -> str:
-    file_path_abs:str = os.path.abspath(file_path)
-    source_data_dir_path_abs:str = os.path.abspath(SOURCE_DATA_DIR)
-    if file_path_abs.startswith(source_data_dir_path_abs):
-        return os.path.relpath(file_path_abs, start=source_data_dir_path_abs)
-    else:
-        return None
 
 def make_parent_dir(file_path:str) -> None:
     os.makedirs(os.path.dirname(norm_path(file_path)), exist_ok=True)

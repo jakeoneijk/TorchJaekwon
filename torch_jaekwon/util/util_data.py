@@ -14,6 +14,7 @@ from pathlib import Path
 from inspect import isfunction
 
 from . import util
+from ..path import relpath as torch_jaekwon_relpath
 
 def get_file_name(file_path:str, with_ext:bool = False) -> str:
     if file_path is None:
@@ -115,7 +116,7 @@ def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int
 
         assert(data_segment.shape[segment_axis] == segment_len),'Error[UtilData.save_data_segment] segment length error!!'
         if ext == 'pkl':
-            util_data.pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
+            pickle_save(f'{save_dir}/{start_idx}.{ext}',data_segment)
 
 def fit_shape_length(feature:Union[Tensor,ndarray],shape_length:int, dim:int = 0) -> Tensor:
     if shape_length == len(feature.shape):
@@ -168,7 +169,7 @@ def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> li
         {
             'file_name': get_file_name(file_path = file_name), 
             'file_path':f'{dir_name}/{file_name}',
-            'source_data_relpath': util.source_data_relpath(f'{dir_name}/{file_name}'),
+            'source_data_relpath': torch_jaekwon_relpath(f'{dir_name}/{file_name}', start_dir_type='source_data'),
         } 
         for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext
     ]
@@ -185,7 +186,7 @@ def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
                     'file_name': get_file_name( file_path = filename ),
                     'file_path': f'{root}/{filename}',
                     'file_relpath': os.path.relpath(f'{root}/{filename}', dir_path),
-                    'source_data_relpath': util.source_data_relpath(f'{root}/{filename}'),
+                    'source_data_relpath': torch_jaekwon_relpath(f'{root}/{filename}', start_dir_type='source_data'),
                     'dir_name': get_file_name(root),
                     'dir_path': root,
                     'dir_path_relative': os.path.relpath(root, dir_path),
