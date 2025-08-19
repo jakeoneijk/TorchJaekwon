@@ -31,24 +31,24 @@ class BalancedMultiDataset(IterableDataset):
     def init_data_list_dict(self) -> Dict[str,list]: # {data_type1: List, data_type2: List}
         raise NotImplementedError("You must implement the init_data_list_dict method in the subclass.")
 
-    def read_data(self,meta_data):
+    def read_data(self, meta_data:dict):
         raise NotImplementedError("You must implement the read_data method in the subclass.")
 
     def __iter__(self):
         while True:
-            self.increase_idx('data_name')
-            data_name:str = self.data_list_dict['data_name'][self.idx_dict['data_name']]
-
+            data_name:str = self.get_value('data_name')
             for _ in range(self.sampling_schedule_dict[data_name]):
-                self.increase_idx(data_name)
-                data = self.read_data(self.data_list_dict[data_name][self.idx_dict[data_name]])
+                meta_data = self.get_value(data_name)
+                data = self.read_data(meta_data)
                 yield data   
 
-    def increase_idx(self, key:str, max) -> None:
+    def get_value(self, key:str) -> None:
         self.idx_dict[key] += 1
         if self.idx_dict[key] == len(self.data_list_dict[key]):
             self.idx_dict[key] = 0
             self.random_state_dict[key].shuffle(self.data_list_dict[key])
+        value = self.data_list_dict[key][self.idx_dict[key]]
+        return value
 
     def __len__(self):
         return max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
