@@ -79,3 +79,19 @@ class TorchrunPreprocessor():
             self.final_process()
         distributed.destroy_process_group()
 
+class ExampleDataset(Dataset):
+    def __init__(self, meta_data_list:list) -> None:
+        self.meta_data_list:list = meta_data_list
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        meta_data:dict = self.meta_data_list[idx]
+        try:
+            data_dict = meta_data
+        except Exception as e:
+            util.log(f"Error reading file {meta_data}: {e}", msg_type='error')
+            return None
+        
+
+    def __len__(self):
+        return len(self.meta_data_list)
+

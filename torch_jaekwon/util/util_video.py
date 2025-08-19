@@ -20,6 +20,7 @@ def read_stream(
     file_path: str,
     video_stream_args_dict: dict = {'video': {'frame_rate': 24}},
     audio_stream_args_dict: dict = {'audio': {'mono': None, 'sample_rate': None}},
+    start_sec: float = 0,
     duration_sec: Optional[float] = None,
     normalize_audio: bool = True,
 ) -> None:
@@ -39,7 +40,10 @@ def read_stream(
     audio_stream_key_list:list = list(audio_stream_args_dict.keys())
     for stream_key in audio_stream_key_list:
         reader.add_basic_audio_stream(frames_per_chunk=2**30)
-    
+
+    if start_sec != 0:
+        reader.seek(timestamp = start_sec, mode="precise")
+
     reader.fill_buffer()
     data_chunk_list = reader.pop_chunks()
     data_dict = dict()
