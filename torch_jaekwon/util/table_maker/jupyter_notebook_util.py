@@ -23,7 +23,7 @@ class HTMLUtil():
         audio_sr:int = 44100
     ) -> None:
         self.indent:str = '  '
-        self.media_idx_dict:dict = {'audio':0, 'img':0}
+        self.media_idx_dict:dict = {'audio':0, 'img':0, 'video':0}
         self.html_start_list:List[str] = [
             '<!DOCTYPE html>',
             '<head>',
@@ -135,7 +135,7 @@ class HTMLUtil():
         return f'''<img src="{src_path}" {style}/>'''
     
     def get_media_path(self, type:Literal['audio','img']) -> str:
-        ext_dict = {'audio':'wav', 'img':'png'}
+        ext_dict = {'audio':'wav', 'img':'png', 'video': 'mp4'}
         path_dict = dict()
         path_dict['abs'] = f'{self.output_dir}/{self.media_save_dir_name}/{type}_{str(self.media_idx_dict[type]).zfill(5)}.{ext_dict[type]}'
         path_dict['relative'] = f'''./{self.media_save_dir_name}{path_dict['abs'].split(self.media_save_dir_name)[-1]}'''
@@ -174,6 +174,28 @@ class HTMLUtil():
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         return html_code_dict
+
+    def get_html_video(
+        self,
+        file_path:str = None,
+        cp_to_html_dir:bool = True,
+        width: int = 480,
+        height: int = 270,
+    ) -> List[str]: #[html_code]
+        style = ''
+        if width is not None and height is not None:
+            style = f'style="width:{width}px; height:{height}px;"'
+        elif width is not None:
+            style = f'style="width:{width}px"'
+
+        if cp_to_html_dir:
+            path_dict = self.get_media_path('video')
+            util.cp(src_path = file_path, dst_path = path_dict['abs'])
+            file_path = path_dict['relative']
+
+        html_code:str = f'''<video controls {style}> <source src="{file_path}" type="video/mp4" /> Your browser does not support the video tag. </video>'''
+        
+        return [html_code]
     
     def get_html_tag_list(self, html_str:str) -> List[str]:
         html_tag_list = re.findall(r'</?[^>]+>', html_str)
