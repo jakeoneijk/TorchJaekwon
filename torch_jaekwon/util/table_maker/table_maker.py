@@ -77,7 +77,7 @@ class TableMaker:
                             item = item_dict.get('item', None)
                             item_type:str = item_dict.get('type', None)
                             if item_type is None:
-                                table_row_dict_list[0][model_name] = item
+                                html_code_list = [item]
                             else:
                                 raise NotImplementedError(f"item type '{item_type}' is not implemented.")
                         if ext == 'wav':

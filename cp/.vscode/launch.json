@@ -22,7 +22,11 @@
                 //"--config_path", 
                 //"config/config1.yaml",
                 
-                "--stage", "preprocess", // preprocess | train | inference | evaluate
+                "--stage", 
+                "preprocess", 
+                //"train",
+                //"inference",
+                //"evaluate",
 
                 // **[preprocess]**
                 //"--num_workers", "10"
