@@ -116,7 +116,7 @@ def train() -> None:
         'loss_meta_dict': getattr(HParams().train, 'loss', None),
         # optimizer
         'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
-        'optimizer_step_interval': getattr(HParams().train,'optimizer_step_interval',1),
+        'grad_accum_steps': getattr(HParams().train,'grad_accum_steps',1),
         'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
         'lr_scheduler_interval': HParams().train.scheduler['interval'],
         'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),

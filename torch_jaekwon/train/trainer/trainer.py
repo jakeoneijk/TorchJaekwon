@@ -35,7 +35,7 @@ class Trainer():
         loss_meta_dict:dict = None,
         # optimizer
         optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
-        optimizer_step_interval:int = 1,
+        grad_accum_steps:int = 1,
         lr_scheduler_class_meta_dict:dict = None,
         lr_scheduler_interval:Literal['step','epoch'] = 'step',
         max_norm_value_for_gradient_clip:float = None,
@@ -74,7 +74,7 @@ class Trainer():
 
         # optimizer
         self.optimizer:torch.optim.Optimizer = self.init_optimizer(optimizer_class_meta_dict)
-        self.optimizer_step_interval:int = optimizer_step_interval
+        self.grad_accum_steps:int = grad_accum_steps
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
         self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
         self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
@@ -414,7 +414,6 @@ class Trainer():
         
             if train_state == TrainState.TRAIN:
                 self.backprop(loss)
-                self.lr_scheduler_step(call_state='step')
                 
                 if self.global_step % self.log_step_interval == 0:
                     self.log_metric(metrics=metric,data_size=dataset_size)
@@ -451,17 +450,20 @@ class Trainer():
         if self.max_norm_value_for_gradient_clip is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
 
-        if self.optimizer_step_interval == 1:
+        if self.grad_accum_steps == 1:
             self.on_before_zero_grad()
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+            self.lr_scheduler_step(call_state='step')
         else:
+            loss = loss / self.grad_accum_steps
             loss.backward()
-            if (self.global_step + 1) % self.optimizer_step_interval == 0:
+            if (self.global_step + 1) % self.grad_accum_steps == 0:
                 self.optimizer.step()
                 self.on_before_zero_grad()
                 self.optimizer.zero_grad()
+                self.lr_scheduler_step(call_state='step')
     
     def on_before_zero_grad(self) -> None:
         if self.model_ema is not None:
