@@ -65,8 +65,7 @@ class TableMaker:
                 if len(html_dict_list) > max_num_tr:
                     html_list += TableMaker.get_table_html_list(html_dict_list, transpose=transpose)
                     html_dict_list = list()
-                table_row_dict_list = [dict()] #[{'first_row_model1':, ''first_row_model2''}, {'second_row_model1': ...} ...]
-                table_row_dict_list[0][NAME_TAG] = get_str_html(data_name)
+                table_row_dict_list = [{NAME_TAG: get_str_html(data_name)}] #[{'first_row_model1':, ''first_row_model2''}, {'second_row_model1': ...} ...]
                 for model_meta in model_meta_list:
                     model_name = get_str_html(model_meta.get(NAME_TAG, model_meta['dir'].split('/')[-1]))
                     ext = model_meta.get('ext', 'wav')
@@ -80,20 +79,22 @@ class TableMaker:
                                 html_code_list = [item]
                             else:
                                 raise NotImplementedError(f"item type '{item_type}' is not implemented.")
-                        if ext == 'wav':
-                            #audio_path:str = TableMaker.get_default_file_path(media_name, comparison_meta)
-                            #img_path = None
-                            #spec_type_for_audio = spec_type
-                            #if 'img_dir' in comparison_meta:
-                            #    img_path:str = TableMaker.get_default_file_path(media_name, comparison_meta, ext='png', dir_path=comparison_meta['img_dir'])
-                            #    spec_type_for_audio = None
-                            #media_html_dict:dict = html_util.get_html_audio(audio_path = audio_path, sample_rate=sr, spec_type=spec_type_for_audio, spec_path=img_path)
-                            #table_row_dict_audio[comparison_name] = media_html_dict['audio']
-                            #table_row_dict_spec[comparison_name] = media_html_dict.get('spec', BLANK_COMPONENT)
-                            raise NotImplementedError(f"ext '{ext}' is not implemented.")
-                        if ext in ['mp4']:
+                        elif ext == 'wav':
+                            file_path:str = get_default_file_path(data_name, model_meta, ext) if get_file_path is None else get_file_path(data_name, model_meta, ext)
+                            spec_path:str = None
+                            spec_type:str = audio_config.get('spec_type', None)
+                            if 'img_dir' in model_meta:
+                                print('')
+                                #if 'img_dir' in comparison_meta:
+                                #    spec_path:str = TableMaker.get_default_file_path(media_name, comparison_meta, ext='png', dir_path=comparison_meta['img_dir'])
+                                #    spec_type_for_audio = None
+                            media_html_dict:dict = html_util.get_html_audio(audio_path = file_path, sample_rate=audio_config.get('sample_rate', None), spec_type=spec_type, spec_path=spec_path)
+                            html_code_list:list = [media_html_dict.get(key, BLANK_COMPONENT) for key in ['audio', 'spec']]
+                        elif ext in ['mp4']:
                             file_path:str = get_default_file_path(data_name, model_meta, ext) if get_file_path is None else get_file_path(data_name, model_meta, ext)
                             html_code_list:list = html_util.get_html_video(file_path=file_path)
+                        else:
+                            raise NotImplementedError(f"ext '{ext}' is not implemented.")
                     except Exception as e:
                         file_strict:bool = model_meta.get('file_strict', True)
                         if file_strict:
@@ -101,8 +102,12 @@ class TableMaker:
                             raise FileNotFoundError
                         else:
                             html_code_list = [BLANK_COMPONENT]
+
                     for i, html_code in enumerate(html_code_list):
+                        if i >= len(table_row_dict_list):
+                            table_row_dict_list.append({NAME_TAG: get_str_html(data_name)})
                         table_row_dict_list[i][model_name] = html_code
+
                 html_dict_list += table_row_dict_list
             if len(html_dict_list) > 0:
                 html_list += TableMaker.get_table_html_list(html_dict_list, transpose=transpose)
