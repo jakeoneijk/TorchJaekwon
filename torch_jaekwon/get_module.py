@@ -8,6 +8,13 @@ from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS
 try: import torch.nn as nn
 except: print('''Can't import torch.nn''')
 
+def get_module_tj(
+    root_path:str = None, # if class_type is not None, don't need to input root_path
+    class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
+    class_meta:dict = dict()
+) -> Callable:
+    return GetModule.get_module(root_path=root_path, class_type=class_type, module_name=class_meta.get('name'), arg_dict=class_meta.get('args', dict()))
+
 class GetModule:
     @staticmethod
     def get_module(
