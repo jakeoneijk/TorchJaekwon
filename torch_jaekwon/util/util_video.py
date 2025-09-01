@@ -108,7 +108,7 @@ def write(
         assert video.dtype == 'uint8', "Video tensor must be of type uint8."
         assert video.min() >= 0 and video.max() <= 255, "Video tensor values must be in the range [0, 255]."
         assert len(video.shape) == 4, "Video tensor must have 4 dimensions: [Time, Channel, Height, Width]."
-        assert len(audio.shape) == 2, "Audio tensor must have 2 dimensions: [Channel, Time]."
+        if audio is not None: assert len(audio.shape) == 2, "Audio tensor must have 2 dimensions: [Channel, Time]."
 
         container = av.open(file_path, mode='w')
 
@@ -118,7 +118,7 @@ def write(
         video_stream.pix_fmt = 'yuv420p'
         if bit_rate is not None: video_stream.codec_context.bit_rate = bit_rate
 
-        audio_stream = container.add_stream(audio_codec, rate=sample_rate)
+        audio_stream = container.add_stream(audio_codec, rate=sample_rate) if audio is not None else None
 
         for frame_idx in range(video.shape[0]):
             img = video[frame_idx].transpose(1, 2, 0)
@@ -128,14 +128,15 @@ def write(
         for packet in video_stream.encode():
             container.mux(packet)
         
-        audio_frame = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio), format='fltp', layout='mono' if audio.shape[0] == 1 else 'stereo')
-        audio_frame.sample_rate = sample_rate
+        if audio is not None:
+            audio_frame = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio), format='fltp', layout='mono' if audio.shape[0] == 1 else 'stereo')
+            audio_frame.sample_rate = sample_rate
 
-        for packet in audio_stream.encode(audio_frame):
-            container.mux(packet)
+            for packet in audio_stream.encode(audio_frame):
+                container.mux(packet)
 
-        for packet in audio_stream.encode():
-            container.mux(packet)
+            for packet in audio_stream.encode():
+                container.mux(packet)
 
         container.close()
 

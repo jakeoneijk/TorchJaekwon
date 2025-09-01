@@ -8,26 +8,29 @@ version = "1.0"
 description = ""
 # If you have a license, you can specify it here:
 license = { text = "" }
+
 authors = [
   { name = "Jaekwon Im", email = "jakeoneijk@kaist.ac.kr" }
 ]
+
 dependencies = [
-  "tqdm",
-  "psutil",
-  "numpy",
-  "matplotlib",
-  "pyyaml",
-  "moviepy==1.0.3",
-  "librosa",
-  "wandb",
-  "tensorboardX",
+  "av",
   "ema-pytorch==0.2.3",
+  "librosa",
+  "matplotlib",
+  "moviepy==1.0.3",
+  "numpy",
+  "opencv-python",
+  "psutil",
+  "pyyaml",
+  "safetensors",
+  "tensorboardX",
   "torchdiffeq",
   "torchsde",
-  "safetensors",
-  "av"
+  "tqdm",
+  "wandb",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["TorchJaekwon*"]
+include = ["torch_jaekwon*"]

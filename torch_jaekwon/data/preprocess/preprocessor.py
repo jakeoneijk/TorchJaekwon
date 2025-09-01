@@ -21,9 +21,31 @@ class Preprocessor():
         self.max_meta_data_len:int = 10000
         if self.root_dir is not None and self.data_name is not None:
             self.output_dir = self.get_output_dir()
-            os.makedirs(self.output_dir,exist_ok=True)
         else:
             print('Warning: root_dir or data_name is None')
+    
+    # ==========================
+    # Methods to Override (Start)
+    # ==========================
+    
+    def get_meta_data_param(self) -> list:
+        '''
+        meta_data_param_list = list()
+        '''
+        raise NotImplementedError
+    
+    def preprocess_one_data(self, param:dict) -> None:
+        '''
+        ex) (subset, file_name) = param
+        '''
+        raise NotImplementedError
+    
+    def final_process(self, result_list:list) -> None:
+        print("Finish preprocess")
+    
+    # ==========================
+    # Methods to Override (End)
+    # ==========================
     
     def get_output_dir(self) -> str:
         return os.path.join(self.root_dir, self.data_name)
@@ -63,18 +85,3 @@ class Preprocessor():
 
         self.final_process(result_list)
         print("{:.3f} s".format(time.time() - start_time))
-
-    def get_meta_data_param(self) -> list:
-        '''
-        meta_data_param_list = list()
-        '''
-        raise NotImplementedError
-    
-    def preprocess_one_data(self, param:dict) -> None:
-        '''
-        ex) (subset, file_name) = param
-        '''
-        raise NotImplementedError
-    
-    def final_process(self, result_list:list) -> None:
-        print("Finish preprocess")
