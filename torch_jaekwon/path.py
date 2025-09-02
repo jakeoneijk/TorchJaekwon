@@ -46,11 +46,8 @@ def relpath(
 
 def abspath(
     file_path:str,
-    start_dir_type:Literal['source_data', 'artifacts'] = 'source_data'
+    start_dir_type:Literal['source_data', 'artifacts'] = 'source_data',
 ) -> str:
     start_dir_path_abs:str = os.path.abspath(START_DIR_MAP.get(start_dir_type))
     abs_path:str = f'{start_dir_path_abs}/{file_path}'
-    if os.path.exists(abs_path):
-        return abs_path
-    else:
-        return None
+    return abs_path

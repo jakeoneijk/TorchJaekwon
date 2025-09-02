@@ -73,6 +73,7 @@ class TableMaker:
                     try:
                         if ext == 'function':
                             item_dict:dict = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
+                            if not isinstance(item_dict, dict): item_dict = {'item': item_dict}
                             item = item_dict.get('item', None)
                             item_type:str = item_dict.get('type', None)
                             if item_type is None:
@@ -98,7 +99,7 @@ class TableMaker:
                     except Exception as e:
                         file_strict:bool = model_meta.get('file_strict', True)
                         if file_strict:
-                            util.log(f'File not found: {audio_path}', msg_type='error')
+                            util.log(f'File not found: {file_path}', msg_type='error')
                             raise FileNotFoundError
                         else:
                             html_code_list = [BLANK_COMPONENT]
