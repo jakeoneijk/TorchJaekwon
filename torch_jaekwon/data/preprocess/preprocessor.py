@@ -4,25 +4,24 @@ import time
 import torch
 from tqdm import tqdm
 from ...path import ARTIFACTS_DIRS
+from ...get_module import get_module_tj
 
 class Preprocessor():
     def __init__(
         self,
-        data_name:str = None,
+        data_name:str = 'all_data',
+        dataset_manager_class_meta_dict:dict = dict(),
         root_dir:str = ARTIFACTS_DIRS.preprocessed_data,
         device:torch.device = None,
         num_workers:int = 1,
     ) -> None:
         # args to class variable
         self.data_name:str = data_name
+        self.dataset_manager_dict = {k: get_module_tj(class_type='dataset_manager', class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
         self.root_dir:str = root_dir
         self.num_workers:int = num_workers
         self.device:torch.device = device
         self.max_meta_data_len:int = 10000
-        if self.root_dir is not None and self.data_name is not None:
-            self.output_dir = self.get_output_dir()
-        else:
-            print('Warning: root_dir or data_name is None')
     
     # ==========================
     # Methods to Override (Start)
@@ -30,7 +29,8 @@ class Preprocessor():
     
     def get_meta_data_param(self) -> list:
         '''
-        meta_data_param_list = list()
+        meta_data_param_list = list().
+        you may want to set output path to each meta_data
         '''
         raise NotImplementedError
     
@@ -46,13 +46,6 @@ class Preprocessor():
     # ==========================
     # Methods to Override (End)
     # ==========================
-    
-    def get_output_dir(self) -> str:
-        return os.path.join(self.root_dir, self.data_name)
-    
-    def write_message(self, message_type:str, message:str) -> None:
-        with open(f"{self.preprocessed_data_path}/{message_type}.txt",'a') as file_writer:
-            file_writer.write(message+'\n')
     
     def preprocess_data(self) -> None:
         meta_param_list:list = self.get_meta_data_param()

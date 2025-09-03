@@ -1,11 +1,17 @@
 data:
   config: # config for data
     attr1: &attr1 10
-  config_per_dataset_dict:
-    dataset_name: # change to your dataset name
-      preprocessor_class_meta_list: 
-        - name: ['preprocessor', 'Preprocessor']
-          args: {}
+  dataset_config_dict:
+    mnist: # change to your dataset name
+      dataset_manager_class_meta: &dataset_manager_mnist
+        name: ['dataset_manager', 'DatasetManager']
+        args: {}
+  preprocessor_class_meta_list: 
+    - name: ['preprocessor', 'Preprocessor']
+      args:
+        data_name: 'all_data'
+        dataset_manager_class_meta_dict: 
+          mnist: *dataset_manager_mnist
 #####################################################################################################
 dataloader:
   train:

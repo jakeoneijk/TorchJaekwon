@@ -24,7 +24,8 @@ class Resource:
 @dataclass
 class Data:
     config = dict()
-    config_per_dataset_dict = dict()
+    dataset_config_dict = dict()
+    preprocessor_class_meta_list = list()
 
 @dataclass
 class Logging:

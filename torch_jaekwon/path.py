@@ -14,6 +14,7 @@ START_DIR_MAP = {
 
 @dataclass
 class ClassDirs:
+    dataset_manager:str = 'data/dataset_manager'
     preprocessor:str = './data/preprocess'
     model:str = './model'
     trainer:str = './train/trainer'
@@ -47,7 +48,8 @@ def relpath(
 def abspath(
     file_path:str,
     start_dir_type:Literal['source_data', 'artifacts'] = 'source_data',
+    start_dir_path:str = None
 ) -> str:
-    start_dir_path_abs:str = os.path.abspath(START_DIR_MAP.get(start_dir_type))
+    start_dir_path_abs:str = os.path.abspath(START_DIR_MAP.get(start_dir_type) if start_dir_path is None else start_dir_path)
     abs_path:str = f'{start_dir_path_abs}/{file_path}'
     return abs_path

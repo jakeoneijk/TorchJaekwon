@@ -5,9 +5,11 @@ from typing import Type, Literal
 import sys
 import argparse
 import numpy as np
+import torch
 
 #torchjaekwon
 from .h_params import HParams
+from . import get_module
 from .get_module import GetModule
 from .util import util
 from .path import ARTIFACTS_DIRS
@@ -75,23 +77,15 @@ def set_argparse() -> None:
 
 def preprocess() -> None:
     from .data.preprocess.preprocessor import Preprocessor
-    config_per_dataset_dict = HParams().data.config_per_dataset_dict
-    for data_name in config_per_dataset_dict:
-        for preprocessor_meta in config_per_dataset_dict[data_name]['preprocessor_class_meta_list']:
-            preprocessor_class_name:str = preprocessor_meta['name']
-            preprocessor_args:dict = {
-                'data_name': data_name,
-                'num_workers': HParams().resource.num_workers,
-                'device': HParams().resource.device,
-            }
-            preprocessor_args.update(preprocessor_meta['args'])
-
-            preprocessor_class:Type[Preprocessor] = GetModule.get_module_class( 
-                class_type='preprocessor', 
-                module_name = preprocessor_class_name 
-            )
-            preprocessor:Preprocessor = preprocessor_class(**preprocessor_args)                             
-            preprocessor.preprocess_data()                           
+    preprocessor_class_meta_list:list = HParams().data.preprocessor_class_meta_list
+    num_workers:int = HParams().resource.num_workers
+    device:torch.device = HParams().resource.device
+    
+    for preprocessor_meta in preprocessor_class_meta_list:
+        preprocessor_meta['args']['num_workers'] = preprocessor_meta['args'].get('num_workers', num_workers)
+        preprocessor_meta['args']['device'] = preprocessor_meta['args'].get('device', device)
+        preprocessor:Preprocessor = get_module.get_module_tj(class_type='preprocessor', class_meta=preprocessor_meta)
+        preprocessor.preprocess_data()                           
 
 def train() -> None:
     import torch

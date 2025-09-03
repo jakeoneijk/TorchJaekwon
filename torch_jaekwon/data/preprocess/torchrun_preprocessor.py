@@ -9,6 +9,7 @@ from torch.utils.data.dataloader import default_collate
 
 from ...util import util, util_torch_distributed
 from ...path import ARTIFACTS_DIRS
+from ...get_module import get_module_tj
 
 def filter_none_collate(batch):
     batch = list(filter(lambda x: x is not None, batch))
@@ -19,26 +20,20 @@ def filter_none_collate(batch):
 class TorchrunPreprocessor():
     def __init__(
         self, 
-        data_name:str = None,
+        data_name:str = 'all_data',
+        dataset_manager_class_meta_dict:dict = dict(),
         root_dir:str = ARTIFACTS_DIRS.preprocessed_data,
         batch_size:int = 1,
         num_workers:int = 0,
         **kwargs
     ) -> None:
         self.data_name:str = data_name
+        self.dataset_manager_dict = {k: get_module_tj(class_type='dataset_manager', class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
         self.root_dir:str = root_dir
-        if self.root_dir is not None and self.data_name is not None:
-            self.output_dir = self.get_output_dir()
-            os.makedirs(self.output_dir,exist_ok=True)
-        
         self.batch_size:int = batch_size
         self.num_workers:int = num_workers
-
         distributed.init_process_group(backend="nccl", timeout=timedelta(hours=1))
         torch.cuda.set_device(util_torch_distributed.local_rank())
-
-    def get_output_dir(self) -> str:
-        return os.path.join(self.root_dir, self.data_name)
     
     def get_dataset(self) -> Dataset:
         '''

@@ -5,9 +5,6 @@ import importlib
 
 from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS
 
-try: import torch.nn as nn
-except: print('''Can't import torch.nn''')
-
 def get_module_tj(
     root_path:str = None, # if class_type is not None, don't need to input root_path
     class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,

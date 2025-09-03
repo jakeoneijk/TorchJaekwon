@@ -45,9 +45,6 @@ class Inferencer():
     
     def get_inference_meta_data_list(self) -> List[dict]:
         meta_data_list = list()
-        for data_name in self.h_params.data.data_config_per_dataset_dict:
-            meta:list = self.util_data.pickle_load(f'{self.h_params.data.root_path}/{data_name}_test.pkl')
-            meta_data_list += meta
         return meta_data_list
 
     def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> Tuple[str,str]:
