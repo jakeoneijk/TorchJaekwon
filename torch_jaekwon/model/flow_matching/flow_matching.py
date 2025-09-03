@@ -71,6 +71,7 @@ class FlowMatching(nn.Module):
         cond:Optional[dict] = None,
         sampler_type:Literal['discrete_euler', 'rk4', 'flow_dpmpp'] = 'discrete_euler',
         steps:int = 100,
+        time_sampler_type:Literal['linear', 'linear_quadratic'] = 'linear_quadratic',
         sigma_max:float = 1
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
@@ -87,6 +88,7 @@ class FlowMatching(nn.Module):
             x = x, 
             steps = steps, 
             sigma_max = sigma_max, 
+            time_sampler_type = time_sampler_type,
             cond = cond, 
             cfg_scale = self.cfg_scale,
             cfg_rescale = self.cfg_rescale

@@ -1,22 +1,39 @@
 '''
 Source: https://github.com/Stability-AI/stable-audio-tools
 '''
+from typing import Literal
 import torch
 from tqdm import tqdm, trange
 
 import math
 
+def time_sampler(type:str = 'linear', sigma_max:float = 1, steps:int = 50):
+    if type == 'linear':
+        t = torch.linspace(sigma_max, 0, steps + 1)
+    elif type == 'linear_quadratic':
+        #Movie Gen: A Cast of Media Foundation Models
+        linear_ref_steps:int = 1000
+        linear_steps:int = steps // 2
+        quadratic_steps:int = steps - linear_steps
+        t_ref = torch.linspace(sigma_max, 0.0, linear_ref_steps + 1)
+        t_linear = t_ref[:linear_steps + 1] 
+        s = torch.linspace(1, quadratic_steps, quadratic_steps) / quadratic_steps
+        t_quadratic = t_linear[-1] * (1 - s**2)     
+        t = torch.cat([t_linear, t_quadratic])
+    else:
+        raise ValueError(f"Unknown time sampler type: {type}")
+    return t
 class Sampler:
     @staticmethod
     @torch.no_grad()
-    def discrete_euler(model, x, steps, sigma_max=1, callback=None, dist_shift=None, **extra_args):
+    def discrete_euler(model, x, steps, sigma_max=1, time_sampler_type=Literal['linear', 'linear_quadratic'], callback=None, dist_shift=None, **extra_args):
         """Draws samples from a model given starting noise. Euler method"""
 
         # Make tensor of ones to broadcast the single t values
         ts = x.new_ones([x.shape[0]])
 
         # Create the noise schedule
-        t = torch.linspace(sigma_max, 0, steps + 1)
+        t = time_sampler(type=time_sampler_type, sigma_max=sigma_max, steps=steps)
 
         if dist_shift is not None:
             t = dist_shift.time_shift(t, x.shape[-1])
