@@ -1,5 +1,3 @@
-set -euo pipefail
-
 RUNNER=("python")
 #RUNNER=("torchrun" "--standalone" "--nproc_per_node=1")
 #CUDA_VISIBLE_DEVICES="0,1"
