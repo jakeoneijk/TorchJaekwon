@@ -20,6 +20,7 @@ elif [[ "$STAGE" == "train" ]]; then
     --project_name "$PROJECT_NAME"
     --log_tool wandb
     --debug_mode false
+    #--use_torch_compile false
     #-r
   )
 elif [[ "$STAGE" == "inference" ]]; then

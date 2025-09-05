@@ -118,7 +118,7 @@ def read(
             frame_offset = frame_offset, 
             num_frames = num_frames
         )
-        if origin_sample_rate is not None: assert origin_sample_rate == original_sr, f'[Error] origin_sample_rate is not same with original sample rate'
+        if origin_sample_rate is not None: assert origin_sample_rate == original_sr, f'[Error] origin_sample_rate {origin_sample_rate} is different from the original sample rate {original_sr}'
         if sample_rate is not None and sample_rate != original_sr:
             audio_data = resample(audio = audio_data, origin_sr=original_sr, target_sr = sample_rate, resample_module='torchaudio')
     

@@ -28,11 +28,19 @@ class BalancedMultiDataset(IterableDataset):
             self.random_state_dict[data_name].shuffle(self.data_list_dict[data_name])
             print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
     
+    # ==========================
+    # Methods to Override (Start)
+    # ==========================
+    
     def init_data_list_dict(self) -> Dict[str,list]: # {data_type1: List, data_type2: List}
         raise NotImplementedError("You must implement the init_data_list_dict method in the subclass.")
 
     def read_data(self, meta_data:dict):
         raise NotImplementedError("You must implement the read_data method in the subclass.")
+    
+    # ==========================
+    # Methods to Override (End)
+    # ==========================
 
     def __iter__(self):
         while True:

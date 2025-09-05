@@ -1,7 +1,7 @@
 from typing import Literal
 import os
 import torch_jaekwon
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 TORCH_JAEKWON_PATH:str = os.path.dirname(torch_jaekwon.__file__)
 CONFIG_DIR = "./config"
@@ -51,5 +51,22 @@ def abspath(
     start_dir_path:str = None
 ) -> str:
     start_dir_path_abs:str = os.path.abspath(START_DIR_MAP.get(start_dir_type) if start_dir_path is None else start_dir_path)
+    if os.path.abspath(file_path).startswith(start_dir_path_abs):
+        return os.path.abspath(file_path)
     abs_path:str = f'{start_dir_path_abs}/{file_path}'
     return abs_path
+
+def abspath_search(file_path: str) -> str:
+    for start_dir_path in list(START_DIR_MAP.values()) + list(asdict(ARTIFACTS_DIRS).values()):
+        file_abspath = abspath(file_path, start_dir_path=start_dir_path)
+        if os.path.exists(file_abspath):
+            return file_abspath
+    return file_path
+
+def abspaths(file_paths: list|dict) -> list|dict:
+    if isinstance(file_paths, list):
+        return [abspath_search(file_path) if isinstance(file_path, str) else file_path for file_path in file_paths]
+    elif isinstance(file_paths, dict):
+        return {key: abspath_search(value) if isinstance(value, str) else value for key, value in file_paths.items()}
+    else:
+        raise ValueError(f'file_paths should be list or dict, but got {type(file_paths)}')

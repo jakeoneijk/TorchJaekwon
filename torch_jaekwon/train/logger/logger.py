@@ -51,7 +51,6 @@ class Logger():
             else: 
                 wandb.init(project=project_name)
             wandb.run.name = self.experiment_name
-            wandb.run.save()
 
             util_data.yaml_save(f'''{self.log_path['root']}/wandb_meta.yaml''', data={
                 'id': wandb.run.id,

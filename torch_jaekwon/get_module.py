@@ -10,7 +10,10 @@ def get_module_tj(
     class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
     class_meta:dict = dict()
 ) -> Callable:
-    return GetModule.get_module(root_path=root_path, class_type=class_type, module_name=class_meta.get('name'), arg_dict=class_meta.get('args', dict()))
+    if 'name' not in class_meta and isinstance(class_meta, dict):
+        return {k: get_module_tj(class_type=class_type, class_meta=v) for k,v in class_meta.items()}
+    else:
+        return GetModule.get_module(root_path=root_path, class_type=class_type, module_name=class_meta.get('name'), arg_dict=class_meta.get('args', dict()))
 
 class GetModule:
     @staticmethod
