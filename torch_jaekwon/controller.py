@@ -11,18 +11,18 @@ import torch
 from .h_params import HParams
 from . import get_module
 from .get_module import GetModule
-from .util import util
+from .util import util, util_data
 from .path import ARTIFACTS_DIRS
 
 def run() -> None:
-    set_argparse()
+    config_dict:dict = set_argparse()
     config_name:str = HParams().mode.config_name
     stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
     util.log(f"[{stage}] {config_name} start.", msg_type='info')
-    getattr(sys.modules[__name__],stage)()
+    getattr(sys.modules[__name__],stage)(config_dict)
     util.log(f"[{stage}] {config_name} finish.", msg_type='success')
 
-def set_argparse() -> None:
+def set_argparse() -> dict:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -72,10 +72,12 @@ def set_argparse() -> None:
         value = getattr(args, h_prams_arg['arg_name'])
         if value is not None:
             setattr(getattr(HParams(), h_prams_arg['module_name']), h_prams_arg['attr_name'], value)
+    
+    config_dict = util_data.yaml_load(args.config_path)
 
-    return args
+    return config_dict
 
-def preprocess() -> None:
+def preprocess(config_dict:dict) -> None:
     from .data.preprocess.preprocessor import Preprocessor
     preprocessor_class_meta_list:list = HParams().data.preprocessor_class_meta_list
     num_workers:int = HParams().resource.num_workers
@@ -87,7 +89,7 @@ def preprocess() -> None:
         preprocessor:Preprocessor = get_module.get_module_tj(class_type='preprocessor', class_meta=preprocessor_meta)
         preprocessor.preprocess_data()                           
 
-def train() -> None:
+def train(config_dict:dict) -> None:
     import torch
     from torch_jaekwon.train.trainer.trainer import Trainer
     from torch_jaekwon.train.logger.logger import Logger
@@ -150,10 +152,10 @@ def train() -> None:
     
     trainer.fit()
 
-def inference() -> None:
+def inference(config_dict:dict) -> None:
     from torch_jaekwon.inference.inferencer import Inferencer
     
-    infer_class_meta:dict = HParams().inference.class_meta # {'name': 'Inferencer', 'args': {}}
+    infer_class_meta:dict = config_dict['inference']['class_meta']
     inferencer_args:dict = {
         'output_dir': ARTIFACTS_DIRS.inference,
         'model':  None,
@@ -179,7 +181,7 @@ def inference() -> None:
         ckpt_name = HParams().inference.ckpt_name
     )
 
-def evaluate() -> None:
+def evaluate(config_dict:dict) -> None:
     from torch_jaekwon.evaluate.evaluator.evaluator import Evaluator
     eval_class_meta:dict = HParams().evaluate.class_meta
     evaluater_class:Type[Evaluator] = GetModule.get_module_class(

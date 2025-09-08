@@ -47,7 +47,7 @@ class Inferencer():
         meta_data_list = list()
         return meta_data_list
 
-    def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> Tuple[str,str]:
+    def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> dict:
         output_dir_path: str = f'''{self.output_dir}/{self.save_dir_name}({pretrained_name})/{meta_data["test_name"]}'''
         shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
         return {'output_dir_path': output_dir_path, 'shared_output_dir_path': shared_output_dir_path}

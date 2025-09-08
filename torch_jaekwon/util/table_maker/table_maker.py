@@ -43,7 +43,7 @@ class TableMaker:
         get_item:Callable = lambda meta_data: {'item':None, 'type':None},
         get_data_name_list:Callable = None, #lambda meta_data: []
         get_file_path:Callable = None, #lambda (data_name, model_meta, ext): str
-        audio_config:dict = None,
+        audio_config:dict = dict(),
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
         if get_data_name_list is not None:
