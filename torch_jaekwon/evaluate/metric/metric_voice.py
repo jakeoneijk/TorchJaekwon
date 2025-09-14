@@ -101,7 +101,7 @@ class MetricVoice:
         return lsd_dict
     
     def get_spec_dict_of_audio(self,audio):
-        spectrogram_mag = self.util_mel.stft_torch(audio)['mag'].float()
+        spectrogram_mag = self.util_mel.stft(audio)['mag'].float()
         mel_spec = self.util_mel.spec_to_mel_spec(spectrogram_mag)
         return {'spec_mag':spectrogram_mag.squeeze().detach().cpu().numpy(), 'mel': mel_spec.squeeze().detach().cpu().numpy()}
 

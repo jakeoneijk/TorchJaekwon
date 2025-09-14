@@ -8,7 +8,7 @@ import re
 import librosa
 import numpy as np
 
-from torch_jaekwon.util import util, util_audio, util_data
+from torch_jaekwon.util import util, util_audio, util_data, util_audio_stft
 from torch_jaekwon.util.util_audio_mel import UtilAudioMelSpec
 
 LOWER_IS_BETTER_SYMBOL = "↓"
@@ -162,10 +162,10 @@ class HTMLUtil():
         html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
 
         if spec_type in ['mel', 'stft']:
-            spec:np.ndarray = self.mel_spec_util.get_hifigan_mel_spec(audio) if spec_type == 'mel' else librosa.amplitude_to_db(self.mel_spec_util.stft_torch(audio)["mag"].squeeze())
+            spec:np.ndarray = self.mel_spec_util.get_hifigan_mel_spec(audio) if spec_type == 'mel' else librosa.amplitude_to_db(self.mel_spec_util.stft(audio)["mag"].squeeze())
             if len(spec.shape) == 3: spec = spec[0]
             path_dict = self.get_media_path('img')
-            self.mel_spec_util.plot(save_path=path_dict['abs'], mel_spec=spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
+            util_audio_stft.plot(save_path=path_dict['abs'], spec=spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
             html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
         
         if spec_path is not None:
