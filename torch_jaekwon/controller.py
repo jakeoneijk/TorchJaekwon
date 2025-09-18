@@ -115,7 +115,6 @@ def train(config_dict:dict) -> None:
         'grad_accum_steps': getattr(HParams().train,'grad_accum_steps',1),
         'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
         'lr_scheduler_interval': HParams().train.scheduler['interval'],
-        'max_norm_value_for_gradient_clip': getattr(HParams().train,'max_norm_value_for_gradient_clip',None),
         # train paremeters
         'total_step': getattr(HParams().train, 'total_step', np.inf),
         'total_epoch': getattr(HParams().train, 'total_epoch', int(1e20)),

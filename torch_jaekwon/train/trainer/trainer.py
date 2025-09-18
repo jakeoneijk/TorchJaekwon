@@ -38,7 +38,7 @@ class Trainer():
         grad_accum_steps:int = 1,
         lr_scheduler_class_meta_dict:dict = None,
         lr_scheduler_interval:Literal['step','epoch'] = 'step',
-        max_norm_value_for_gradient_clip:float = None,
+        max_grad_norm:float = None,
         use_ema:bool = False,
         # train paremeters
         total_step:int = np.inf,
@@ -77,7 +77,7 @@ class Trainer():
         self.grad_accum_steps:int = grad_accum_steps
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
         self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
-        self.max_norm_value_for_gradient_clip:float = max_norm_value_for_gradient_clip
+        self.max_grad_norm:float = max_grad_norm
         self.use_ema:bool = use_ema
         self.model_ema:nn.Module = self.init_model_ema() if use_ema else None
         
@@ -447,18 +447,19 @@ class Trainer():
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
     def backprop(self,loss):
-        if self.max_norm_value_for_gradient_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_norm_value_for_gradient_clip)
-
         if self.grad_accum_steps == 1:
             self.on_before_zero_grad()
             self.optimizer.zero_grad()
             loss.backward()
+            if self.max_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             self.lr_scheduler_step(call_state='step')
         else:
             loss = loss / self.grad_accum_steps
             loss.backward()
+            if self.max_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             if (self.global_step + 1) % self.grad_accum_steps == 0:
                 self.optimizer.step()
                 self.on_before_zero_grad()

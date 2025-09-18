@@ -49,7 +49,7 @@ class TableMaker:
         if get_data_name_list is not None:
             data_name_list = get_data_name_list({'data_name_list_ref_dir': data_name_list_ref_dir})
         elif data_name_list is None and data_name_list_ref_dir is not None:
-            data_name_list = [meta['file_name'] for meta in util_data.walk(data_name_list_ref_dir)]
+            data_name_list = [meta['file_name'] for meta in util_data.walk(data_name_list_ref_dir, ext=['.wav', '.mp4'])]
             data_name_list.sort()
         html_util = HTMLUtil(output_dir=output_dir)
         html_list = list()
