@@ -3,6 +3,7 @@ import os, sys
 import psutil
 import re
 import torch
+import importlib.util
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -120,3 +121,9 @@ def norm_path(file_path:str) -> str:
 
 def make_parent_dir(file_path:str) -> None:
     os.makedirs(os.path.dirname(norm_path(file_path)), exist_ok=True)
+
+def is_package_installed(package_name: str) -> bool:
+    if importlib.util.find_spec(package_name) is not None:
+        return True
+    else:
+        return False
