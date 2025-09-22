@@ -14,7 +14,7 @@ from pathlib import Path
 from inspect import isfunction
 
 from . import util
-from ..path import relpath as torch_jaekwon_relpath
+from .. import path as tj_path
 
 def get_file_name(file_path:str, with_ext:bool = False) -> str:
     if file_path is None:
@@ -169,7 +169,7 @@ def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> li
         {
             'file_name': get_file_name(file_path = file_name), 
             'file_path':f'{dir_name}/{file_name}',
-            'source_data_relpath': torch_jaekwon_relpath(f'{dir_name}/{file_name}', start_dir_type='source_data'),
+            'source_data_relpath': tj_path.relpath(f'{dir_name}/{file_name}', start_dir_type='source_data'),
         } 
         for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext
     ]
@@ -182,15 +182,19 @@ def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
     for root, _, files in os.walk(dir_path):
         for filename in tqdm(files, desc=f'walk {root}'):
             if os.path.splitext(filename)[-1] in ext:
-                file_meta_list.append({
+                meta_data:dict = {
                     'file_name': get_file_name( file_path = filename ),
                     'file_path': f'{root}/{filename}',
                     'file_relpath': os.path.relpath(f'{root}/{filename}', dir_path),
-                    'source_data_relpath': torch_jaekwon_relpath(f'{root}/{filename}', start_dir_type='source_data'),
                     'dir_name': get_file_name(root),
                     'dir_path': root,
                     'dir_path_relative': os.path.relpath(root, dir_path),
-                })
+                }
+                for start_dir_type, start_dir_path in tj_path.START_DIR_MAP.items():
+                    rel_path = tj_path.relpath(f'{root}/{filename}', start_dir_path=start_dir_path)
+                    if rel_path is not None:
+                        meta_data[f'{start_dir_type}_relpath'] = rel_path
+                file_meta_list.append(meta_data)
     return file_meta_list
 
 def get_dir_name_list(root_dir:str) -> list:
