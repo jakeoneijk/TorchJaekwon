@@ -1,1 +1,1 @@
-ps -eo cmd | grep main.py | grep -v grep | sort | uniq | sed G
+ps -eo pid,cmd | grep main.py | grep -v grep | sort | uniq | sed G
