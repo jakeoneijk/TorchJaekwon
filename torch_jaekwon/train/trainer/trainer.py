@@ -437,8 +437,9 @@ class Trainer():
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
 
         if train_state == TrainState.TRAIN or train_state == None:
-            self.save_checkpoint()
-            self.save_checkpoint("train_checkpoint_backup.pth")
+            checkpoint_path:str = self.save_checkpoint()
+            util.cp(checkpoint_path, checkpoint_path.replace(".pth", "_backup.pth"))
+
         if is_log_media:
             with torch.no_grad():
                 self.log_media()
@@ -529,7 +530,7 @@ class Trainer():
                 else:
                     self.lr_scheduler.step()
     
-    def save_checkpoint(self,save_name:str = 'train_checkpoint.pth'):
+    def save_checkpoint(self,save_name:str = 'train_checkpoint.pth') -> str:
         train_state = {
             'epoch': self.current_epoch,
             'step': self.global_step,
@@ -549,6 +550,7 @@ class Trainer():
         path = os.path.join(self.logger.log_path["root"],save_name)
         self.logger.print_and_log(save_name)
         torch.save(train_state,path)
+        return path
     
     def get_state_dict(self, module:Union[dict, nn.Module]) -> Union[dict, nn.Module]:
         if hasattr(module, 'state_dict'):
