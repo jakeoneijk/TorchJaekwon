@@ -328,7 +328,7 @@ class Trainer():
                 module_name = subset_meta_dict['dataset_class_meta']["name"],
                 arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
-            data_loader_args:dict = {'dataset': dataset, **subset_meta_dict['args']}
+            data_loader_args:dict = {'dataset': dataset, 'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
                 collater_class:type = GetModule.get_module_class(
                     class_type='pytorch_dataset',
