@@ -16,7 +16,7 @@ class BalancedMultiDataset(IterableDataset):
         self.data_list_dict[self.data_name_list_key] = list(self.data_list_dict.keys())
         self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
         
-        self.idx_dict = {data_name: 0 for data_name in self.data_list_dict}
+        self.idx_dict = {data_name: -1 for data_name in self.data_list_dict}
         self.idx_dict[self.data_name_list_key] = -1 # it will start from 0 by adding 1
 
         self.sampling_schedule_dict = sampling_schedule_dict if sampling_schedule_dict is not None else {data_name: 1 for data_name in self.data_list_dict[self.data_name_list_key]}
