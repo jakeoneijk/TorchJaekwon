@@ -37,7 +37,7 @@ class BalancedMultiDataset(IterableDataset):
         assert worker_id == worker_info.id and worker_id < worker_info.num_workers, "worker_id should be same with worker_info.id"
         num_workers:int = worker_info.num_workers
         dataset = worker_info.dataset
-        for dataset_name in [dataset_name for dataset_name in dataset.data_list_dict.keys() if dataset_name != dataset.data_name_key]:
+        for dataset_name in [dataset_name for dataset_name in dataset.data_list_dict.keys() if dataset_name != dataset.data_name_list_key]:
             dataset.data_list_dict[dataset_name] = dataset.data_list_dict[dataset_name][worker_id::num_workers]
             assert len(dataset.data_list_dict[dataset_name]) > 0, f"Each worker should have at least one data. Please set num_workers <= {len(dataset.data_list_dict[dataset_name])}"
     
