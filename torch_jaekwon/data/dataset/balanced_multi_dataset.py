@@ -12,20 +12,20 @@ class BalancedMultiDataset(IterableDataset):
         is_random_seed_per_dataset:bool = True,
     ) -> None:
         self.data_list_dict: Dict[str,list] = self.init_data_list_dict() # {data_type1: List, data_type2: List}
-        self.data_name_key:str = 'data_name'
-        self.data_list_dict[self.data_name_key] = list(self.data_list_dict.keys())
+        self.data_name_list_key:str = 'data_name'
+        self.data_list_dict[self.data_name_list_key] = list(self.data_list_dict.keys())
         self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
         
         self.idx_dict = {data_name: 0 for data_name in self.data_list_dict}
-        self.idx_dict[self.data_name_key] = -1 # it will start from 0 by adding 1
+        self.idx_dict[self.data_name_list_key] = -1 # it will start from 0 by adding 1
 
-        self.sampling_schedule_dict = sampling_schedule_dict if sampling_schedule_dict is not None else {data_name: 1 for data_name in self.data_list_dict[self.data_name_key]}
+        self.sampling_schedule_dict = sampling_schedule_dict if sampling_schedule_dict is not None else {data_name: 1 for data_name in self.data_list_dict[self.data_name_list_key]}
 
         self.random_state_dict = dict()
-        self.random_state_dict[self.data_name_key] = np.random.RandomState(random_seed)
-        self.random_state_dict[self.data_name_key].shuffle(self.data_list_dict[self.data_name_key])
+        self.random_state_dict[self.data_name_list_key] = np.random.RandomState(random_seed)
+        self.random_state_dict[self.data_name_list_key].shuffle(self.data_list_dict[self.data_name_list_key])
 
-        for data_name in self.data_list_dict[self.data_name_key]:
+        for data_name in self.data_list_dict[self.data_name_list_key]:
             self.random_state_dict[data_name] = np.random.RandomState(np.random.RandomState(random_seed).randint(low=0, high=10000) if is_random_seed_per_dataset else random_seed)
             self.random_state_dict[data_name].shuffle(self.data_list_dict[data_name])
             print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
@@ -57,7 +57,7 @@ class BalancedMultiDataset(IterableDataset):
 
     def __iter__(self):
         while True:
-            data_name:str = self.get_value(self.data_name_key)
+            data_name:str = self.get_value(self.data_name_list_key)
             for _ in range(self.sampling_schedule_dict[data_name]):
                 meta_data = self.get_value(data_name)
                 data = self.read_data(meta_data)
