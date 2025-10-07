@@ -63,10 +63,13 @@ def abspath(
     abs_path:str = f'{start_dir_path_abs}/{file_path}'
     return abs_path
 
-def abspath_search(file_path:str, strict:bool = True) -> Union[str, list]:
+def abspath_search(file_path:str, start_dir_path_list:list = None, strict:bool = True) -> Union[str, list]:
     if not file_path or not isinstance(file_path, str): return file_path
+    
     file_path_list = list()
-    for start_dir_path in list(START_DIR_MAP.values()) + list(asdict(ARTIFACTS_DIRS).values()):
+    if start_dir_path_list is None:
+        start_dir_path_list = list(START_DIR_MAP.values()) + list(asdict(ARTIFACTS_DIRS).values())
+    for start_dir_path in start_dir_path_list:
         file_abspath = abspath(file_path, start_dir_path=start_dir_path)
         if os.path.exists(file_abspath): file_path_list.append(file_abspath)
     
