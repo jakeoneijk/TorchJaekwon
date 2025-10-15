@@ -97,7 +97,7 @@ def cp(src_path:str, dst_path:str, inside_dir:bool = False) -> None:
         system(f"cp '{src_path}' '{dst_path}'")
 
 def wget(link:str, save_path:str = None, save_dir:str = None) -> None:
-    command:str = f'wget {link}'
+    command:str = f'wget -c -t 0 --retry-connrefused --waitretry=5 {link}'
     if save_path is not None:
         make_parent_dir(save_path)
         command += f' -O {save_path}'
