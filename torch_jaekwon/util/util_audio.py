@@ -88,7 +88,7 @@ def read(
     # segment parameters
     start:Optional[int] = None,
     end:Optional[int] = None,
-    segment_type:Literal['time','sample'] = 'sample',
+    segment_type:Literal['time','sample'] = 'time',
     origin_sample_rate:Optional[int] = None,
     # module parameters
     module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',

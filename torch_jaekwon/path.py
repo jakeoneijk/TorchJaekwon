@@ -18,6 +18,9 @@ elif SOURCE_DATA_DIR.startswith('{'):
 else:
     START_DIR_MAP['source_data'] = SOURCE_DATA_DIR
 
+def get_source_data_key_list() -> list:
+    return [key for key in START_DIR_MAP.keys() if key.startswith('source_data')]
+
 @dataclass
 class ClassDirs:
     dataset_manager:str = 'data/dataset_manager'

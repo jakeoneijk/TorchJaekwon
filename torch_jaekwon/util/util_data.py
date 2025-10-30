@@ -26,6 +26,14 @@ def get_file_name(file_path:str, with_ext:bool = False) -> str:
     else:
         return path_pathlib.stem
 
+def dict_get_first(d: dict, keys: list, default=None):
+    """Return the value for the first existing key in keys, or default if none exist."""
+    for k in keys:
+        if k in d:
+            return d[k]
+    return default
+
+
 def pickle_save(save_path:str, data:Union[ndarray,Tensor]) -> None:
     if not (os.path.splitext(save_path)[1] == ".pkl"):
         print("file extension should be '.pkl'")

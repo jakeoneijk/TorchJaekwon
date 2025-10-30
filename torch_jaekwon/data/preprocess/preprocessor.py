@@ -32,7 +32,8 @@ class Preprocessor():
         meta_data_param_list = list().
         you may want to set output path to each meta_data
         '''
-        raise NotImplementedError
+        for dataset_name, dataset_manager in self.dataset_manager_dict.items():
+            raise NotImplementedError
     
     def preprocess_one_data(self, param:dict) -> None:
         '''
