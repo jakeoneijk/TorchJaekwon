@@ -83,10 +83,11 @@ def abspath_search(file_path:str, start_dir_path_list:list = None, strict:bool =
         if strict: raise FileNotFoundError(f'Multiple files found: {file_path}, found: {file_path_list}')
         return file_path_list
 
-def abspaths(file_paths: list|dict) -> list|dict:
+def abspaths(file_paths: list|dict, include_key_filter:str = 'path') -> list|dict:
     if isinstance(file_paths, list):
         return [abspath_search(file_path) if isinstance(file_path, str) else file_path for file_path in file_paths]
     elif isinstance(file_paths, dict):
-        return {key: abspath_search(value) if isinstance(value, str) else value for key, value in file_paths.items()}
+        is_search = lambda key,value: isinstance(value, str) and (include_key_filter is None or include_key_filter in key)
+        return {key: abspath_search(value) if is_search(key,value) else value for key, value in file_paths.items()}
     else:
         raise ValueError(f'file_paths should be list or dict, but got {type(file_paths)}')

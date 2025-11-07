@@ -1,9 +1,9 @@
-from datetime import timedelta
-import os
-from tqdm import tqdm
 import torch
-import torch.distributed as distributed
 from torch.utils.data.dataset import Dataset
+
+from datetime import timedelta
+from tqdm import tqdm
+import torch.distributed as distributed
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
@@ -35,6 +35,10 @@ class TorchrunPreprocessor():
         distributed.init_process_group(backend="nccl", timeout=timedelta(hours=1))
         torch.cuda.set_device(util_torch_distributed.local_rank())
     
+    # ==========================
+    # Methods to Override (Start)
+    # ==========================
+    
     def get_dataset(self) -> Dataset:
         '''
         Returns the dataset for the preprocessor.
@@ -51,6 +55,10 @@ class TorchrunPreprocessor():
 
     def final_process(self) -> None:
         util.log("Finish preprocess", msg_type='success')
+    
+    # ==========================
+    # Methods to Override (End)
+    # ==========================
 
     def preprocess_data(self) -> None:
         dataset:Dataset = self.get_dataset()
@@ -77,6 +85,9 @@ class TorchrunPreprocessor():
 class ExampleDataset(Dataset):
     def __init__(self, meta_data_list:list) -> None:
         self.meta_data_list:list = meta_data_list
+    
+    def __len__(self):
+        return len(self.meta_data_list)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         meta_data:dict = self.meta_data_list[idx]
@@ -85,8 +96,3 @@ class ExampleDataset(Dataset):
         except Exception as e:
             util.log(f"Error reading file {meta_data}: {e}", msg_type='error')
             return None
-        
-
-    def __len__(self):
-        return len(self.meta_data_list)
-
