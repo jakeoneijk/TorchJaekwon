@@ -182,13 +182,13 @@ def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> li
         for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext
     ]
     
-def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac']) -> list:
+def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac'], use_tqdm: bool = True) -> list:
     if isinstance(ext, str): ext = [ext]
     ext = [e if e.startswith('.') else f'.{e}' for e in ext]
     dir_path = dir_path.replace('//','/')
     file_meta_list:list = list()
     for root, _, files in os.walk(dir_path):
-        for filename in tqdm(files, desc=f'walk {root}'):
+        for filename in tqdm(files, desc=f'walk {root}') if use_tqdm else files:
             if os.path.splitext(filename)[-1] in ext:
                 meta_data:dict = {
                     'file_name': get_file_name( file_path = filename ),

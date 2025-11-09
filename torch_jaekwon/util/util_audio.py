@@ -271,7 +271,7 @@ def merge_batch_w_cross_fade(
     return output_audio
 
 
-def analyze_audio_dataset(
+def analyze_dataset(
     data_dir_list:Union[str, list], 
     result_save_dir:str = './meta',
     sanity_check_sr:Union[int,List[int]] = None,
@@ -297,7 +297,7 @@ def analyze_audio_dataset(
         }
         if sanity_check_sr is not None: result_meta_dict[dir_name]['sample_rate'] = sanity_check_sr
         
-        audio_meta_data_list = util_data.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
+        audio_meta_data_list = util_data.walk(dir_path=data_dir, ext=['.wav', '.mp3', '.flac'])
         for meta_data in tqdm(audio_meta_data_list):
             try:
                 audio, sr = read(meta_data['file_path'], mono=True)

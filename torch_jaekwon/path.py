@@ -1,4 +1,4 @@
-from typing import Literal, Union
+from typing import Literal, Union, Literal
 import os
 import torch_jaekwon
 from dataclasses import dataclass, asdict
@@ -21,17 +21,28 @@ else:
 def get_source_data_key_list() -> list:
     return [key for key in START_DIR_MAP.keys() if key.startswith('source_data')]
 
+ClassDirKey = Literal[
+    'dataset_manager',
+    'preprocessor',
+    'model',
+    'trainer',
+    'pytorch_dataset',
+    'lr_scheduler',
+    'loss',
+    'inferencer',
+    'evaluator',
+]
 @dataclass
 class ClassDirs:
     dataset_manager:str = 'data/dataset_manager'
-    preprocessor:str = './data/preprocess'
-    model:str = './model'
-    trainer:str = './train/trainer'
-    pytorch_dataset:str = './data/dataset'
-    lr_scheduler:str = './train/optimizer/scheduler'
-    loss:str = './train/loss'
-    inferencer:str = './inference'
-    evaluator:str = './evaluate/evaluator'
+    preprocessor:str = 'data/preprocess'
+    model:str = 'model'
+    trainer:str = 'train/trainer'
+    pytorch_dataset:str = 'data/dataset'
+    lr_scheduler:str = 'train/optimizer/scheduler'
+    loss:str = 'train/loss'
+    inferencer:str = 'inference'
+    evaluator:str = 'evaluate/evaluator'
 CLASS_DIRS:dict = ClassDirs()
 
 @dataclass

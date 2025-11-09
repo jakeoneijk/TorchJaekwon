@@ -3,11 +3,11 @@ from typing import Literal, Callable, Union
 import os
 import importlib
 
-from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS
+from torch_jaekwon.path import TORCH_JAEKWON_PATH, CLASS_DIRS, ClassDirKey
 
 def get_module_tj(
     root_path:str = None, # if class_type is not None, don't need to input root_path
-    class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
+    class_type:ClassDirKey = None,
     class_meta:dict = dict()
 ) -> Callable:
     if 'name' not in class_meta and isinstance(class_meta, dict):
@@ -19,7 +19,7 @@ class GetModule:
     @staticmethod
     def get_module(
         root_path:str = None, # if class_type is not None, don't need to input root_path
-        class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
+        class_type:ClassDirKey = None,
         module_name:tuple = None,
         arg_dict:dict = dict(),
     ) -> Callable:
@@ -30,7 +30,7 @@ class GetModule:
     @staticmethod
     def get_module_class(
         root_path:str = None, # if class_type is not None, don't need to input root_path
-        class_type:Literal['preprocessor', 'model', 'trainer', 'pytorch_dataset', 'lr_scheduler', 'loss', 'inferencer', 'evaluator'] = None,
+        class_type:ClassDirKey = None,
         module_name:Union[str,tuple] = None, # if str: module_name==file_name==class_name. if tuple: module_name[0]==file_name, module_name[1]==class_name
     ) -> type:
         if class_type is not None:
