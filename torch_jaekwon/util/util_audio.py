@@ -94,7 +94,8 @@ def read(
     module_name:Literal['soundfile','librosa', 'torchaudio'] = 'torchaudio',
 ) -> Union[ndarray, Tensor]: # shape=(channel, num_samples)
     # error check
-    if segment_type == 'time': assert (start is None and end is None) or (origin_sample_rate is not None), f'[Error] origin_sample_rate must be given when segment_type is time'
+    if segment_type == 'time' and [start, end] != [None, None] and origin_sample_rate is None: 
+        origin_sample_rate = sf.info(audio_path).samplerate
     if start is not None: assert module_name == 'torchaudio', f'[Error] currently only torchaudio module supports start and end parameter'
     
     if module_name == "soundfile":

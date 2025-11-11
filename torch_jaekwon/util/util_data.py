@@ -33,6 +33,8 @@ def dict_get_first(d: dict, keys: list, default=None):
             return d[k]
     return default
 
+def dict_get_first_relpath(data_dict:dict) -> str:
+    return dict_get_first(data_dict, [f'{key}_relpath' for key in tj_path.START_DIR_MAP.keys()])
 
 def pickle_save(save_path:str, data:Union[ndarray,Tensor]) -> None:
     if not (os.path.splitext(save_path)[1] == ".pkl"):

@@ -98,7 +98,7 @@ def abspaths(file_paths: list|dict, include_key_filter:str = 'path') -> list|dic
     if isinstance(file_paths, list):
         return [abspath_search(file_path) if isinstance(file_path, str) else file_path for file_path in file_paths]
     elif isinstance(file_paths, dict):
-        is_search = lambda key,value: isinstance(value, str) and (include_key_filter is None or include_key_filter in key)
+        is_search = lambda key,value: isinstance(value, str) and value not in ['.'] and (include_key_filter is None or include_key_filter in key)
         return {key: abspath_search(value) if is_search(key,value) else value for key, value in file_paths.items()}
     else:
         raise ValueError(f'file_paths should be list or dict, but got {type(file_paths)}')
