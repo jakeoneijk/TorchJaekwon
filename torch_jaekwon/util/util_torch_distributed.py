@@ -1,8 +1,20 @@
-from typing import Dict
+from typing import Union
 import os
-from torch.utils.data.dataset import Dataset
+from datetime import timedelta
+import torch
+import torch.nn as nn
+from torch.utils.data import IterableDataset
+import torch.distributed as distributed
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+def torchrun_setup() -> None:
+    torch.cuda.set_device(local_rank())
+    distributed.init_process_group(backend="nccl", timeout=timedelta(hours=2))
+
+def is_available() -> bool:
+    return distributed.is_initialized() and distributed.is_available()
 
 def local_rank() -> int:
     local_rank:int = int(os.environ.get('LOCAL_RANK', 0))
@@ -15,7 +27,25 @@ def world_size() -> int:
 def is_main_process() -> bool:
     return local_rank() == 0
 
+def barrier() -> None:
+    distributed.barrier()
+
+def model_to_ddp(model:Union[nn.Module, dict], gpu_id:int = 0) -> None:
+    if isinstance(model, dict):
+        for model_name in model:
+            model[model_name] = model_to_ddp(model[model_name], gpu_id)
+        return model
+    else:
+        model = DDP(model, device_ids=[gpu_id])
+        return model
+
 def get_dataloader(dataloader_args:dict, shuffle:bool = True) -> DataLoader:
     dataset = dataloader_args['dataset']
-    dataloader_args['sampler'] = DistributedSampler(dataset, rank=local_rank(), shuffle=shuffle)
+    if not isinstance(dataset, IterableDataset):
+        dataloader_args.pop("shuffle", None)
+        dataloader_args['sampler'] = DistributedSampler(dataset, rank=local_rank(), shuffle=shuffle)
     return DataLoader(**dataloader_args)
+
+def finish() -> None:
+    distributed.barrier()
+    distributed.destroy_process_group()

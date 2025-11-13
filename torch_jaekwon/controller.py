@@ -128,7 +128,6 @@ def train(config_dict:dict) -> None:
         'start_logging_epoch': getattr(HParams().log, 'start_logging_epoch', 0),
         # resource
         'device': HParams().resource.device,
-        'multi_gpu': getattr(HParams().resource, 'multi_gpu', False),
         # additional
         'check_evalstep_first': getattr(HParams().train,'check_evalstep_first',False),
         'debug_mode': getattr(HParams().mode, 'debug_mode', False),

@@ -7,7 +7,9 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.utils.data.dataset as dataset
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
 try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
@@ -26,10 +28,12 @@ class TrainState(Enum):
 class Trainer():
     def __init__(
         self,
+        # resource
+        device:Union[torch.device, int] = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         # data
-        data_class_meta_dict:dict,
+        data_class_meta_dict:dict = None,
         # model
-        model_class_meta_dict:dict, #{name:[file_name, class_name], args: {}}
+        model_class_meta_dict:dict = None, #{name:[file_name, class_name], args: {}}
         model_ckpt_path:str = None,
         # loss
         loss_meta_dict:dict = None,
@@ -51,23 +55,19 @@ class Trainer():
         save_model_epoch_interval:int = 1,
         log_step_interval:int = 100,
         start_logging_epoch:int = 0,
-        # resource
-        device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-        multi_gpu:bool = False,
         # additional
         check_evalstep_first:bool = False,
         debug_mode:bool = False,
         use_torch_compile:bool = True
     ) -> None:
+        # resource
+        self.device:Union[torch.device, int] = device
+
         # data
         self.data_loader_dict:dict = self.set_data_loader(data_class_meta_dict)
 
         # model
-        self.model:Union[nn.Module, list, dict] = self.init_model(model_class_meta_dict, debug_mode=debug_mode, use_torch_compile=use_torch_compile)
-        if model_ckpt_path is not None:
-            ckpt:dict = torch.load(model_ckpt_path, map_location='cpu')
-            self.model = self.load_state_dict(self.model, ckpt, is_model=True)
-        self.model_to_device(self.model, device=device)
+        self.model:Union[nn.Module, list, dict] = self.init_model(model_class_meta_dict = model_class_meta_dict, model_ckpt_path=model_ckpt_path, use_torch_compile=use_torch_compile, debug_mode=debug_mode)
 
         # loss
         self.loss_fn_dict:dict = self.init_loss(loss_meta_dict)
@@ -76,10 +76,10 @@ class Trainer():
         self.optimizer:torch.optim.Optimizer = self.init_optimizer(optimizer_class_meta_dict)
         self.grad_accum_steps:int = grad_accum_steps
         self.lr_scheduler_interval:Literal['step','epoch'] = lr_scheduler_interval
-        self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict) if lr_scheduler_class_meta_dict is not None else None
+        self.lr_scheduler:torch.optim.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict)
         self.max_grad_norm:float = max_grad_norm
         self.use_ema:bool = use_ema
-        self.model_ema:nn.Module = self.init_model_ema() if use_ema else None
+        self.model_ema:nn.Module = self.get_model_ema() if use_ema else None
         
         # train paremeters
         self.total_step:int = total_step
@@ -98,10 +98,6 @@ class Trainer():
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
         self.start_logging_epoch:int = start_logging_epoch
-
-        # resource
-        self.device:torch.device = device
-        self.multi_gpu:bool = multi_gpu
 
         # additional
         self.check_evalstep_first:bool = check_evalstep_first
@@ -200,7 +196,7 @@ class Trainer():
         random.seed(seed)
         os.environ["PYTHONHASHSEED"] = str(seed)
     
-    def init_model_ema(self) -> nn.Module:
+    def get_model_ema(self) -> nn.Module:
         model_ema = EMA(
             self.model,
             beta=0.9999,
@@ -211,13 +207,21 @@ class Trainer():
         )
         model_ema = model_ema.to(self.device)
         return model_ema
+    
+    def init_model(self, model_class_meta_dict:dict, model_ckpt_path:str, use_torch_compile:bool, debug_mode:bool) -> Union[nn.Module, list, dict]:
+        self.model:Union[nn.Module, list, dict] = self.get_model(model_class_meta_dict, debug_mode=debug_mode, use_torch_compile=use_torch_compile)
+        if model_ckpt_path is not None:
+            ckpt:dict = torch.load(model_ckpt_path, map_location='cpu')
+            self.model = self.load_state_dict(self.model, ckpt, is_model=True)
+        self.model_to_device(self.model, device=self.device)
+        return self.model
 
-    def init_model(self, model_class_meta_dict:Union[list, dict], debug_mode:bool = False, use_torch_compile:bool = True) -> None:
+    def get_model(self, model_class_meta_dict:Union[list, dict], debug_mode:bool = False, use_torch_compile:bool = True) -> None:
         model_class_name = model_class_meta_dict.get('name', None)
         if model_class_name is None:
             model = dict()
-            for name in model_class_name:
-                model[name] = self.init_model(model_class_name[name])
+            for name in model_class_meta_dict:
+                model[name] = self.get_model(model_class_meta_dict[name], debug_mode=debug_mode, use_torch_compile=use_torch_compile)
         else:
             model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_name)
             model:nn.Module = model_class(**model_class_meta_dict['args'])
@@ -225,7 +229,8 @@ class Trainer():
                 model = torch.compile(model)
         return model
     
-    def init_optimizer(self, optimizer_class_meta_dict:dict) -> None:
+    def init_optimizer(self, optimizer_class_meta_dict:dict) -> torch.optim.Optimizer:
+        if optimizer_class_meta_dict is None: return None
         optimizer_class_name = optimizer_class_meta_dict.get('name',None)
         if optimizer_class_name is None:
             optimizer = dict()
@@ -261,6 +266,7 @@ class Trainer():
         return params
 
     def init_lr_scheduler(self, optimizer, lr_scheduler_class_meta_dict) -> None:
+        if lr_scheduler_class_meta_dict is None: return None
         if isinstance(optimizer, dict):
             lr_scheduler = dict()
             for key in optimizer:
@@ -303,9 +309,10 @@ class Trainer():
     def model_to_device(self, model:Union[nn.Module, dict], device = None) -> None:
         if isinstance(model, dict):
             for model_name in model:
-                self.model_to_device(model[model_name])
+                model[model_name] = self.model_to_device(model[model_name], device)
         else:
             model = model.to(device if device is not None else self.device)
+        return model
 
     def data_dict_to_device(self,data_dict:dict) -> dict:
         for feature_name in data_dict:
@@ -328,7 +335,7 @@ class Trainer():
                 module_name = subset_meta_dict['dataset_class_meta']["name"],
                 arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
-            data_loader_args:dict = {'dataset': dataset, 'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
+            data_loader_args:dict = {'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
                 collater_class:type = GetModule.get_module_class(
                     class_type='pytorch_dataset',
@@ -336,8 +343,11 @@ class Trainer():
                 )
                 collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
                 data_loader_args['collate_fn'] = collater
-            data_loader_dict[subset_name] = DataLoader(**data_loader_args)
+            data_loader_dict[subset_name] = self.get_data_loader(dataset, data_loader_args, subset_name)
         return data_loader_dict
+    
+    def get_data_loader(self, dataset:dataset.Dataset, data_loader_args:dict, subset_name:Literal['train','valid','test']) -> DataLoader:
+        return DataLoader(dataset=dataset, **data_loader_args)
     
     def fit(self) -> None:
         if self.check_evalstep_first:
@@ -438,7 +448,8 @@ class Trainer():
 
         if train_state == TrainState.TRAIN or train_state == None:
             checkpoint_path:str = self.save_checkpoint()
-            util.cp(checkpoint_path, checkpoint_path.replace(".pth", "_backup.pth"))
+            if checkpoint_path is not None:
+                util.cp(checkpoint_path, checkpoint_path.replace(".pth", "_backup.pth"))
 
         if is_log_media:
             with torch.no_grad():
@@ -488,15 +499,13 @@ class Trainer():
         metric[loss_name].update(loss.item(),batch_size)
         return metric
 
-    def save_module(self, model, model_name = '', name = 'pretrained_best_epoch'):
+    def save_module(self, model, model_name = '', name = 'pretrained_best_epoch') -> None:
         if isinstance(model, dict):
             for model_type in model:
                 self.save_module(model[model_type], model_name + f'{model_type}_', name)
         else:
             path = os.path.join(self.logger.log_path["root"],f'{model_name}{name}.pth')
-            if self.multi_gpu:
-                state_dict = model.module.state_dict()
-            elif self.model_ema is not None:
+            if self.model_ema is not None:
                 state_dict = self.model_ema.ema_model.state_dict()
             else:
                 state_dict = model.state_dict()
@@ -530,7 +539,7 @@ class Trainer():
                 else:
                     self.lr_scheduler.step()
     
-    def save_checkpoint(self,save_name:str = 'train_checkpoint.pth') -> str:
+    def save_checkpoint(self, save_name:str = 'train_checkpoint.pth') -> str:
         train_state = {
             'epoch': self.current_epoch,
             'step': self.global_step,
@@ -564,7 +573,10 @@ class Trainer():
             raise ValueError(f'Cannot get state_dict from {module}')
     
     def load_state_dict(self, module:Union[dict, nn.Module], state_dict:dict, is_model:bool = False) -> Union[dict, nn.Module]:
-        if hasattr(module, 'load_state_dict'):
+        if isinstance(module, DDP):
+            module.module = util_torch.load_model(module.module, state_dict)
+            return module
+        elif hasattr(module, 'load_state_dict'):
             if is_model:
                 module = util_torch.load_model(module, state_dict)
             else:
@@ -572,28 +584,31 @@ class Trainer():
             return module
         elif isinstance(module, dict):
             for key in module:
-                module[key] = self.load_state_dict(module[key], state_dict[key])
+                module[key] = self.load_state_dict(module[key], state_dict[key], is_model)
             return module
         else:
             raise ValueError(f'Cannot load state_dict to {module}')
 
-    def load_train(self, filename:str) -> None:
+    def load_train(self, filename:str, map_location:str = 'cpu') -> None:
         self.logger.print_and_log(f'load train from {filename}')
-        cpt:dict = torch.load(filename,map_location='cpu')
+        cpt:dict = torch.load(filename,map_location=map_location)
         self.seed = cpt['seed']
-        self.set_seeds(self.seed_strict)
+        self.set_seeds(self.seed, self.seed_strict)
         self.current_epoch = cpt['epoch']
         self.global_step = cpt['step']
 
-        self.model_to_device(self.model, torch.device('cpu'))
+        if map_location == 'cpu':
+            self.model_to_device(self.model, torch.device('cpu'))
         self.model = self.load_state_dict(self.model, cpt['model'], is_model=True)  
-        self.model_to_device(self.model)
+        if map_location == 'cpu':
+            self.model_to_device(self.model)
         if self.use_ema:
             self.model_ema = self.load_state_dict(self.model_ema, cpt['model_ema'])
-            self.model_to_device(self.model_ema)
+            if map_location == 'cpu':
+                self.model_to_device(self.model_ema)
 
         self.optimizer = self.load_state_dict(self.optimizer, cpt['optimizers'])
         if self.lr_scheduler is not None:
             self.lr_scheduler = self.load_state_dict(self.lr_scheduler, cpt['lr_scheduler'])
-        self.best_valid_result = cpt['best_metric']
+        self.best_valid_metric = cpt['best_metric']
         self.best_valid_epoch = cpt['best_model_epoch']

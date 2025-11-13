@@ -1,9 +1,7 @@
 import torch
 from torch.utils.data.dataset import Dataset
 
-from datetime import timedelta
 from tqdm import tqdm
-import torch.distributed as distributed
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
@@ -32,8 +30,7 @@ class TorchrunPreprocessor():
         self.root_dir:str = root_dir
         self.batch_size:int = batch_size
         self.num_workers:int = num_workers
-        distributed.init_process_group(backend="nccl", timeout=timedelta(hours=1))
-        torch.cuda.set_device(util_torch_distributed.local_rank())
+        util_torch_distributed.torchrun_setup()
     
     # ==========================
     # Methods to Override (Start)
@@ -77,10 +74,10 @@ class TorchrunPreprocessor():
         for data in tqdm(dataloader):
             if data is None: continue
             self.preprocess_batch(data)
-        distributed.barrier()
+        util_torch_distributed.barrier()
         if util_torch_distributed.is_main_process():
             self.final_process()
-        distributed.destroy_process_group()
+        util_torch_distributed.finish()
 
 class ExampleDataset(Dataset):
     def __init__(self, meta_data_list:list) -> None:

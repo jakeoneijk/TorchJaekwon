@@ -3,6 +3,7 @@ from typing import Dict
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
+from ...util import util_torch_distributed
 
 class BalancedMultiDataset(IterableDataset):
     def __init__(
@@ -10,11 +11,17 @@ class BalancedMultiDataset(IterableDataset):
         sampling_schedule_dict:dict = None, # {'data1': 10, 'data2': 2}
         random_seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
         is_random_seed_per_dataset:bool = True,
+        is_distributed: bool = False,
     ) -> None:
         self.data_list_dict: Dict[str,list] = self.init_data_list_dict() # {data_type1: List, data_type2: List}
+        if not is_distributed or util_torch_distributed.is_main_process():
+            for data_name in self.data_list_dict: 
+                print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
+        self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
+
+        self.distributed_shard_data(is_distributed)
         self.data_name_list_key:str = 'data_name'
         self.data_list_dict[self.data_name_list_key] = list(self.data_list_dict.keys())
-        self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
         
         self.idx_dict = {data_name: -1 for data_name in self.data_list_dict}
         self.idx_dict[self.data_name_list_key] = -1 # it will start from 0 by adding 1
@@ -28,7 +35,17 @@ class BalancedMultiDataset(IterableDataset):
         for data_name in self.data_list_dict[self.data_name_list_key]:
             self.random_state_dict[data_name] = np.random.RandomState(np.random.RandomState(random_seed).randint(low=0, high=10000) if is_random_seed_per_dataset else random_seed)
             self.random_state_dict[data_name].shuffle(self.data_list_dict[data_name])
-            print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
+    
+    def distributed_shard_data(self, is_distributed: bool = False) -> None:
+        if not is_distributed:
+            return
+        if not util_torch_distributed.is_available():
+            raise RuntimeError("Distributed environment is not initialized. Please call util_torch_distributed.torchrun_setup() before using distributed sharding.")
+        local_rank = util_torch_distributed.local_rank()
+        world_size = util_torch_distributed.world_size()
+        for data_name in self.data_list_dict: 
+            self.data_list_dict[data_name] = self.data_list_dict[data_name][local_rank::world_size]
+            assert len(self.data_list_dict[data_name]) > 0, (f"[Rank {local_rank}] got empty shard for dataset '{data_name}'. Try reducing world_size or check dataset size.")
     
     @staticmethod
     def worker_init_fn(worker_id:int) -> None:

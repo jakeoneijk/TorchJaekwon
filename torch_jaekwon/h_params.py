@@ -18,7 +18,6 @@ class Mode:
 
 @dataclass
 class Resource:
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_workers:int = 1
 
 @dataclass
