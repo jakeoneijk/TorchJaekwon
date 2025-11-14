@@ -14,7 +14,7 @@ try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
 from ...get_module import GetModule
-from ...util import util, util_data, util_torch
+from ...util import util, util_data, util_torch, util_torch_distributed
 from ..logger.logger import Logger
 from ..average_meter import AverageMeter
 #internal import
@@ -174,15 +174,16 @@ class Trainer():
 
         log:str = f'Epoch ({train_state.value}): {self.current_epoch:03} ({self.local_step}/{data_size}) global_step: {self.global_step} lr: {self.get_current_lr(self.optimizer)}\n'
         
-        for metric_name in metrics:
-            val:float = metrics[metric_name].avg
-            log += f' {metric_name}: {val:.06f}'
-            self.logger.visualizer_log(
-                x_axis_name=x_axis_name,
-                x_axis_value=x_axis_value,
-                y_axis_name=f'{train_state.value}/{metric_name}',
-                y_axis_value=val
-            )
+        if util_torch_distributed.is_main_process():
+            for metric_name in metrics:
+                val:float = metrics[metric_name].avg
+                log += f' {metric_name}: {val:.06f}'
+                self.logger.visualizer_log(
+                    x_axis_name=x_axis_name,
+                    x_axis_value=x_axis_value,
+                    y_axis_name=f'{train_state.value}/{metric_name}',
+                    y_axis_value=val
+                )
         self.logger.print_and_log(log)
 
     def set_seeds(self, seed:float, strict=False) -> None:
@@ -357,12 +358,13 @@ class Trainer():
                 self.log_current_state()
                 
         for _ in range(self.current_epoch, self.total_epoch):
-            self.logger.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.total_epoch} -----------------------')
-            self.logger.print_and_log(f'current best epoch: {self.best_valid_epoch}')
-            if self.best_valid_metric is not None:
-                for loss_name in self.best_valid_metric:
-                    self.logger.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
-            self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
+            if util_torch_distributed.is_main_process():
+                self.logger.print_and_log(f'----------------------- Start epoch : {self.current_epoch} / {self.total_epoch} -----------------------')
+                self.logger.print_and_log(f'current best epoch: {self.best_valid_epoch}')
+                if self.best_valid_metric is not None:
+                    for loss_name in self.best_valid_metric:
+                        self.logger.print_and_log(f'{loss_name}: {self.best_valid_metric[loss_name].avg}')
+                self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
             #Train
             self.logger.print_and_log('train_start')
@@ -595,7 +597,7 @@ class Trainer():
         self.seed = cpt['seed']
         self.set_seeds(self.seed, self.seed_strict)
         self.current_epoch = cpt['epoch']
-        self.global_step = cpt['step']
+        self.global_step = cpt['step'] + 1
 
         if map_location == 'cpu':
             self.model_to_device(self.model, torch.device('cpu'))

@@ -126,8 +126,6 @@ def train(config_dict:dict) -> None:
         'save_model_epoch_interval': getattr(HParams().train, 'save_model_epoch_interval', 1),
         'log_step_interval': getattr(HParams().log, 'log_step_interval', 1),
         'start_logging_epoch': getattr(HParams().log, 'start_logging_epoch', 0),
-        # resource
-        'device': HParams().resource.device,
         # additional
         'check_evalstep_first': getattr(HParams().train,'check_evalstep_first',False),
         'debug_mode': getattr(HParams().mode, 'debug_mode', False),

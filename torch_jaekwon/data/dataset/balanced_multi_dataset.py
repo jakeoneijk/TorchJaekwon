@@ -11,9 +11,9 @@ class BalancedMultiDataset(IterableDataset):
         sampling_schedule_dict:dict = None, # {'data1': 10, 'data2': 2}
         random_seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
         is_random_seed_per_dataset:bool = True,
-        is_distributed: bool = False,
     ) -> None:
         self.data_list_dict: Dict[str,list] = self.init_data_list_dict() # {data_type1: List, data_type2: List}
+        is_distributed: bool = util_torch_distributed.is_available()
         if not is_distributed or util_torch_distributed.is_main_process():
             for data_name in self.data_list_dict: 
                 print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))

@@ -54,7 +54,7 @@ class GetModule:
         root_path:str, 
         file_name:str,
     ) -> str:
-        root_path_list:list = [root_path, root_path.replace("./",f'{TORCH_JAEKWON_PATH}/')]
+        root_path_list:list = [root_path, f'{TORCH_JAEKWON_PATH}/{root_path.replace("./","")}']
         torch_jaekwon_parent_path:str = '/'.join(TORCH_JAEKWON_PATH.split('/')[:-1])
         
         for root_path in root_path_list:
