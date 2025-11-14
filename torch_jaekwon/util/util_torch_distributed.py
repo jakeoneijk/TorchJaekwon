@@ -30,13 +30,13 @@ def is_main_process() -> bool:
 def barrier() -> None:
     distributed.barrier()
 
-def model_to_ddp(model:Union[nn.Module, dict], gpu_id:int = 0) -> None:
+def model_to_ddp(model:Union[nn.Module, dict], gpu_id:int = 0, find_unused_parameters:bool = False) -> None:
     if isinstance(model, dict):
         for model_name in model:
-            model[model_name] = model_to_ddp(model[model_name], gpu_id)
+            model[model_name] = model_to_ddp(model[model_name], gpu_id, find_unused_parameters=find_unused_parameters)
         return model
     else:
-        model = DDP(model, device_ids=[gpu_id])
+        model = DDP(model, device_ids=[gpu_id], find_unused_parameters=find_unused_parameters)
         return model
 
 def get_dataloader(dataloader_args:dict, shuffle:bool = True) -> DataLoader:

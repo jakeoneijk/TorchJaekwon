@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
-from ...util import util_torch_distributed
+from ...util import util_torch_distributed, util
 
 class BalancedMultiDataset(IterableDataset):
     def __init__(
@@ -14,7 +14,7 @@ class BalancedMultiDataset(IterableDataset):
     ) -> None:
         self.data_list_dict: Dict[str,list] = self.init_data_list_dict() # {data_type1: List, data_type2: List}
         is_distributed: bool = util_torch_distributed.is_available()
-        if not is_distributed or util_torch_distributed.is_main_process():
+        if util_torch_distributed.is_main_process():
             for data_name in self.data_list_dict: 
                 print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
         self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
@@ -43,6 +43,7 @@ class BalancedMultiDataset(IterableDataset):
             raise RuntimeError("Distributed environment is not initialized. Please call util_torch_distributed.torchrun_setup() before using distributed sharding.")
         local_rank = util_torch_distributed.local_rank()
         world_size = util_torch_distributed.world_size()
+        util.log(f"Sharding dataset for distributed training.", msg_type='info')
         for data_name in self.data_list_dict: 
             self.data_list_dict[data_name] = self.data_list_dict[data_name][local_rank::world_size]
             assert len(self.data_list_dict[data_name]) > 0, (f"[Rank {local_rank}] got empty shard for dataset '{data_name}'. Try reducing world_size or check dataset size.")
