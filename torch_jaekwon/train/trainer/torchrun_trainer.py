@@ -72,6 +72,10 @@ class TorchrunTrainer(Trainer):
         else:
             raise ValueError(f'Cannot get state_dict from {module}')
     
+    def load_train(self, filename:str, map_location:str = 'cpu') -> None:
+        map_location = 'cuda:%d' % util_torch_distributed.local_rank()
+        super().load_train(filename, map_location={'cuda:0': map_location})
+    
     def fit(self) -> None:
         super().fit()
         util_torch_distributed.finish()
