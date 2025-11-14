@@ -12,7 +12,7 @@ except: print('Didnt import following packages: wandb')
 try: from tensorboardX import SummaryWriter
 except: print('Didnt import following packages: tensorboardX')
 
-from ...util import util, util_torch, util_data, util_audio_stft, util_audio
+from ...util import util, util_torch, util_torch_distributed, util_data, util_audio_stft, util_audio
 
 class Logger():
     def __init__(
@@ -39,6 +39,8 @@ class Logger():
         self.visualizer_type:Literal['wandb','tensorboard'] = visualizer_type
         self.is_resume:bool = is_resume
         if self.is_resume: util.log('resume the training', 'info')
+
+        if not util_torch_distributed.is_main_process(): return
 
         if self.visualizer_type == 'wandb':
             if self.is_resume:
