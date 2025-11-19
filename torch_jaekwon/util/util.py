@@ -67,7 +67,7 @@ def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None
     prefix:str = template_dict.get(msg_type, {}).get('prefix', '')
     local_rank:int = util_torch_distributed.local_rank()
     world_size:int = util_torch_distributed.world_size()
-    prefix = f"{local_rank}/{world_size}: " + prefix
+    prefix = f"{local_rank}/{world_size - 1}: " + prefix
     print(f"{color + prefix + text + END}")
 
 def get_num_in_str(text:str) -> List[int]:
