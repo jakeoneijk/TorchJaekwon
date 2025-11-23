@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
-from ...util import util_torch_distributed, util
+from ...util import util_torch_distributed
 
 class BalancedMultiDataset(IterableDataset):
     def __init__(
@@ -23,8 +23,7 @@ class BalancedMultiDataset(IterableDataset):
         self.data_name_list_key:str = 'data_name'
         self.data_list_dict[self.data_name_list_key] = list(self.data_list_dict.keys())
         
-        self.idx_dict = {data_name: -1 for data_name in self.data_list_dict}
-        self.idx_dict[self.data_name_list_key] = -1 # it will start from 0 by adding 1
+        self.idx_dict = {data_name: -1 for data_name in self.data_list_dict} # it will start from 0 by adding 1
 
         self.sampling_schedule_dict = sampling_schedule_dict if sampling_schedule_dict is not None else {data_name: 1 for data_name in self.data_list_dict[self.data_name_list_key]}
 
@@ -41,12 +40,10 @@ class BalancedMultiDataset(IterableDataset):
             return
         if not util_torch_distributed.is_available():
             raise RuntimeError("Distributed environment is not initialized. Please call util_torch_distributed.torchrun_setup() before using distributed sharding.")
-        local_rank = util_torch_distributed.local_rank()
-        world_size = util_torch_distributed.world_size()
-        util.log(f"Sharding dataset for distributed training.", msg_type='info')
+        util_torch_distributed.log(f"Sharding dataset for distributed training.", msg_type='info', main_only=False)
         for data_name in self.data_list_dict: 
-            self.data_list_dict[data_name] = self.data_list_dict[data_name][local_rank::world_size]
-            assert len(self.data_list_dict[data_name]) > 0, (f"[Rank {local_rank}] got empty shard for dataset '{data_name}'. Try reducing world_size or check dataset size.")
+            self.data_list_dict[data_name] = util_torch_distributed.shard_list(self.data_list_dict[data_name])
+            assert len(self.data_list_dict[data_name]) > 0, (f"[empty shard for dataset '{data_name}'. Try reducing world_size or check dataset size.")
     
     @staticmethod
     def worker_init_fn(worker_id:int) -> None:
@@ -56,7 +53,7 @@ class BalancedMultiDataset(IterableDataset):
         num_workers:int = worker_info.num_workers
         dataset = worker_info.dataset
         for dataset_name in [dataset_name for dataset_name in dataset.data_list_dict.keys() if dataset_name != dataset.data_name_list_key]:
-            dataset.data_list_dict[dataset_name] = dataset.data_list_dict[dataset_name][worker_id::num_workers]
+            dataset.data_list_dict[dataset_name] = util_torch_distributed.shard_list(dataset.data_list_dict[dataset_name], worker_id, num_workers)
             assert len(dataset.data_list_dict[dataset_name]) > 0, f"Each worker should have at least one data. Please set num_workers <= {len(dataset.data_list_dict[dataset_name])}"
     
     # ==========================

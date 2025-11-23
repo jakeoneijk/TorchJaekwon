@@ -4,7 +4,6 @@ import psutil
 import re
 import torch
 import importlib.util
-from . import util_torch_distributed
 
 PURPLE = '\033[95m'
 CYAN = '\033[96m'
@@ -44,7 +43,7 @@ def get_resource_usage(
         sys.exit(1)
     return log_dict
 
-def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None) -> None:
+def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None, prefix:str = '') -> None:
     template_dict:dict = {
         'info': {
             'color': BOLD + BLUE,
@@ -64,10 +63,7 @@ def log(text:str, msg_type:Literal['info', 'success', 'warning', 'error'] = None
         }
     }
     color:str = template_dict.get(msg_type, {}).get('color', '')
-    prefix:str = template_dict.get(msg_type, {}).get('prefix', '')
-    local_rank:int = util_torch_distributed.local_rank()
-    world_size:int = util_torch_distributed.world_size()
-    prefix = f"{local_rank}/{world_size - 1}: " + prefix
+    prefix:str = prefix + template_dict.get(msg_type, {}).get('prefix', '')
     print(f"{color + prefix + text + END}")
 
 def get_num_in_str(text:str) -> List[int]:

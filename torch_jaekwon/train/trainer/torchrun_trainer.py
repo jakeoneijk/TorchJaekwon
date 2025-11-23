@@ -20,9 +20,9 @@ class TorchrunTrainer(Trainer):
         util_torch_distributed.torchrun_setup()
         optimizer_class_meta_dict = kwargs.pop('optimizer_class_meta_dict')
         lr_scheduler_class_meta_dict = kwargs.pop('lr_scheduler_class_meta_dict', None)
-        super().__init__(device = util_torch_distributed.local_rank(), *args, **kwargs)
+        super().__init__(device = f'cuda:{util_torch_distributed.local_rank()}', *args, **kwargs)
 
-        self.model = util_torch_distributed.model_to_ddp(self.model, gpu_id=self.device)
+        self.model = util_torch_distributed.model_to_ddp(self.model, gpu_id=util_torch_distributed.local_rank())
         self.optimizer = self.init_optimizer(optimizer_class_meta_dict)
         self.lr_scheduler = self.init_lr_scheduler(self.optimizer, lr_scheduler_class_meta_dict)
     

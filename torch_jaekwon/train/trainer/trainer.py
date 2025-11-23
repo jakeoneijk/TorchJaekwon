@@ -460,25 +460,19 @@ class Trainer():
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
-    def backprop(self,loss):
-        if self.grad_accum_steps == 1:
-            self.on_before_zero_grad()
-            self.optimizer.zero_grad()
-            loss.backward()
+    def backprop(self, loss: torch.Tensor) -> None:
+        loss = loss / self.grad_accum_steps
+        self.loss_backward(loss)
+        if (self.global_step + 1) % self.grad_accum_steps == 0:
             if self.max_grad_norm is not None:
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
+            self.on_before_zero_grad()
+            self.optimizer.zero_grad()
             self.lr_scheduler_step(call_state='step')
-        else:
-            loss = loss / self.grad_accum_steps
-            loss.backward()
-            if self.max_grad_norm is not None:
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
-            if (self.global_step + 1) % self.grad_accum_steps == 0:
-                self.optimizer.step()
-                self.on_before_zero_grad()
-                self.optimizer.zero_grad()
-                self.lr_scheduler_step(call_state='step')
+    
+    def loss_backward(self, loss: torch.Tensor) -> None:
+        loss.backward()
     
     def on_before_zero_grad(self) -> None:
         if self.model_ema is not None:
@@ -524,22 +518,14 @@ class Trainer():
         else:
             return optimizer.param_groups[0]['lr']
     
-    def lr_scheduler_step(self, call_state:Literal['step','epoch'], args = None):
-        if self.lr_scheduler is None:
+    def lr_scheduler_step(self, call_state:Literal['step','epoch'], kwargs = dict()) -> None:
+        if self.lr_scheduler is None or self.lr_scheduler_interval != call_state:
             return
-        if self.lr_scheduler_interval == call_state:
-            if args is not None:
-                if isinstance(self.lr_scheduler, dict):
-                    for key in self.lr_scheduler:
-                        self.lr_scheduler[key].step(**args)
-                else:
-                    self.lr_scheduler.step(**args)
-            else:
-                if isinstance(self.lr_scheduler, dict):
-                    for key in self.lr_scheduler:
-                        self.lr_scheduler[key].step()
-                else:
-                    self.lr_scheduler.step()
+        if isinstance(self.lr_scheduler, dict):
+            for key in self.lr_scheduler:
+                self.lr_scheduler[key].step(**kwargs)
+        else:
+            self.lr_scheduler.step(**kwargs)
     
     def save_checkpoint(self, save_name:str = 'train_checkpoint.pth') -> str:
         train_state = {
