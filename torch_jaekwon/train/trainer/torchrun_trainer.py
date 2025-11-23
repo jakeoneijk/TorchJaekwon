@@ -5,9 +5,8 @@ import torch.nn as nn
 import torch.utils.data.dataset as dataset
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
 
-from ...util import util_torch_distributed, util_torch
+from ...util import util_torch_distributed
 from .trainer import Trainer, TrainState
 
 class TorchrunTrainer(Trainer):
@@ -37,40 +36,19 @@ class TorchrunTrainer(Trainer):
             dataloader.sampler.set_epoch(self.current_epoch)
         return super().run_epoch(dataloader, train_state, metric_range)
     
-    def log_current_state(self,train_state:TrainState = None, is_log_media:bool = True) -> None:
-        if not util_torch_distributed.is_main_process(): return
-        return super().log_current_state(train_state, is_log_media)
-
-    def save_checkpoint(self, save_name:str = 'train_checkpoint.pth') -> str:
-        if not util_torch_distributed.is_main_process(): return None
-        return super().save_checkpoint(save_name)
-    
-    def save_module(self, model, model_name = '', name = 'pretrained_best_epoch') -> None:
-        if not util_torch_distributed.is_main_process():
-            return
-        if isinstance(model, dict):
-            for model_type in model:
-                self.save_module(model[model_type], model_name + f'{model_type}_', name)
+    def loss_backward(self, loss: torch.Tensor) -> torch.Tensor:
+        if (self.global_step + 1) % self.grad_accum_steps == 0:
+            loss.backward()
+            '''
+            import torch.distributed as dist
+            loss_for_log = loss.detach()
+            dist.all_reduce(loss_for_log, op=dist.ReduceOp.AVG)
+            return loss_for_log
+            '''
         else:
-            path = os.path.join(self.logger.log_path["root"],f'{model_name}{name}.pth')
-            if self.model_ema is not None:
-                raise NotImplementedError("EMA model saving is not implemented in distributed training.")
-            else:
-                state_dict = model.module.state_dict()
-            torch.save(state_dict, path)
-    
-    def get_state_dict(self, module:Union[dict, nn.Module]) -> Union[dict, nn.Module]:
-        if isinstance(module, DDP):
-            return module.module.state_dict()
-        elif hasattr(module, 'state_dict'):
-            return module.state_dict()
-        elif isinstance(module, dict):
-            state_dict = dict()
-            for key in module:
-                state_dict[key] = self.get_state_dict(module[key])
-            return state_dict
-        else:
-            raise ValueError(f'Cannot get state_dict from {module}')
+            with self.model.no_sync():
+                loss.backward()
+        return loss
     
     def load_train(self, filename:str, map_location:str = 'cpu') -> None:
         map_location = 'cuda:%d' % util_torch_distributed.local_rank()

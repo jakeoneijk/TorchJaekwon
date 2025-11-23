@@ -38,7 +38,7 @@ def is_main_process() -> bool:
 def barrier() -> None:
     distributed.barrier()
 
-def model_to_ddp(model:Union[nn.Module, dict], gpu_id:int = 0, find_unused_parameters:bool = False) -> None:
+def model_to_ddp(model:Union[nn.Module, dict], gpu_id:int = 0, find_unused_parameters:bool = True) -> None:
     if isinstance(model, dict):
         for model_name in model:
             model[model_name] = model_to_ddp(model[model_name], gpu_id, find_unused_parameters=find_unused_parameters)

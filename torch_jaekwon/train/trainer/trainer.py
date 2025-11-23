@@ -97,6 +97,7 @@ class Trainer():
         self.save_model_step_interval:int = save_model_step_interval
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
+        assert log_step_interval % self.grad_accum_steps == 0, "log_step_interval should be multiple of grad_accum_steps"
         self.start_logging_epoch:int = start_logging_epoch
 
         # additional
@@ -162,6 +163,7 @@ class Trainer():
         train_state=TrainState.TRAIN,
         x_axis:Literal['global_step', 'epoch'] = 'global_step'
     ) -> None:
+        if not util_torch_distributed.is_main_process(): return None
         """
         log and visualizer log
         """
@@ -174,16 +176,19 @@ class Trainer():
 
         log:str = f'Epoch ({train_state.value}): {self.current_epoch:03} ({self.local_step}/{data_size}) global_step: {self.global_step} lr: {self.get_current_lr(self.optimizer)}\n'
         
-        if util_torch_distributed.is_main_process():
-            for metric_name in metrics:
+        for metric_name in metrics:
+            if isinstance(metrics[metric_name], AverageMeter):
                 val:float = metrics[metric_name].avg
-                log += f' {metric_name}: {val:.06f}'
-                self.logger.visualizer_log(
-                    x_axis_name=x_axis_name,
-                    x_axis_value=x_axis_value,
-                    y_axis_name=f'{train_state.value}/{metric_name}',
-                    y_axis_value=val
-                )
+            elif isinstance(metrics[metric_name], (float, int)):
+                val:float = metrics[metric_name]
+            log += f' {metric_name}: {val:.06f}'
+            self.logger.visualizer_log(
+                x_axis_name=x_axis_name,
+                x_axis_value=x_axis_value,
+                y_axis_name=f'{train_state.value}/{metric_name}',
+                y_axis_value=val
+            )
+
         self.logger.print_and_log(log)
 
     def set_seeds(self, seed:float, strict=False) -> None:
@@ -415,7 +420,7 @@ class Trainer():
                 break
 
             self.local_step = step
-            loss,metric = self.run_step(data,metric,train_state)
+            loss, metric = self.run_step(data,metric,train_state)
 
             if isinstance(loss, torch.Tensor) and torch.isnan(loss).any():
                 path = os.path.join(self.logger.log_path["root"],f'nan_loss_data_{self.global_step}.pkl')
@@ -425,9 +430,10 @@ class Trainer():
                 raise ValueError(f'loss is nan at step {self.global_step}')
         
             if train_state == TrainState.TRAIN:
-                self.backprop(loss)
+                loss = self.backprop(loss).detach()
                 
                 if self.global_step % self.log_step_interval == 0:
+                    metric['loss (step)'] = loss.item() * self.grad_accum_steps
                     self.log_metric(metrics=metric,data_size=dataset_size)
                 
                 if self.save_model_step_interval is not None and self.global_step % self.save_model_step_interval == 0 and not self.global_step == 0:
@@ -444,6 +450,7 @@ class Trainer():
         return metric
     
     def log_current_state(self,train_state:TrainState = None, is_log_media:bool = True) -> None:
+        if not util_torch_distributed.is_main_process(): return None
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
         self.logger.print_and_log(f'save current state')
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
@@ -460,9 +467,9 @@ class Trainer():
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
         self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
-    def backprop(self, loss: torch.Tensor) -> None:
+    def backprop(self, loss: torch.Tensor) -> torch.Tensor:
         loss = loss / self.grad_accum_steps
-        self.loss_backward(loss)
+        loss = self.loss_backward(loss)
         if (self.global_step + 1) % self.grad_accum_steps == 0:
             if self.max_grad_norm is not None:
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
@@ -470,9 +477,11 @@ class Trainer():
             self.on_before_zero_grad()
             self.optimizer.zero_grad()
             self.lr_scheduler_step(call_state='step')
+        return loss # for logging
     
-    def loss_backward(self, loss: torch.Tensor) -> None:
+    def loss_backward(self, loss: torch.Tensor) -> torch.Tensor:
         loss.backward()
+        return loss # for logging
     
     def on_before_zero_grad(self) -> None:
         if self.model_ema is not None:
@@ -496,6 +505,7 @@ class Trainer():
         return metric
 
     def save_module(self, model, model_name = '', name = 'pretrained_best_epoch') -> None:
+        if not util_torch_distributed.is_main_process(): return None
         if isinstance(model, dict):
             for model_type in model:
                 self.save_module(model[model_type], model_name + f'{model_type}_', name)
@@ -504,7 +514,8 @@ class Trainer():
             if self.model_ema is not None:
                 state_dict = self.model_ema.ema_model.state_dict()
             else:
-                state_dict = model.state_dict()
+                raw_model = model.module if isinstance(model, DDP) else model
+                state_dict = raw_model.state_dict()
             torch.save(state_dict, path)
 
     def load_module(self,name = 'pretrained_best_epoch'):
@@ -528,6 +539,7 @@ class Trainer():
             self.lr_scheduler.step(**kwargs)
     
     def save_checkpoint(self, save_name:str = 'train_checkpoint.pth') -> str:
+        if not util_torch_distributed.is_main_process(): return None
         train_state = {
             'epoch': self.current_epoch,
             'step': self.global_step,
@@ -550,7 +562,9 @@ class Trainer():
         return path
     
     def get_state_dict(self, module:Union[dict, nn.Module]) -> Union[dict, nn.Module]:
-        if hasattr(module, 'state_dict'):
+        if isinstance(module, DDP):
+            return module.module.state_dict()
+        elif hasattr(module, 'state_dict'):
             return module.state_dict()
         elif isinstance(module, dict):
             state_dict = dict()
