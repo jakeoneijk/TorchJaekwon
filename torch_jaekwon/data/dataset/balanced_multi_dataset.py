@@ -17,9 +17,10 @@ class BalancedMultiDataset(IterableDataset):
         if util_torch_distributed.is_main_process():
             for data_name in self.data_list_dict: 
                 print("{}: {}".format(data_name, len(self.data_list_dict[data_name])))
-        self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
 
         self.distributed_shard_data(is_distributed)
+        self.length_of_dataset:int = max([len(self.data_list_dict[data_name]) for data_name in self.data_list_dict])
+        
         self.data_name_list_key:str = 'data_name'
         self.data_list_dict[self.data_name_list_key] = list(self.data_list_dict.keys())
         
