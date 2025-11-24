@@ -93,7 +93,8 @@ class Trainer():
 
         # logging
         self.logger:Logger = logger
-        self.logger.init_logger(model=self.model)
+        if util_torch_distributed.is_main_process():
+            self.logger.init_logger(model=self.model)
         self.save_model_step_interval:int = save_model_step_interval
         self.save_model_epoch_interval:int = save_model_epoch_interval
         self.log_step_interval:int = log_step_interval
