@@ -37,6 +37,7 @@ def dict_get_first_relpath(data_dict:dict) -> str:
     return dict_get_first(data_dict, [f'{key}_relpath' for key in tj_path.START_DIR_MAP.keys()])
 
 def pickle_save(save_path:str, data:Union[ndarray,Tensor]) -> None:
+    save_path = util.norm_path(save_path)
     if not (os.path.splitext(save_path)[1] == ".pkl"):
         print("file extension should be '.pkl'")
         save_path = f'{save_path}.pkl'

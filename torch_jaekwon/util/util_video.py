@@ -6,7 +6,8 @@ import os
 import av
 import numpy as np
 import subprocess
-from torio.io import StreamingMediaDecoder
+try: from torio.io import StreamingMediaDecoder
+except: print('torio is not installed. Please install it using `pip install torchaudio`')
 from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip
 try: from pytube import YouTube
 except: print('pytube is not installed. Please install it using `pip install pytube`')
@@ -79,15 +80,55 @@ def read(
     fps:Optional[int] = None,
     start_sec:Optional[int] = None,
     end_sec:Optional[int] = None,
-) -> VideoFileClip:
+) -> dict:
     assert [start_sec is None, end_sec is None].count(None) != 1, "Either both start_sec and end_sec should be None or both should be provided."
+    '''
     video = VideoFileClip(file_path)
     if fps is not None:
         video = video.set_fps(fps)
     if start_sec is not None:
         end_sec = min(end_sec, video.duration)
         video = video.subclip(start_sec, end_sec)
-    return video
+    '''
+    container = av.open(file_path)
+
+    video_stream:av.VideoStream = container.streams.video[0]
+    original_fps:float = float(video_stream.average_rate)
+    output_fps:float = fps if fps is not None else original_fps
+
+    audio_stream:av.AudioStream = container.streams.audio[0] if len(container.streams.audio) > 0 else None
+    sample_rate:int = audio_stream.rate if audio_stream else None
+
+    if start_sec is not None:
+        container.seek(int(start_sec * video_stream.time_base.denominator / video_stream.time_base.numerator))
+    
+    video = list()
+    audio = list()
+    for packet in container.demux((video_stream, audio_stream) if audio_stream else (video_stream,)):
+        for frame in packet.decode():
+            if packet.stream.type == "video":
+                time_sec:float = float(frame.pts * frame.time_base) if frame.pts else None
+                if time_sec is not None:
+                    if start_sec is not None and time_sec < start_sec: 
+                        continue
+                    if end_sec is not None and time_sec > end_sec: 
+                        break
+                video.append(frame.to_ndarray(format="rgb24").transpose(2, 0, 1)) # C,H,W
+            elif packet.stream.type == "audio":
+                audio.append(frame.to_ndarray())  #[channels, samples]
+    
+    video = np.stack(video, axis=0)  # [Time, Channel, Height, Width]
+    if original_fps > output_fps:
+        ratio = original_fps / output_fps
+        idx = np.clip(np.round(np.arange(0, len(video)) * ratio).astype(int), 0, len(video) - 1)
+        video = video[idx]
+    elif original_fps < output_fps:
+        idx = np.arange(0, int(len(video) * (output_fps / original_fps)))
+        idx = np.round(idx/idx.max() * (len(video) - 1)).astype(int)
+        video = video[idx]
+    
+    audio = np.concatenate(audio, axis=-1) if len(audio) > 0 else None # [Channel, Time]
+    return {'video': [video, output_fps], 'audio': [audio, sample_rate]}
 
 
 def write(
@@ -105,6 +146,7 @@ def write(
     if isinstance(video, Tensor) or isinstance(video, ndarray):
         if isinstance(video, Tensor): video = util_torch.to_np(video)
         if isinstance(audio, Tensor): audio = util_torch.to_np(audio)
+        if audio is not None and len(audio.shape) == 1: audio = audio[np.newaxis, ...]
         assert video.dtype == 'uint8', "Video tensor must be of type uint8."
         assert video.min() >= 0 and video.max() <= 255, "Video tensor values must be in the range [0, 255]."
         assert len(video.shape) == 4, "Video tensor must have 4 dimensions: [Time, Channel, Height, Width]."
