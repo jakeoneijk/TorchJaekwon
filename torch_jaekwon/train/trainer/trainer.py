@@ -332,10 +332,10 @@ class Trainer():
                     data_dict[feature_name] = data_dict[feature_name].float().to(self.device)
         return data_dict
     
-    def set_data_loader(self, data_class_meta_dict) -> dict:
+    def set_data_loader(self, data_class_meta_dict:dict) -> dict:
         data_loader_dict:dict = {state.value: None for state in TrainState}
         for subset_name in data_loader_dict:
-            subset_meta_dict:dict = getattr(data_class_meta_dict, subset_name, None)
+            subset_meta_dict:dict = data_class_meta_dict.get(subset_name, None)
             if subset_meta_dict is None: continue
             dataset = GetModule.get_module(
                 class_type='pytorch_dataset',

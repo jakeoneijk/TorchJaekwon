@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
 from ...util import util_torch_distributed
+from ...train.logger.logger import Logger
 
 class BalancedMultiDataset(IterableDataset):
     def __init__(
@@ -11,6 +12,8 @@ class BalancedMultiDataset(IterableDataset):
         sampling_schedule_dict:dict = None, # {'data1': 10, 'data2': 2}
         random_seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
         is_random_seed_per_dataset:bool = True,
+        logger: Logger = None,
+        is_debug: bool = False,
     ) -> None:
         self.data_list_dict: Dict[str,list] = self.init_data_list_dict() # {data_type1: List, data_type2: List}
         is_distributed: bool = util_torch_distributed.is_available()
@@ -35,6 +38,9 @@ class BalancedMultiDataset(IterableDataset):
         for data_name in self.data_list_dict[self.data_name_list_key]:
             self.random_state_dict[data_name] = np.random.RandomState(np.random.RandomState(random_seed).randint(low=0, high=10000) if is_random_seed_per_dataset else random_seed)
             self.random_state_dict[data_name].shuffle(self.data_list_dict[data_name])
+        
+        self.logger: Logger = logger
+        self.is_debug: bool = is_debug
     
     def distributed_shard_data(self, is_distributed: bool = False) -> None:
         if not is_distributed:
@@ -76,6 +82,8 @@ class BalancedMultiDataset(IterableDataset):
             data_name:str = self.get_value(self.data_name_list_key)
             for _ in range(self.sampling_schedule_dict[data_name]):
                 meta_data = self.get_value(data_name)
+                if self.is_debug and self.logger is not None:
+                    self.logger.log_write(f"{util_torch_distributed.local_rank()}/{util_torch_distributed.world_size() - 1}: {str(meta_data)}", log_type='debug')
                 data = self.read_data(meta_data)
                 yield data
 

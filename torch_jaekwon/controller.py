@@ -2,6 +2,7 @@
 from typing import Type, Literal
 
 #package
+import os
 import sys
 import argparse
 import numpy as np
@@ -12,28 +13,59 @@ from .h_params import HParams
 from . import get_module
 from .get_module import GetModule
 from .util import util, util_data
-from .path import ARTIFACTS_DIRS
+from . import path as tj_path
 
 def run() -> None:
     config_dict:dict = set_argparse()
-    config_name:str = HParams().mode.config_name
-    stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = HParams().mode.stage
+    config_name:str = config_dict['cli']['config_name']
+    stage: Literal['preprocess', 'train', 'inference', 'evaluate'] = config_dict['cli']['stage']
+
     util.log(f"[{stage}] {config_name} start.", msg_type='info')
     getattr(sys.modules[__name__],stage)(config_dict)
     util.log(f"[{stage}] {config_name} finish.", msg_type='success')
 
 def set_argparse() -> dict:
     parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        '-r',
-        '--resume',
-        help='train resume',
-        action='store_true'
-    )
-
-    primitive_types = (str, int, float, bool)
     str2bool = lambda v: v if isinstance(v, bool) else True if v.lower() in ('yes', 'true', 't', '1') else False if v.lower() in ('no', 'false', 'f', '0') else (_ for _ in ()).throw(ValueError("Boolean value expected."))
+
+    # common arguments
+    parser.add_argument('--config_path', type=str, help='config file path')
+    parser.add_argument('--config_name', type=str, help='config name for logging', required=False)
+    parser.add_argument('--project_name', type=str, help='project name for logging')
+    parser.add_argument('--stage', type=str, help='stage: preprocess | train | inference | evaluate')
+
+    # resource arguments
+    parser.add_argument('--num_workers', type=int, help='number of workers for data loading', default=1)
+
+    # train arguments
+    parser.add_argument('-r', '--resume', help='train resume', action='store_true')
+    parser.add_argument('--train_resume_path', type=str, help='train resume path', required=False)
+    parser.add_argument('--check_evalstep_first', type=str2bool, help='check evalstep first', default=True)
+    parser.add_argument('--debug_mode', type=str2bool, help='debug mode', default=True)
+    parser.add_argument('--use_torch_compile', type=str2bool, help='use torch compile', default=True)
+    parser.add_argument('--log_tool', type=str, help='log tool: tensorboard | wandb', default='tensorboard')
+    parser.add_argument('--log_step_interval', type=int, help='log step interval', default=40)
+    parser.add_argument('--start_logging_epoch', type=int, help='start logging epoch', default=0)
+    parser.add_argument('--save_model_epoch_interval', type=int, help='save model epoch interval', default=100)
+
+    # inference arguments
+    parser.add_argument('--infer_data_path', nargs='*', type=str, help='inference data path when set type is single or dir', required=False)
+    parser.add_argument('--ckpt_name', type=str, help='checkpoint name for inference', default='last')
+
+    # evaluate arguments
+    parser.add_argument('--eval_gt_dir_path', type=str, help='evaluation directory path for groundtruth', required=False)
+    parser.add_argument('--eval_pred_dir_path', type=str, help='evaluation directory path for prediction', required=False)
+
+    args = parser.parse_args()
+
+    config_dict = util_data.yaml_load(args.config_path)
+    assert 'cli' not in config_dict, "Reserved key 'cli' found in config file."
+    config_dict['cli'] = vars(args)
+    config_dict['cli']['config_name'] = config_dict['cli']['config_name'] or os.path.splitext(tj_path.relpath(args.config_path, start_dir_path=tj_path.CONFIG_DIR))[0]
+    config_dict['cli']['train_resume_path'] = config_dict['cli'].get('train_resume_path', f"{tj_path.ARTIFACTS_DIRS.train}/{config_dict['cli']['config_name']}")
+
+    ## Legacy #########################
+    primitive_types = (str, int, float, bool)
     type_mapper = lambda t: str2bool if t == bool else t
 
     arg_list_from_h_params:list = [
@@ -53,28 +85,13 @@ def set_argparse() -> dict:
     arg_name_list_from_h_params.sort()
     assert len(arg_name_list_from_h_params) == len(set(arg_name_list_from_h_params)), "Duplicate argument names found in HParams."
 
-    for h_prams_arg in arg_list_from_h_params:
-        parser.add_argument(
-            *[f'--{h_prams_arg["arg_name"]}'],
-            nargs= h_prams_arg['nargs'],
-            type=h_prams_arg['type'],
-            required=False,
-            default=None,
-            help="",
-        )       
-
-    args = parser.parse_args()
-
     if args.config_path is not None: HParams().set_config(args.config_path)
-    if args.resume: HParams().mode.is_train_resume = True
     
     for h_prams_arg in arg_list_from_h_params:
-        value = getattr(args, h_prams_arg['arg_name'])
+        value = getattr(args, h_prams_arg['arg_name'], None)
         if value is not None:
             setattr(getattr(HParams(), h_prams_arg['module_name']), h_prams_arg['attr_name'], value)
-    
-    config_dict = util_data.yaml_load(args.config_path)
-
+    ## Legacy #########################
     return config_dict
 
 def preprocess(config_dict:dict) -> None:
@@ -95,24 +112,24 @@ def train(config_dict:dict) -> None:
     from torch_jaekwon.train.logger.logger import Logger
 
     logger = Logger(
-        experiment_name = HParams().mode.config_name,
+        experiment_name = config_dict['cli']['config_name'],
         use_time_on_experiment_name = False,
-        project_name = HParams().log.project_name,
-        visualizer_type = HParams().log.log_tool,
-        root_dir_path = f'{ARTIFACTS_DIRS.train}/{HParams().mode.config_name}',
-        is_resume = HParams().mode.is_train_resume,
+        project_name = config_dict['cli'].get('project_name') or 'default_project',
+        visualizer_type = config_dict['cli']['log_tool'],
+        root_dir_path = f'{tj_path.ARTIFACTS_DIRS.train}/{config_dict["cli"]["config_name"]}',
+        is_resume = config_dict['cli']['resume'],
     )
+    config_dict['dataloader']['train']['dataset_class_meta']['args']['logger'] = logger
 
     trainer_args = {
         # data
-        'data_class_meta_dict': HParams().dataloader,
+        'data_class_meta_dict': config_dict['dataloader'],
         # model
         'model_class_meta_dict': HParams().model.class_meta,
         # loss
         'loss_meta_dict': getattr(HParams().train, 'loss', None),
         # optimizer
         'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
-        'grad_accum_steps': getattr(HParams().train,'grad_accum_steps',1),
         'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
         'lr_scheduler_interval': HParams().train.scheduler['interval'],
         # train paremeters
@@ -142,7 +159,7 @@ def train(config_dict:dict) -> None:
     )
     trainer:Trainer = trainer_class(**trainer_args)
     
-    if HParams().mode.is_train_resume:
+    if config_dict['cli']['resume']:
         util.log('load the checkpoint', 'info')
         trainer.load_train(HParams().mode.train_resume_path + "/train_checkpoint.pth")
     
@@ -153,7 +170,7 @@ def inference(config_dict:dict) -> None:
     
     infer_class_meta:dict = config_dict['inference']['class_meta']
     inferencer_args:dict = {
-        'output_dir': ARTIFACTS_DIRS.inference,
+        'output_dir': tj_path.ARTIFACTS_DIRS.inference,
         'model':  None,
         'model_class_meta': HParams().model.class_meta,
         'set_type': HParams().inference.set_type,
@@ -172,24 +189,20 @@ def inference(config_dict:dict) -> None:
     )
     inferencer:Inferencer = inferencer_class(**inferencer_args)
     inferencer.inference(
-        pretrained_root_dir = HParams().inference.pretrain_root_dir_path,
-        pretrained_dir_name = HParams().mode.config_name if HParams().inference.pretrain_dir == '' else HParams().inference.pretrain_dir,
+        pretrained_root_dir = tj_path.ARTIFACTS_DIRS.train,
+        pretrained_dir_name = HParams().mode.config_name,
         ckpt_name = HParams().inference.ckpt_name
     )
 
 def evaluate(config_dict:dict) -> None:
     from torch_jaekwon.evaluate.evaluator.evaluator import Evaluator
-    eval_class_meta:dict = HParams().evaluate.class_meta
-    evaluater_class:Type[Evaluator] = GetModule.get_module_class(
-        class_type='evaluator', 
-        module_name=eval_class_meta['name']
-    )
+    eval_class_meta:dict = config_dict['evaluate']['class_meta']
+    config_name:str = config_dict['cli']['config_name']
+    gt_dir_path:str = config_dict['cli']['eval_gt_dir_path']
+    pred_dir_path:str = config_dict['cli']['eval_pred_dir_path']
+
+    evaluater_class:Type[Evaluator] = GetModule.get_module_class(class_type='evaluator', module_name=eval_class_meta['name'])
     evaluater_args:dict = eval_class_meta['args']
-    evaluater_args.update({
-        'pred_dir_path': HParams().evaluate.eval_dir_path_pred,
-        'gt_dir_path': HParams().evaluate.eval_dir_path_gt,
-        'device': HParams().resource.device,
-        'evaluation_result_dir': f'{ARTIFACTS_DIRS.evaluate}/{HParams().mode.config_name}'
-    })
+    evaluater_args.update({'pred_dir_path': pred_dir_path, 'gt_dir_path': gt_dir_path, 'result_dir_path': f'{tj_path.ARTIFACTS_DIRS.evaluate}/{config_name}'})
     evaluater:Evaluator = evaluater_class(**evaluater_args)
     evaluater.evaluate()

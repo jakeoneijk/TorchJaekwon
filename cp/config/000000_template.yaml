@@ -105,8 +105,8 @@ inference:
     args: {}
 #####################################################################################################
 evaluate:
-  eval_dir_path_gt: ''
-  eval_dir_path_pred: ''
+  eval_gt_dir_path: ''
+  eval_pred_dir_path: ''
   class_meta:
     name: ['evaluator', 'Evaluator']
     args: {}

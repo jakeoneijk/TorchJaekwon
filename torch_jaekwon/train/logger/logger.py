@@ -31,6 +31,7 @@ class Logger():
         self.log_path:dict[str,str] = {
             "root": root_dir_path,
             "console": f'{root_dir_path}/log.txt',
+            "debug": f'{root_dir_path}/log_debug.txt',
             "visualizer":f'{root_dir_path}/tb',
             "log_media": f'{root_dir_path}/log_media'
         }
@@ -83,6 +84,9 @@ class Logger():
         self.log_model_parameters(file, model)
         file.close()
 
+        file = open(self.log_path["debug"], write_mode)
+        file.close()
+
         if self.visualizer_type == 'wandb':
             while not isinstance(model, nn.Module):
                 model = model[list(model.keys())[0]]
@@ -96,8 +100,8 @@ class Logger():
             for model_name in model:
                 self.log_model_parameters(file, model[model_name], model_name)
 
-    def log_write(self,log_message:str)->None:
-        file = open(self.log_path["console"],'a')
+    def log_write(self,log_message:str, log_type:Literal['console', 'debug']='console')->None:
+        file = open(self.log_path[log_type],'a')
         file.write(log_message+'\n')
         file.close()
 

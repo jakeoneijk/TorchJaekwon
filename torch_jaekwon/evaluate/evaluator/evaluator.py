@@ -14,24 +14,27 @@ class Evaluator():
         self,
         pred_dir_path:str,
         gt_dir_path:str,
-        evaluation_result_dir:str,
+        result_dir_path:str,
         batch_size:int = 1, 
         sort_result_by_metric:bool = True,
-        device:torch.device = torch.device('cpu')
+        device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ) -> None:
         self.pred_dir_path:str = pred_dir_path
         self.gt_dir_path:str = gt_dir_path
-        self.evaluation_result_dir:str = f'{evaluation_result_dir}/{util_data.get_file_name(self.pred_dir_path)}'
+        self.result_dir_path:str = self.get_result_dir_path(result_dir_path)
         self.batch_size:int = batch_size
         self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
-        os.makedirs(self.evaluation_result_dir,exist_ok=True)
+        os.makedirs(self.result_dir_path,exist_ok=True)
     
     '''
     ==============================================================
     abstract method start
     ==============================================================
     '''
+    def get_result_dir_path(self, result_dir_path) -> str:
+        return f'{result_dir_path}/{util_data.get_file_name(self.pred_dir_path)}'
+
     def get_eval_dir_list(self) -> List[str]:
         return [self.pred_dir_path]
 
@@ -59,10 +62,10 @@ class Evaluator():
             result_dict:dict = self.get_result_dict(meta_data_list)
 
             test_set_name:str = eval_dir.split('/')[-1]
-            util_data.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}.yaml',result_dict['result'])
+            util_data.yaml_save(f'{self.result_dir_path}/{test_set_name}.yaml',result_dict['result'])
             if self.sort_result_by_metric:
                 for metric_name in result_dict['result']:
-                    util_data.yaml_save(f'{self.evaluation_result_dir}/{test_set_name}_sort_by_{metric_name}.yaml',util_data.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
+                    util_data.yaml_save(f'{self.result_dir_path}/{test_set_name}_sort_by_{metric_name}.yaml',util_data.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
     
     def get_result_dict(self,meta_data_list:List[dict]) -> dict:
         result_dict:dict = self.get_set_wise_result(meta_data_list)

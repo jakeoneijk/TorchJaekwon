@@ -24,6 +24,9 @@ def torchrun_setup() -> None:
 def is_available() -> bool:
     return distributed.is_initialized() and distributed.is_available()
 
+def is_multi_gpu() -> bool:
+    return world_size() > 1
+
 def local_rank() -> int:
     local_rank:int = int(os.environ.get('LOCAL_RANK', 0))
     return local_rank

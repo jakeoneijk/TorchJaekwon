@@ -41,7 +41,7 @@
                 //"--ckpt_name", ".pth",
                 
                 // **[evaluate]**
-                //"--eval_dir_path_pred", "artifacts/inference/",
+                //"--eval_pred_dir_path", "artifacts/inference/",
             ],
         },
         {

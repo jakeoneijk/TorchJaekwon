@@ -133,7 +133,7 @@ def read(
 
 def write(
     file_path:str,
-    video:Union[VideoFileClip, Tensor, ndarray], # [Time, Channel, Height, Width]
+    video:Union[VideoFileClip, Tensor, ndarray, dict], # [Time, Channel, Height, Width]
     fps:int = None,
     bit_rate:Optional[int] = None, # 10 * 1e6, 10 Mbps
     codec:Literal['h264', 'libx264']='h264',
@@ -143,6 +143,9 @@ def write(
     logger=None
 ) -> None:
     util.make_parent_dir(file_path)
+    if isinstance(video, dict):
+        audio, sample_rate = video.get('audio', (None, None))
+        video, fps = video['video']
     if isinstance(video, Tensor) or isinstance(video, ndarray):
         if isinstance(video, Tensor): video = util_torch.to_np(video)
         if isinstance(audio, Tensor): audio = util_torch.to_np(audio)
@@ -154,7 +157,7 @@ def write(
 
         container = av.open(file_path, mode='w')
 
-        video_stream:av.VideoStream = container.add_stream(codec, rate=fps)
+        video_stream:av.VideoStream = container.add_stream(codec, rate=round(fps))
         video_stream.width = video.shape[-1]
         video_stream.height = video.shape[-2]
         video_stream.pix_fmt = 'yuv420p'
