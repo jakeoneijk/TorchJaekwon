@@ -19,9 +19,8 @@ class Inferencer():
         save_dir_name:str,
         model:Union[nn.Module,object],
         model_class_meta:dict, #{name:[file_name, class_name], args: {}}
-        set_type:Literal[ 'single', 'dir', 'testset' ],
-        set_meta_dict: dict,
-        device:torch.device,
+        input_data_path: str = None,
+        device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         batch_size:int = 1,
     ) -> None:
         self.output_dir:str = output_dir
@@ -33,8 +32,7 @@ class Inferencer():
         self.model:Union[nn.Module,object] = self.get_model(model_class_meta) if model is None else model
         self.shared_dir_name:str = '_shared_'
 
-        self.set_type:Literal[ 'single', 'dir', 'testset' ] = set_type
-        self.set_meta_dict:dict = set_meta_dict
+        self.input_data_path: str = input_data_path
         self.batch_size:int = batch_size
     
     '''
@@ -48,6 +46,9 @@ class Inferencer():
         return meta_data_list
 
     def get_output_dir_path(self, pretrained_name:str, meta_data:dict) -> dict:
+        '''
+        return None if skip inference
+        '''
         output_dir_path: str = f'''{self.output_dir}/{self.save_dir_name}({pretrained_name})/{meta_data["test_name"]}'''
         shared_output_dir_path:str = f'''{self.output_dir}/{self.shared_dir_name}/{meta_data["test_name"]}'''
         return {'output_dir_path': output_dir_path, 'shared_output_dir_path': shared_output_dir_path}

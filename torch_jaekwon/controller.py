@@ -133,8 +133,6 @@ def train(config_dict:dict) -> None:
         'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
         'lr_scheduler_interval': HParams().train.scheduler['interval'],
         # train paremeters
-        'total_step': getattr(HParams().train, 'total_step', np.inf),
-        'total_epoch': getattr(HParams().train, 'total_epoch', int(1e20)),
         'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
         'seed_strict': HParams().train.seed_strict,
         # logging
@@ -172,16 +170,11 @@ def inference(config_dict:dict) -> None:
     inferencer_args:dict = {
         'output_dir': tj_path.ARTIFACTS_DIRS.inference,
         'model':  None,
-        'model_class_meta': HParams().model.class_meta,
-        'set_type': HParams().inference.set_type,
-        'set_meta_dict': {
-            'single': HParams().inference.testdata_path,
-            'dir': HParams().inference.testdata_dir_path
-        },
-        'device': HParams().resource.device
+        'model_class_meta': config_dict['model']['class_meta'],
+        'input_data_path': config_dict['cli']['infer_data_path'],
     }
     inferencer_args.update(infer_class_meta['args'])
-    if 'save_dir_name' not in inferencer_args: inferencer_args['save_dir_name'] =  HParams().mode.config_name
+    if 'save_dir_name' not in inferencer_args: inferencer_args['save_dir_name'] =  config_dict['cli']['config_name']
 
     inferencer_class:Type[Inferencer] = GetModule.get_module_class(
         class_type = "inferencer", 
@@ -190,8 +183,8 @@ def inference(config_dict:dict) -> None:
     inferencer:Inferencer = inferencer_class(**inferencer_args)
     inferencer.inference(
         pretrained_root_dir = tj_path.ARTIFACTS_DIRS.train,
-        pretrained_dir_name = HParams().mode.config_name,
-        ckpt_name = HParams().inference.ckpt_name
+        pretrained_dir_name = config_dict['cli']['config_name'],
+        ckpt_name = config_dict['cli']['ckpt_name']
     )
 
 def evaluate(config_dict:dict) -> None:

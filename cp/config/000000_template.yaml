@@ -55,15 +55,15 @@ model:
       #args: {}
 #####################################################################################################
 train:
-  #total_epoch: 100000
-  #total_step: 100000
-  #save_model_step_interval: 500
-
   class_meta:
     name: ['trainer', 'Trainer']
     args: {}
       #model_ckpt_path: 'step.pth'
       #use_ema: False
+
+      ## train paremeters
+      #total_step: np.inf
+      #total_epoch: int(1e20)
 
   optimizer: 
     class_meta: 
