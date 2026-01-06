@@ -171,35 +171,25 @@ def fix_length(
     else:
         assert dim == -1, "Error[util_data.fix_length] slicing when dim is not -1 not implemented yet"
         return data[..., :length]
-
-def listdir(dir_name:str, ext:Union[str,list] = ['.wav', '.mp3', '.flac']) -> list:
-    if ext is None:
-        return os.listdir(dir_name)
-    if isinstance(ext, str): ext = [ext]
-    return [
-        {
-            'file_name': get_file_name(file_path = file_name), 
-            'file_path':f'{dir_name}/{file_name}',
-            'source_data_relpath': tj_path.relpath(f'{dir_name}/{file_name}', start_dir_type='source_data'),
-        } 
-        for file_name in os.listdir(dir_name) if os.path.splitext(file_name)[1] in ext
-    ]
     
-def walk(dir_path:str, ext:Union[list,str] = ['.wav', '.mp3', '.flac'], use_tqdm: bool = True) -> list:
+def walk(dir_path:str, ext:Union[list,str] = ['wav', 'mp3', 'flac'], depth:int = None, use_tqdm: bool = True) -> list:
     if isinstance(ext, str): ext = [ext]
     ext = [e if e.startswith('.') else f'.{e}' for e in ext]
-    dir_path = dir_path.replace('//','/')
+    dir_path = os.path.abspath(dir_path).replace('//','/')
+
     file_meta_list:list = list()
-    for root, _, files in os.walk(dir_path):
+    for root, dirs, files in os.walk(dir_path):
+        if depth is not None and root.count(os.sep) - dir_path.count(os.sep) >= depth:
+            dirs[:] = [] 
         for filename in tqdm(files, desc=f'walk {root}') if use_tqdm else files:
             if os.path.splitext(filename)[-1] in ext:
                 meta_data:dict = {
                     'file_name': get_file_name( file_path = filename ),
-                    'file_path': f'{root}/{filename}',
+                    'file_abspath': f'{root}/{filename}',
                     'file_relpath': os.path.relpath(f'{root}/{filename}', dir_path),
                     'dir_name': get_file_name(root),
-                    'dir_path': root,
-                    'dir_path_relative': os.path.relpath(root, dir_path),
+                    'dir_abspath': root,
+                    'dir_relpath': os.path.relpath(root, dir_path),
                 }
                 for start_dir_type, start_dir_path in tj_path.START_DIR_MAP.items():
                     rel_path = tj_path.relpath(f'{root}/{filename}', start_dir_path=start_dir_path)

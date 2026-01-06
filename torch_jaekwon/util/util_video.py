@@ -113,6 +113,8 @@ def read(
                         continue
                     if end_sec is not None and time_sec > end_sec: 
                         break
+                elif start_sec is not None or end_sec is not None:
+                    continue
                 video.append(frame.to_ndarray(format="rgb24").transpose(2, 0, 1)) # C,H,W
             elif packet.stream.type == "audio":
                 audio.append(frame.to_ndarray())  #[channels, samples]
@@ -128,6 +130,8 @@ def read(
         video = video[idx]
     
     audio = np.concatenate(audio, axis=-1) if len(audio) > 0 else None # [Channel, Time]
+    if audio is not None:
+        audio = audio[..., int((start_sec or 0) * sample_rate) : int(end_sec * sample_rate) if end_sec is not None else None]
     return {'video': [video, output_fps], 'audio': [audio, sample_rate]}
 
 
