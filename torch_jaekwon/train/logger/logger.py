@@ -132,9 +132,9 @@ class Logger():
 
         self.plot_wav(name = name + '_audio', audio_dict = audio_dict, sample_rate=sample_rate, global_step=global_step, log_local=log_local)
         if is_plot_mel:
-            from ...util.util_audio_mel import UtilAudioMelSpec
+            from ...util.util_audio_mel import UtilAudioMelSpec, get_default_config
             if mel_spec_args is None:
-                mel_spec_args = UtilAudioMelSpec.get_default_config(sample_rate=sample_rate)
+                mel_spec_args = get_default_config(sample_rate=sample_rate)
             mel_spec_util = UtilAudioMelSpec(**mel_spec_args)
             mel_dict = dict()
             for audio_name in audio_dict:
