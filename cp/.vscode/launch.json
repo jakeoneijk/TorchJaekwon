@@ -45,6 +45,18 @@
             ],
         },
         {
+            "name": "Distributed Debugger",
+            "type": "debugpy",
+            "request": "attach", "connect": {"host": "!!Change This To your Host!!", "port": 5678},
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/project_dir",
+                    "remoteRoot": "!!Change This To Absolute path of your project!!"
+                }
+            ],
+            "justMyCode": true,
+        },
+        {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",

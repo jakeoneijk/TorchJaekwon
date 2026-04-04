@@ -1,5 +1,6 @@
 from typing import Union
 import os
+import debugpy
 from datetime import timedelta
 import torch
 import torch.nn as nn
@@ -72,3 +73,20 @@ def shard_list(data: list, shard_index: int = None, num_shards: int = None) -> l
 def finish() -> None:
     distributed.barrier()
     distributed.destroy_process_group()
+
+def run_debug(function, port: int = 5678, *args, **kwargs) -> None:
+    # Initialize distributed environment (if needed)
+    if "LOCAL_RANK" in os.environ:
+        torch.distributed.init_process_group(backend="nccl")
+    
+    # Set up debugpy
+    rank:int = torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
+
+    if rank == 0:
+        # Set the port number for debugpy
+        debugpy.listen(("0.0.0.0", port))
+        util.log("Waiting for debugger to attach...", msg_type='info')
+        debugpy.wait_for_client()
+        util.log("Debugger attached!", msg_type='info')
+
+    function(*args, **kwargs)

@@ -29,6 +29,7 @@ dependencies = [
   "torchsde",
   "tqdm",
   "wandb",
+  "debugpy"
 ]
 
 [tool.setuptools.packages.find]
