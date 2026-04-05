@@ -18,7 +18,7 @@ except: print('import error: torch')
 try: from pydub import AudioSegment  
 except: print('import error: pydub')
 
-from . import util_data
+from . import util, util_data
 
 DATA_TYPE_MIN_MAX_DICT:Final[dict] = {'float32':(-1,1), 'float64':(-1,1), 'int16':(-2**15, 2**15-1), 'int32':(-2**31,2**31-1)}
 
@@ -157,7 +157,7 @@ def write(
     audio:Union[ndarray, Tensor],
     sample_rate:int,
 ) -> None:
-    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+    util.make_parent_dir(audio_path)
     if isinstance(audio, Tensor):
         audio = audio.squeeze().cpu().detach().numpy()
     assert len(audio.shape) <= 2, f'[Error] shape of {audio_path}: {audio.shape}'
