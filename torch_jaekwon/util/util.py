@@ -73,10 +73,10 @@ def set_sys_path_to_parent_dir(
     file:str, # __file__
     depth_to_dir_from_file:int = 1,
 ) -> None:
-    dir:str = get_ancestor_dir_path(file, depth_to_dir_from_file)
+    dir:str = get_ancestor_path(file, depth_to_dir_from_file)
     sys.path[0] = os.path.abspath(dir)
 
-def get_ancestor_dir_path(
+def get_ancestor_path(
     file:str, # __file__
     depth_to_dir_from_file:int = 1,
 ) -> str:

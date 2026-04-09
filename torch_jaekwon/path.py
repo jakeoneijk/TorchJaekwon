@@ -1,9 +1,15 @@
 from typing import Literal, Union, Literal
 import os
-import torch_jaekwon
+import importlib.util
 from dataclasses import dataclass, asdict
 
-TORCH_JAEKWON_PATH:str = os.path.dirname(torch_jaekwon.__file__)
+def get_package_root(package_name: str) -> str:
+    spec = importlib.util.find_spec(package_name)
+    if spec and spec.origin:
+        return os.path.dirname(spec.origin)
+    raise ImportError(f"Package '{package_name}' not found.")
+
+TORCH_JAEKWON_PATH:str = get_package_root("torch_jaekwon")
 CONFIG_DIR = "./config"
 ARTIFACTS_ROOT = os.environ.get("ARTIFACTS_ROOT", "./artifacts") # export ARTIFACTS_ROOT=/path/to/your/output
 

@@ -1,4 +1,4 @@
-from typing import Union,Dict,List
+from typing import Union,Dict,List, Literal
 from numpy import ndarray
 from torch import Tensor
 
@@ -213,5 +213,62 @@ def pretty_num(number:float) -> str:
 
 def extract_num_from_str(string:str) -> float:
     return float(''.join([c for c in string if c.isdigit() or c == '.']))
+
+def welford_parallel_update(count_a, mean_a, m2_a, count_b, mean_b, m2_b):
+    """
+    Combines two sets of partial statistics using Chan et al. parallel algorithm.
+    M2 is defined as: sum((x - mean)^2)
+    """
+    total_count = count_a + count_b
+    delta = mean_b - mean_a
+    
+    # New Mean
+    combined_mean = mean_a + delta * (count_b / total_count)
+    
+    # New M2
+    combined_m2 = m2_a + m2_b + (delta**2) * (count_a * count_b / total_count)
+    
+    return total_count, combined_mean, combined_m2
+
+def get_global_mean_var(data_list: List[dict], method: Literal["welford", "normal"] = "welford") -> dict:
+    """
+    Aggregates a list of batch statistics into one.
+    Supports input dicts with:
+      - {'sum', 'sum_sq', 'count'} 
+    """
+    if method == "welford":
+        count_acc = data_list[0]["count"]
+        mean_acc = data_list[0]["sum"] / data_list[0]["count"]
+        m2_acc = data_list[0]["sum_sq"] - (data_list[0]["sum"]**2 / data_list[0]["count"])
+
+        # Merge remaining batches
+        for i in range(1, len(data_list)):
+            b = data_list[i]
+            b_count = float(b["count"])
+            
+            
+            b_mean = b["sum"] / b_count
+            b_m2 = b["sum_sq"] - (b["sum"]**2 / b_count)
+
+            # Update using the atomic Welford function
+            count_acc, mean_acc, m2_acc = welford_parallel_update(
+                count_acc, mean_acc, m2_acc,
+                b_count, b_mean, b_m2
+            )
+    else:
+        sum_acc, sum_sq_acc, count_acc = 0, 0, 0
+        for r in data_list:
+            sum_acc += r["sum"]
+            sum_sq_acc += r["sum_sq"]
+            count_acc += r["count"]
+        mean_acc = sum_acc / count_acc
+        m2_acc = sum_sq_acc - (sum_acc ** 2 / count_acc)
+
+    return {
+        "count": count_acc,
+        "mean": mean_acc,
+        "m2": m2_acc,
+        "variance": np.maximum(m2_acc / count_acc, 0.0)
+    }
 
     

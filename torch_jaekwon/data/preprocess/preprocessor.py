@@ -1,5 +1,4 @@
-from concurrent.futures import ProcessPoolExecutor
-import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import time
 import torch
 from tqdm import tqdm
@@ -35,7 +34,8 @@ class Preprocessor():
         for dataset_name, dataset_manager in self.dataset_manager_dict.items():
             raise NotImplementedError
     
-    def preprocess_one_data(self, param:dict) -> None:
+    @staticmethod
+    def preprocess_one_data(param:dict) -> None:
         '''
         ex) (subset, file_name) = param
         '''
@@ -49,33 +49,39 @@ class Preprocessor():
     # ==========================
     
     def preprocess_data(self) -> None:
-        meta_param_list:list = self.get_meta_data_param()
-        print(f'length of meta data: {len(meta_param_list)}')
+        meta_param_list: list = self.get_meta_data_param()
+
+        print(f'Total meta data count: {len(meta_param_list)}')
         result_list = list()
-        start_time:float = time.time()
-        for start_idx in tqdm(range(0,len(meta_param_list),self.max_meta_data_len),desc='sub meta param list'):
-            sub_meta_param_list = meta_param_list[start_idx:start_idx+self.max_meta_data_len]
-            if sub_meta_param_list is None:
-                print('meta_param_list is None, So we skip preprocess data')
-                return
-            if self.num_workers > 2:
-                with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
-                    # pool.map(self.preprocess_one_data, sub_meta_param_list)
-                    with tqdm(total=len(sub_meta_param_list)) as progress:
-                        future_list = list()
+        start_time: float = time.time()
+        process_func = self.__class__.preprocess_one_data
 
-                        for sub_meta_param in sub_meta_param_list:
-                            future = pool.submit(self.preprocess_one_data, sub_meta_param)
-                            future.add_done_callback(lambda p: progress.update())
-                            future_list.append(future)
-
-                        for future in future_list:
+        # 2. Open the pool ONCE for the entire dataset
+        if self.num_workers > 1:
+            print(f"Starting {self.num_workers} workers...")
+            with ProcessPoolExecutor(max_workers=self.num_workers) as pool:
+                futures = {pool.submit(process_func, param): param for param in meta_param_list}
+                
+                with tqdm(total=len(futures), desc='Parallel Preprocess') as pbar:
+                    for future in as_completed(futures):
+                        try:
                             result = future.result()
-                            if result is not None: result_list.append(result)
-            else:
-                for meta_param in tqdm(sub_meta_param_list,desc='preprocess data'):
-                    result = self.preprocess_one_data(meta_param)
-                    if result is not None: result_list.append(result)
+                            if result is not None:
+                                result_list.append(result)
+                        except Exception as e:
+                            failed_param = futures[future]
+                            print(f"\n[ERROR] Worker failed on {failed_param.get('tar_path')}: {e}")
+                        
+                        pbar.update(1)
+        else:
+            for meta_param in tqdm(meta_param_list, desc='Serial Preprocess'):
+                try:
+                    result = process_func(meta_param)
+                    if result is not None:
+                        result_list.append(result)
+                except Exception as e:
+                    print(f"\n[ERROR] Failed on {meta_param.get('tar_path')}: {e}")
 
         self.final_process(result_list)
-        print("{:.3f} s".format(time.time() - start_time))
+        print("\n--- Preprocessing Complete ---")
+        print("Total time: {:.3f} s".format(time.time() - start_time))
