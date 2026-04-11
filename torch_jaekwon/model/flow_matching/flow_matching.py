@@ -22,7 +22,7 @@ class FlowMatching(nn.Module):
         model_class_meta:Optional[dict] = None, #{name:[file_name, class_name], args: {}}
         model:Optional[nn.Module] = None,
         # time
-        timestep_sampler:Literal['uniform', 'logit_normal'] = 'uniform',
+        timestep_sampler:Literal['uniform', 'logit_normal'] = 'logit_normal',
         # loss
         loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
         # classifier free guidance
@@ -76,7 +76,7 @@ class FlowMatching(nn.Module):
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
 
-        if x_shape is None: x_shape = self.get_x_shape(cond)
+        if x_shape is None: x_shape = self.get_x_shape(cond, additional_data_dict)
         model_device:device = util_torch.get_model_device(self.model)
         x:Tensor = torch.randn(x_shape, device = model_device)
 
@@ -187,5 +187,5 @@ class FlowMatching(nn.Module):
     def postprocess(self, x:Tensor, additional_data_dict:dict) -> Tensor:
         return x
     
-    def get_x_shape(self, cond:Optional[dict] = None):
+    def get_x_shape(self, cond:Optional[dict] = None, additional_data_dict:Optional[dict] = None):
         return None

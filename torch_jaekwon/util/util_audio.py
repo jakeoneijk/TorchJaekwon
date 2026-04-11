@@ -101,6 +101,7 @@ def read(
     if module_name == "soundfile":
         audio_data, original_sr = sf.read(audio_path)
         if len(audio_data.shape) > 1 : audio_data = audio_data.T
+        if len(audio_data.shape) == 1: audio_data = audio_data.reshape(1, -1)
         if sample_rate is not None and sample_rate != original_sr:
             audio_data = resample(audio_data,original_sr,sample_rate)
     elif module_name == "librosa":
