@@ -9,7 +9,7 @@ import copy
 import numpy as np
 import torch
 import torch.nn.functional as F
-import pickle, yaml, csv, json
+import pickle, yaml, csv, json, gzip
 from pathlib import Path
 from inspect import isfunction
 
@@ -98,9 +98,15 @@ def csv_save(
             csv_save_dict[key].append(data_dict[key])
     pd.DataFrame(csv_save_dict).to_csv(file_path)
 
-def json_load(file_path:str) -> dict:
-    with open(file_path) as f: data = f.read()
-    return json.loads(data)
+def json_load(file_path:str):
+    is_jsonl = '.jsonl' in file_path
+    if file_path.endswith('.gz'):
+        with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+            data = [json.loads(line) for line in f if line.strip()] if is_jsonl else json.load(f)
+    else:
+        with open(file_path) as f:
+            data = [json.loads(line) for line in f if line.strip()] if is_jsonl else json.load(f)
+    return data
 
 def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int=-1,remainder:str = ['discard','pad','maintain'][1],ext:str = ['pkl'][0]):
     os.makedirs(save_dir,exist_ok=True)

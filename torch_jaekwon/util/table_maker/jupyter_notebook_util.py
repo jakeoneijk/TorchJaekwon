@@ -9,7 +9,7 @@ import librosa
 import numpy as np
 
 from torch_jaekwon.util import util, util_audio, util_data, util_audio_stft
-from torch_jaekwon.util.util_audio_mel import UtilAudioMelSpec
+from torch_jaekwon.util.util_audio_mel import UtilAudioMelSpec, get_default_config
 
 LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
@@ -67,7 +67,7 @@ class HTMLUtil():
         self.output_dir:str = output_dir
         self.media_save_dir_name:str = 'media'
 
-        mel_spec_config = UtilAudioMelSpec.get_default_config(audio_sr)
+        mel_spec_config = get_default_config(audio_sr)
         self.mel_spec_util = UtilAudioMelSpec(**mel_spec_config)
     
     @staticmethod
@@ -153,7 +153,7 @@ class HTMLUtil():
     ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
-            audio, sr = util_audio.read(audio_path = audio_path, sample_rate=sample_rate)
+            audio, sr = util_audio.read(audio_path = audio_path, sample_rate=sample_rate, module_name='soundfile')
             path_dict = self.get_media_path('audio')
             util_audio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
             audio_path = path_dict['relative']

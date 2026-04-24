@@ -74,9 +74,9 @@ def finish() -> None:
     distributed.barrier()
     distributed.destroy_process_group()
 
-def run_debug(function, port: int = 5678, *args, **kwargs) -> None:
+def run_debug(function, port: int = 5678, init_distributed:bool = False, *args, **kwargs) -> None:
     # Initialize distributed environment (if needed)
-    if "LOCAL_RANK" in os.environ:
+    if init_distributed and "LOCAL_RANK" in os.environ:
         torch.distributed.init_process_group(backend="nccl")
     
     # Set up debugpy
