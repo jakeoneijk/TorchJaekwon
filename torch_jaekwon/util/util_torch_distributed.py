@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import IterableDataset
 import torch.distributed as distributed
+from torch.distributed.fsdp import fully_shard
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -90,3 +91,21 @@ def run_debug(function, port: int = 5678, init_distributed:bool = False, *args, 
         util.log("Debugger attached!", msg_type='info')
 
     function(*args, **kwargs)
+
+def apply_fsdp(model: nn.Module, fsdp_config: dict, exclude: set[str] | None = None) -> None:
+    """Shard all direct children of *model* with fully_shard, skipping names in *exclude*.
+
+    ModuleList / ModuleDict are sharded child-by-child (no forward method).
+    """
+    exclude = set(exclude or [])
+    for name, module in model.named_children():
+        if name in exclude:
+            continue
+        if isinstance(module, nn.ModuleList):
+            for i, child in enumerate(module):
+                module[i] = fully_shard(child, **fsdp_config)
+        elif isinstance(module, nn.ModuleDict):
+            for key, child in module.items():
+                module[key] = fully_shard(child, **fsdp_config)
+        else:
+            setattr(model, name, fully_shard(module, **fsdp_config))

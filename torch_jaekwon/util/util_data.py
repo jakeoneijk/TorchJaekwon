@@ -188,7 +188,7 @@ def walk(dir_path:str, ext:Union[list,str] = ['wav', 'mp3', 'flac'], depth:int =
         if depth is not None and root.count(os.sep) - dir_path.count(os.sep) >= depth:
             dirs[:] = [] 
         for filename in tqdm(files, desc=f'walk {root}') if use_tqdm else files:
-            if os.path.splitext(filename)[-1] in ext:
+            if any(filename.endswith(e) for e in ext):
                 meta_data:dict = {
                     'file_name': get_file_name( file_path = filename ),
                     'file_abspath': f'{root}/{filename}',
