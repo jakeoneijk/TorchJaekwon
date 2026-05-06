@@ -21,7 +21,7 @@ class TableMaker:
         yaml_path:str, 
         output_dir:str = None, 
         max_num_tr:int = 5,
-        get_item:Callable = lambda meta_data: {'item':None, 'type':None},
+        get_item:Callable = lambda model_meta, data_name, case_name, html_util, **kwargs: {'item':None, 'type':None},
         get_data_name_list:Callable = None, #lambda meta_data: []
         get_file_path:Callable = None, #lambda (data_name, model_meta, ext): str
     ) -> None:
@@ -40,7 +40,7 @@ class TableMaker:
         max_num_tr:int = 5,
         return_html:bool = False,
         transpose:bool = False,
-        get_item:Callable = lambda meta_data: {'item':None, 'type':None},
+        get_item:Callable = lambda model_meta, data_name, case_name, html_util, **kwargs: {'item':None, 'type':None},
         get_data_name_list:Callable = None, #lambda meta_data: []
         get_file_path:Callable = None, #lambda (data_name, model_meta, ext): str
         audio_config:dict = dict(),
@@ -51,7 +51,7 @@ class TableMaker:
         elif data_name_list is None and data_name_list_ref_dir is not None:
             data_name_list = [meta['file_name'] for meta in util_data.walk(data_name_list_ref_dir, ext=['.wav', '.mp4'])]
             data_name_list.sort()
-        html_util = HTMLUtil(output_dir=output_dir)
+        html_util = HTMLUtil(output_dir=output_dir, audio_sr=audio_config.get('audio_sr', 44100))
         html_list = list()
         html_list.append(html_util.get_html_text(title))
         html_list.append(html_util.get_html_text(sub_title, tag='h2'))
@@ -72,12 +72,19 @@ class TableMaker:
                     item_dict = dict()
                     try:
                         if ext == 'function':
-                            item_dict:dict = get_item({'model_meta': model_meta, 'data_name': data_name, 'case_name': case_name})
+                            item_dict:dict = get_item(
+                                model_meta=model_meta,
+                                data_name=data_name,
+                                case_name=case_name,
+                                html_util=html_util,
+                                audio_config=audio_config,
+                            )
                             if not isinstance(item_dict, dict): item_dict = {'item': item_dict}
                             item = item_dict.get('item', None)
                             item_type:str = item_dict.get('type', None)
                             if item_type is None:
-                                html_code_list = [item]
+                                # item may be a single html string OR a list of html strings (one per row)
+                                html_code_list = list(item) if isinstance(item, (list, tuple)) else [item]
                             else:
                                 raise NotImplementedError(f"item type '{item_type}' is not implemented.")
                         elif ext == 'wav':
