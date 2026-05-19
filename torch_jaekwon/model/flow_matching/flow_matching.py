@@ -72,13 +72,14 @@ class FlowMatching(nn.Module):
         sampler_type:Literal['discrete_euler', 'rk4', 'flow_dpmpp'] = 'discrete_euler',
         steps:int = 100,
         time_sampler_type:Literal['linear', 'linear_quadratic'] = 'linear_quadratic',
-        sigma_max:float = 1
+        sigma_max:float = 1,
+        temperature:float = 1.0,
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
 
         if x_shape is None: x_shape = self.get_x_shape(cond, additional_data_dict)
         model_device:device = util_torch.get_model_device(self.model)
-        x:Tensor = torch.randn(x_shape, device = model_device)
+        x:Tensor = torch.randn(x_shape, device = model_device) * (temperature ** 0.5)
 
         sigma_max = min(sigma_max, 1)
 
