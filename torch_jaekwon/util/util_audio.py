@@ -294,6 +294,49 @@ def resample_dataset(
             if save_dir == None:
                 audio_dir_new = meta_data['dir_path'].replace(meta_data['dir_name'], f"{meta_data['dir_name']}_{sr}")
             write(f"{audio_dir_new}/{meta_data['file_name']}.wav", audio, sr)
-    
+
+
+def normalize_loudness(
+    wav: Tensor,
+    sample_rate: int,
+    loudness_headroom_db: float = 18,
+    energy_floor: float = 2e-3,
+) -> Tensor:
+    """
+    Original code: https://github.com/kyutai-labs/moshi
+    Normalize an input signal to a user loudness in dB LKFS.
+    Audio loudness is defined according to the ITU-R BS.1770-4 recommendation.
+
+    Copied verbatim from Kyutai Moshi's `scripts/tts_make_voice.py`
+    (and identical to `rust/moshi-server/voice.py`). DC removal is performed
+    as the first step, so calling this also centers the waveform.
+
+    Args:
+        wav (torch.Tensor): Input multichannel audio data.
+        sample_rate (int): Sample rate.
+        loudness_headroom_db (float): Target loudness of the output in dB LUFS.
+            Moshi default (and what the production rust server uses): 18.
+        energy_floor (float): anything below that RMS level will not be rescaled.
+    Returns:
+        torch.Tensor: Loudness normalized output data.
+    """
+    if loudness_headroom_db < 0:
+        raise ValueError("loudness_headroom_db must be non-negative.")
+
+    wav = wav - wav.mean(dim=-1, keepdim=True)
+    energy = wav.std()
+    if energy < energy_floor:
+        return wav
+    transform = torchaudio.transforms.Loudness(sample_rate)
+    try:
+        input_loudness_db = transform(wav).item()
+    except RuntimeError:
+        return wav
+    delta_loudness = -loudness_headroom_db - input_loudness_db
+    gain = 10.0 ** (delta_loudness / 20.0)
+    output = gain * wav
+    assert output.isfinite().all(), (input_loudness_db, wav.pow(2).mean().sqrt())
+    return output
+
     
 
