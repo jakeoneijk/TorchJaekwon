@@ -134,7 +134,6 @@ def read(
 
     return audio_data, original_sr if sample_rate is None else sample_rate
 
-
 def convert_audio_channels(
     audio: Tensor, #[channel, time]
     mono:bool = None,
@@ -152,7 +151,6 @@ def convert_audio_channels(
         audio = stereo_audio
     return audio
 
-
 def write(
     audio_path:str,
     audio:Union[ndarray, Tensor],
@@ -164,52 +162,6 @@ def write(
     assert len(audio.shape) <= 2, f'[Error] shape of {audio_path}: {audio.shape}'
     if len(audio.shape) == 2 and audio.shape[0] < audio.shape[1]: audio = audio.T
     sf.write(file = audio_path, data = audio, samplerate = sample_rate)
-
-
-def stereo_to_mono(audio_data:Union[ndarray, Tensor]) -> Union[ndarray, Tensor]:
-    audio_data = np.mean(audio_data,axis=1)
-    return audio_data
-
-
-def mono_to_stereo(audio_data:Union[ndarray, Tensor]) -> Union[ndarray, Tensor]:
-    stereo_audio = np.zeros((2,len(audio_data)))
-    stereo_audio[0,...] = audio_data
-    stereo_audio[1,...] = audio_data
-    audio_data = stereo_audio
-    return audio_data
-
-
-def normalize_volume(audio_input:ndarray,sr:int, target_dBFS = -30):
-    audio = change_dtype(audio=audio_input,current_dtype='float64',target_dtype='int32')#float64_to_int32(audio_input)
-    audio_segment = AudioSegment(audio.tobytes(), frame_rate=sr, sample_width=audio.dtype.itemsize, channels=1)
-    change_in_dBFS = target_dBFS - audio_segment.dBFS
-    normalizedsound = audio_segment.apply_gain(change_in_dBFS)
-    return change_dtype(audio=np.array(normalizedsound.get_array_of_samples()),current_dtype='int32',target_dtype='float64') #int32_to_float64(np.array(normalizedsound.get_array_of_samples()))
-
-
-def normalize_by_fro_norm(
-    audio_input:Tensor #[batch, channel, time]
-) -> Tensor:
-    original_shape:tuple = audio_input.shape
-    audio = audio_input.reshape(original_shape[0], -1)
-    audio = audio/torch.norm(audio, p="fro", dim=1, keepdim=True)
-    audio = audio.reshape(*original_shape)
-    return audio
-
-
-def energy_unify(estimated, original, eps = 1e-12):
-    target = pow_norm(estimated, original) * original
-    target /= pow_p_norm(original) + eps
-    return estimated, target
-
-
-def pow_norm(s1, s2):
-    return torch.sum(s1 * s2)
-
-
-def pow_p_norm(signal):
-    return torch.pow(torch.norm(signal, p=2), 2)
-
 
 def get_segment_index_list(
     audio:ndarray, #[time]
@@ -224,7 +176,6 @@ def get_segment_index_list(
         segment_index_list.append({'begin':begin_sample, 'end':begin_sample + segment_sample_length})
         begin_sample += hop_samples
     return segment_index_list
-
 
 def audio_to_batch(
     audio:Tensor, #[Length]
@@ -241,7 +192,6 @@ def audio_to_batch(
         audio_list.append(audio_segment)
         start_idx += segment_length - overlap_length
     return torch.stack(audio_list)
-
 
 def merge_batch_w_cross_fade(
     batch_audio:Union[List[ndarray],ndarray,Tensor],
@@ -271,7 +221,6 @@ def merge_batch_w_cross_fade(
             batch_audio[i][-overlap_length:] *= cross_fade_out
         output_audio[start_idx:start_idx+segment_length] += batch_audio[i]
     return output_audio
-
 
 def analyze_dataset(
     data_dir_list:Union[str, list], 
@@ -331,7 +280,6 @@ def analyze_dataset(
         result_meta_dict[dir_name]['total_duration_minutes'] = result_meta_dict[dir_name]['total_duration_second'] / 60
         result_meta_dict[dir_name]['total_duration_hours'] = result_meta_dict[dir_name]['total_duration_second'] / 3600
     util_data.yaml_save(save_path = f'{result_save_dir}/meta.yaml', data = result_meta_dict)
-
 
 def resample_dataset(
     data_dir_list:Union[str, list], 
