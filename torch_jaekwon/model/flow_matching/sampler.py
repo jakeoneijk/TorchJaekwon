@@ -26,7 +26,7 @@ def time_sampler(type:str = 'linear', sigma_max:float = 1, steps:int = 50):
 class Sampler:
     @staticmethod
     @torch.no_grad()
-    def discrete_euler(model, x, steps, sigma_max=1, time_sampler_type=Literal['linear', 'linear_quadratic'], callback=None, dist_shift=None, **extra_args):
+    def discrete_euler(model, x, steps, sigma_max=1, time_sampler_type: Literal['linear', 'linear_quadratic'] = 'linear', callback=None, dist_shift=None, **extra_args):
         """Draws samples from a model given starting noise. Euler method"""
 
         # Make tensor of ones to broadcast the single t values
