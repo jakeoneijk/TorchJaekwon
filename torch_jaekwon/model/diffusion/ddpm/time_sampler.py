@@ -26,7 +26,7 @@ class TimeSampler:
                 raise NotImplementedError()
         else:
             if self.sampler_type == 'uniform':
-                return self.rng.draw(batch_size)[:, 0]
+                return torch.rand(batch_size)
             elif self.sampler_type == 'logit_normal':
                 return torch.sigmoid(torch.randn(batch_size))
             elif self.sampler_type == 'trunc_logit_normal':
