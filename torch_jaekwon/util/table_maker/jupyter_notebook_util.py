@@ -147,6 +147,7 @@ class HTMLUtil():
         audio_path:str = None,
         cp_to_html_dir:bool = True,
         sample_rate:int = None,
+        normalize_loudness:bool = False,
         spec_type:Literal['mel', 'stft', 'x'] = 'mel',
         spec_path:str = None,
         width:int=300
@@ -154,6 +155,8 @@ class HTMLUtil():
         style:str = '' if width is None else f'style="width:{width}px"'
         if cp_to_html_dir:
             audio, sr = util_audio.read(audio_path = audio_path, sample_rate=sample_rate, module_name='soundfile')
+            if normalize_loudness:
+                audio = util_audio.normalize_loudness(audio, sample_rate=sr)
             path_dict = self.get_media_path('audio')
             util_audio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
             audio_path = path_dict['relative']

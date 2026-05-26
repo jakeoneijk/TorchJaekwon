@@ -131,6 +131,8 @@ def read(
     
     if isinstance(audio_data, Tensor) and return_type == ndarray:
         audio_data = audio_data.cpu().detach().numpy()
+    elif isinstance(audio_data, ndarray) and return_type == Tensor:
+        audio_data = torch.from_numpy(audio_data).float()
 
     return audio_data, original_sr if sample_rate is None else sample_rate
 

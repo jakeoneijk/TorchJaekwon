@@ -46,6 +46,9 @@ class TableMaker:
         audio_config:dict = dict(),
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
+        if os.path.exists(output_dir):
+            util.log(f'Output directory {output_dir} already exists. Removing it.', msg_type='warning')
+            util.system(f'rm -rf {output_dir}')
         if get_data_name_list is not None:
             data_name_list = get_data_name_list({'data_name_list_ref_dir': data_name_list_ref_dir})
         elif data_name_list is None and data_name_list_ref_dir is not None:
