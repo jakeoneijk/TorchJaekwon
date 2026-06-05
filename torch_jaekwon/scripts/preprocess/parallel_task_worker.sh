@@ -1,7 +1,7 @@
 #!/bin/bash
-# Cluster-agnostic inner worker for ANY ShardPreprocessor subclass. srun runs one
+# Cluster-agnostic inner worker for ANY ParallelTaskPreprocessor subclass. srun runs one
 # of these per GPU (inside the container); it just runs `python -m <module> run`,
-# which races the shared shard list via atomic claims (see ShardPreprocessor).
+# which races the shared task list via atomic claims (see ParallelTaskPreprocessor).
 #
 # Everything it needs arrives as POSITIONAL ARGS (space-separated, NO commas):
 #   $1 = python module       (e.g. src.preprocess.fisher)
@@ -12,7 +12,7 @@
 # tj_submit_wave passes these as a space-separated arg string instead.
 set -euo pipefail
 
-MODULE="${1:?usage: shard_worker.sh <module> <python> <repo>}"
+MODULE="${1:?usage: parallel_task_worker.sh <module> <python> <repo>}"
 PYTHON="${2:?missing python interpreter arg}"
 REPO="${3:?missing repo root arg}"
 cd "$REPO"
@@ -25,7 +25,7 @@ export PYTHONPATH="$REPO:${PYTHONPATH:-}"
 
 # Per-rank LOCAL caches so many ranks don't contend on a shared filesystem lock
 # (Triton/Inductor/Numba/HF jit caches were a multi-node stall source).
-CACHE_BASE="/tmp/shard_cache_${SLURM_JOB_ID:-0}_${SLURM_PROCID:-0}"
+CACHE_BASE="/tmp/parallel_task_cache_${SLURM_JOB_ID:-0}_${SLURM_PROCID:-0}"
 mkdir -p "$CACHE_BASE"
 export TRITON_CACHE_DIR="$CACHE_BASE/triton"
 export TORCHINDUCTOR_CACHE_DIR="$CACHE_BASE/inductor"
@@ -37,5 +37,5 @@ export LOCAL_RANK="${SLURM_LOCALID:-0}"
 export RANK="${SLURM_PROCID:-0}"
 export WORLD_SIZE="${SLURM_NTASKS:-1}"
 
-echo "[shard_worker] node=$(hostname) module=$MODULE RANK=$RANK LOCAL_RANK=$LOCAL_RANK WORLD_SIZE=$WORLD_SIZE"
+echo "[parallel_task_worker] node=$(hostname) module=$MODULE RANK=$RANK LOCAL_RANK=$LOCAL_RANK WORLD_SIZE=$WORLD_SIZE"
 "$PYTHON" -m "$MODULE" run
