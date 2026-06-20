@@ -22,6 +22,7 @@ class Inferencer():
         input_data_path: str = None,
         device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         batch_size:int = 1,
+        shared_dir_name:str = '_shared_',
     ) -> None:
         self.output_dir:str = output_dir
         self.save_dir_name:str = save_dir_name
@@ -30,7 +31,7 @@ class Inferencer():
 
         assert model_class_meta is not None or model is not None, "model_class_meta or model must be not None"
         self.model:Union[nn.Module,object] = self.get_model(model_class_meta) if model is None else model
-        self.shared_dir_name:str = '_shared_'
+        self.shared_dir_name:str = shared_dir_name
 
         self.input_data_path: str = input_data_path
         self.batch_size:int = batch_size
