@@ -64,9 +64,9 @@ class WordErrorRate:
 
     def __call__(self, audio_path: str, reference_text: str) -> dict:
         if not os.path.exists(audio_path):
-            return {"wer": 1.0, "asr_text": ""}
+            raise FileNotFoundError(f"Audio file not found for WER: {audio_path}")
         hyp: str = normalize_text(self.transcribe(audio_path))
         ref: str = normalize_text(reference_text)
         if not ref:
-            return {"wer": 1.0, "asr_text": hyp}
+            raise ValueError(f"Empty reference text for WER (got {reference_text!r})")
         return {"wer": float(jiwer.process_words(ref, hyp).wer), "asr_text": hyp}
