@@ -1,5 +1,5 @@
 #type
-from typing import List
+from typing import List, Optional
 #import
 import os
 from tqdm import tqdm
@@ -13,15 +13,15 @@ class Evaluator():
     def __init__(
         self,
         pred_dir_path:str,
-        gt_dir_path:str,
-        result_dir_path:str,
+        gt_dir_path:Optional[str] = None,  # None when GT comes from elsewhere (e.g. a dataset manager), not a parallel dir
+        result_dir_path:Optional[str] = None,
         batch_size:int = 1, 
         sort_result_by_metric:bool = True,
         device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ) -> None:
         self.pred_dir_path:str = pred_dir_path
-        self.gt_dir_path:str = gt_dir_path
-        self.result_dir_path:str = self.get_result_dir_path(result_dir_path)
+        self.gt_dir_path:Optional[str] = gt_dir_path
+        self.result_dir_path:Optional[str] = self.get_result_dir_path(result_dir_path)
         self.batch_size:int = batch_size
         self.sort_result_by_metric = sort_result_by_metric
         self.device:torch.device = device
@@ -78,7 +78,8 @@ class Evaluator():
             if not isinstance(result, list): result = [result]
             result_dict['result_per_sample'] += result
 
-        metric_name_list:list = [metric_name for metric_name in list(result_dict['result_per_sample'][0].keys()) if type(result_dict['result_per_sample'][0][metric_name]) in [float]]
+        if not result_dict['result_per_sample']: raise ValueError('Evaluator produced no per-sample results (empty meta_data_list?)')
+        metric_name_list:list = [name for name, val in result_dict['result_per_sample'][0].items() if isinstance(val, (int, float)) and not isinstance(val, bool)]
         metric_name_list.sort()
         mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict['result_per_sample'], metric_name_list)
 
