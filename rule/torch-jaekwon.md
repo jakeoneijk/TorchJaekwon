@@ -12,11 +12,23 @@ to change, edit the file in `torch_jaekwon` (not here).
 
 ## Locate the package (path-independent, works on any server)
 
+`torch_jaekwon` is installed in a specific Python env, so run the locate command
+with that env's interpreter — the bare login-node `python` usually won't have it:
+
 ```bash
 python -c "import torch_jaekwon, os; print(os.path.dirname(os.path.dirname(torch_jaekwon.__file__)))"
 ```
 
-That prints the package directory; the rule docs live under `rule/` there.
+If that fails with `ModuleNotFoundError`, do **not** guess the env. List the
+available environments and ask the user (via the question tool) which one to use,
+then retry the locate command with it (`<env>/bin/python -c "..."` or after
+`conda activate <env>`):
+
+```bash
+conda env list
+```
+
+The printed directory holds the rule docs under `rule/`.
 
 ## Rule docs to read (apply when writing or reviewing code)
 
