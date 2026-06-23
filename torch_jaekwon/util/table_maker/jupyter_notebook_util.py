@@ -15,6 +15,93 @@ LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
 PLUS_MINUS_SYMBOL = "±"
 
+# Modern table/page styling shared by every page TableMaker emits. Kept as a
+# module-level constant (not rebuilt per HTMLUtil) so it's easy to read/edit as
+# real CSS. ``__TD_WIDTH__`` is the only per-instance knob (see ``table_data_width``).
+_TABLE_CSS = """\
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e6e8eb;
+  --text: #1f2933;
+  --muted: #6b7280;
+  --header-bg: #f1f3f5;
+  --accent: #4f46e5;
+  --row-alt: #fafbfc;
+  --row-hover: #eef2ff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+#root {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+h2 { font-size: 16px; font-weight: 400; color: var(--muted); margin: 0 0 24px; }
+h3 {
+  font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--accent); margin: 36px 0 12px; padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
+  font-size: 14px;
+}
+thead th {
+  background: var(--header-bg);
+  color: var(--text);
+  font-weight: 600;
+  text-align: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  width: __TD_WIDTH__;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  text-align: center;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) { background: var(--row-alt); }
+tbody tr:hover { background: var(--row-hover); }
+.media-div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+audio { width: 100%; max-width: 300px; }"""
+
+# Full document head (doctype .. </head>), with the CSS inlined. ``<body>`` and the
+# ``#root`` wrapper stay as separate list items in html_start_list so save_html's
+# indentation still nests the table body under them.
+_HTML_HEAD = """\
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#000000" />
+<style>
+%s
+</style>
+</head>""" % _TABLE_CSS
+
+
 class HTMLUtil():
     def __init__(
         self,
@@ -24,38 +111,9 @@ class HTMLUtil():
     ) -> None:
         self.indent:str = '  '
         self.media_idx_dict:dict = {'audio':0, 'img':0, 'video':0}
+        td_width:str = 'fit-content' if table_data_width is None else f'{table_data_width}px'
         self.html_start_list:List[str] = [
-            '<!DOCTYPE html>',
-            '<head>',
-            '<meta charset="utf-8" />',
-            '<meta name="viewport" content="width=device-width, initial-scale=1" />',
-            '<meta name="theme-color" content="#000000" />',
-            '<style>',
-            'h1, h2, h3, th, td {',
-            'font-family: Arial, sans-serif;',
-            '}',
-            'h3 {',
-            'margin-top: 32px;',
-            'background: rgb(220, 220, 220);',
-            '}',
-            'th {',
-            'background: rgb(190, 190, 190);',
-            '}',
-            'td {',
-            'font-family: Arial, sans-serif;',
-            f'''width: {'fit-content' if table_data_width is None else table_data_width+'px'};''',
-            '}',
-            'table {',
-            'border: 1px solid #444444;',
-            'border-collapse: collapse;',
-            '}',
-            '.media-div {',
-            'display: flex;',
-            'align-items: center;',
-            'justify-content: center;',
-            '}',
-            '</style>',
-            '</head>',
+            _HTML_HEAD.replace('__TD_WIDTH__', td_width),
             '<body>',
             '<div id="root">',
         ]
@@ -92,7 +150,7 @@ class HTMLUtil():
         
         html_list = list()
         table_head_item_list = list(dict_list[0].keys())
-        html_list.append('<table border="1">')
+        html_list.append('<table>')
         html_list.append('<thead>')
         html_list.append('<tr>')
         for table_head_item in table_head_item_list:
