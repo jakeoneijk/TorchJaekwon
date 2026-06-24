@@ -36,6 +36,8 @@ The printed directory holds the rule docs under `rule/`.
   etc.). Read and apply when asked to write or review training code.
 - `rule/general.md` — **general code-style** rules (e.g. the type-annotation
   convention). Read and apply when writing or reviewing code.
+- `rule/agent.md` — **agent behavior** rules (how to explain/cite code, when to
+  confirm before multi-file changes). Read and apply when working as a coding agent.
 
 ## Keep this rule in sync
 
