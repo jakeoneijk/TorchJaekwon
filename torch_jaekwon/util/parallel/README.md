@@ -15,14 +15,34 @@ inter-process communication, crash-safe and resumable.
 - The driver submits one **wave** of workers; you rerun until 0 are left (the local
   backend loops for you).
 
+### Control flow: `run_parallel_tasks.sh` → `tj_submit_wave` → `run_one_worker.sh`
+
 ```
-[login]   run_parallel_tasks.sh
-            wipe orphan temps -> count leftover -> submit one wave of N workers
-                                    |
-                                    v   (N run concurrently, one per GPU)
-[worker]  run_one_worker.sh
-            python -m <module> run  ->  ParallelTaskProcessor.run()  (claims + processes)
+[login]  run_parallel_tasks.sh                         DRIVER  (generic; no GPU)
+           wipe orphan temps -> count leftover -> (if >0) submit one wave
+                                                     |
+                                                     v   calls the contract function:
+         tj_submit_wave <job> <njobs> <hours> <module> [app args]
+           sbatch --array  (cluster)   |   background procs (local)   <- BACKEND: the ONLY
+                                                     |                    cluster-specific piece
+                                                     v   launches N of, one per GPU:
+[worker] run_one_worker.sh -m <module> -p <python> -r <repo> -- [app args]   WORKER (generic)
+           set env/caches  ->  python -m <module> run [app args]
+                                  -> ParallelTaskProcessor.run()   (claims + processes tasks)
 ```
+
+Three layers, clean separation:
+- **`run_parallel_tasks.sh` (driver)** — generic orchestration on the login node: wipe →
+  count → submit one wave. Knows *nothing* about your cluster.
+- **`tj_submit_wave` (backend/contract)** — the **only cluster-specific piece**, supplied by
+  your `env_setup.sh` (or a shipped `backends/*.sh`). Turns "run a wave of N workers" into
+  actual launches — `sbatch --array` on a cluster, background processes locally.
+- **`run_one_worker.sh` (worker)** — generic per-GPU entry: sets caches/identity, then
+  `python -m <module> run`, which races the claim list.
+
+Per-run **app args flow straight through** all three: driver's `-- …` tail → `tj_submit_wave`
+trailing args → worker's `-- …` → `python -m <module> run …`. The generic layers never
+interpret them; only your module does.
 
 ## How work is split across workers (no sharding)
 
@@ -126,16 +146,31 @@ Run from your repo root so `-M src.preprocess.my_task` resolves. Most projects w
 in a one-line launcher that sets `TJ_CLUSTER_ENV` — copy the pattern from
 `examples/launch.example.sh`.
 
-Driver flags: `-M <module>` (required) · `-j <job_name>` · `-t <hours>` · `-m <max_workers_per_wave>`.
+Driver flags: `-M <module>` (required) · `-j <job_name>` · `-t <hours>` · `-m <max_workers_per_wave>`
+· `-- <app args>` (optional; see below).
+
+### Passing per-run args to your module (optional)
+
+Anything after `--` on the driver is forwarded verbatim to `python -m <module> {run,count,wipe} <app args>`,
+so a module can take **argparse** config instead of hardcoding it:
+
+```bash
+... run_parallel_tasks.sh -M src.inference.my_infer -- --config a.yaml --ckpt step-150000.ckpt
+```
+
+Each job carries its own args (no shared state), so multiple configs run concurrently. The
+generic layer never interprets them. One rule: **no spaces/commas in any value** — args
+word-split through the scheduler.
 
 ## The cluster contract
 
 `$TJ_CLUSTER_ENV` (your project's `env_setup.sh`) must define:
 
 - `TJ_PYTHON` — interpreter used on the login node and inside jobs.
-- `tj_submit_wave <job> <njobs> <hours> <module>` — spawn `njobs` independent workers,
-  each running `run_one_worker.sh` with `(module, TJ_PYTHON, TJ_REPO)` as
-  space-separated args. (Don't pass comma-bearing values — SLURM splits `--export` on commas.)
+- `tj_submit_wave <job> <njobs> <hours> <module> [app args...]` — spawn `njobs` independent
+  workers, each running `run_one_worker.sh -m <module> -p <TJ_PYTHON> -r <TJ_REPO> -- [app args...]`
+  (named flags, so adding knobs never shifts positions). (Don't pass comma-bearing values —
+  SLURM splits `--export` on commas.)
 
 Backends are swappable there: the default is your cluster's `sbatch` implementation;
 `TJ_BACKEND=local` sources the shipped `backends/local.sh` (background processes, one per

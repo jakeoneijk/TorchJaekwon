@@ -4,18 +4,29 @@
 # background process (local backend). It just runs `python -m <module> run`, which
 # races the shared task list via atomic claims (see ParallelTaskProcessor).
 #
-# Everything it needs arrives as POSITIONAL ARGS (space-separated, NO commas):
-#   $1 = python module       (e.g. src.preprocess.fisher)
-#   $2 = python interpreter   (e.g. /.../envs/ntd/bin/python)
-#   $3 = repo root            (added to PYTHONPATH; the module resolves from here)
+# Args are NAMED FLAGS (not positional), so adding knobs never shifts anything:
+#   -m <module>      python module          (e.g. src.preprocess.fisher)
+#   -p <python>      python interpreter      (e.g. /.../envs/ntd/bin/python)
+#   -r <repo>        repo root (-> PYTHONPATH; the module resolves from here)
+#   -- <app args>    forwarded verbatim to `python -m <module> run <app args>`
 # We deliberately do NOT rely on env propagation into the container: SLURM splits
 # --export on commas (even --export=ALL fails on some clusters), so the cluster's
-# tj_submit_wave passes these as a space-separated arg string instead.
+# tj_submit_wave passes these as a space-separated arg string instead (NO spaces in
+# any single value -- it word-splits).
 set -euo pipefail
 
-MODULE="${1:?usage: run_one_worker.sh <module> <python> <repo>}"
-PYTHON="${2:?missing python interpreter arg}"
-REPO="${3:?missing repo root arg}"
+MODULE="" PYTHON="" REPO=""
+while getopts "m:p:r:" opt; do
+  case $opt in
+    m) MODULE="$OPTARG" ;;
+    p) PYTHON="$OPTARG" ;;
+    r) REPO="$OPTARG" ;;
+    *) echo "usage: run_one_worker.sh -m <module> -p <python> -r <repo> [-- <app args>]" >&2; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
+[[ "${1:-}" == "--" ]] && shift   # remaining "$@" = app args forwarded to the module
+: "${MODULE:?-m <module> required}" "${PYTHON:?-p <python> required}" "${REPO:?-r <repo> required}"
 cd "$REPO"
 
 # Default to HF offline: from_pretrained() calls (parakeet / semamba / voxcpm /
@@ -50,4 +61,4 @@ export RANK="${TJ_WORKER_ID:-${SLURM_PROCID:-0}}"
 export WORLD_SIZE="${TJ_WORLD_SIZE:-${SLURM_NTASKS:-1}}"
 
 echo "[worker] host=$(hostname) module=$MODULE WORKER_ID=$WORKER_ID RANK=$RANK LOCAL_RANK=$LOCAL_RANK WORLD_SIZE=$WORLD_SIZE"
-"$PYTHON" -m "$MODULE" run
+"$PYTHON" -m "$MODULE" run "$@"   # "$@" = the forwarded app args (empty for arg-free modules)

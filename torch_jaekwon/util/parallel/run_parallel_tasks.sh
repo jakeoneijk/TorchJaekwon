@@ -6,15 +6,19 @@
 #
 # Contract the sourced $TJ_CLUSTER_ENV must provide:
 #   TJ_PYTHON                                   # python interpreter (login + jobs)
-#   tj_submit_wave <job_name> <njobs> <hours> <module>
-#       # submit <njobs> INDEPENDENT 1-GPU jobs, each running run_one_worker.sh
-#       # with (module, TJ_PYTHON, TJ_REPO) as positional args.
-# CONTRACT RULE: tj_submit_wave must NOT pass comma-containing values (SLURM splits
-# --export on commas); keep those hardcoded in the cluster's own launch script.
+#   tj_submit_wave <job_name> <njobs> <hours> <module> [app args...]
+#       # submit <njobs> INDEPENDENT 1-GPU jobs, each running:
+#       #   run_one_worker.sh -m <module> -p <TJ_PYTHON> -r <TJ_REPO> -- [app args...]
+#
+# Optional per-run app args: everything after `--` on this driver's CLI is forwarded
+# verbatim to `python -m <module> {run,count,wipe} <app args>` (so a module can take
+# argparse config instead of hardcoding it). The generic layer never interprets them.
+# CONTRACT RULE: pass only values with NO spaces/commas -- they word-split through the
+# scheduler; keep space/comma-bearing constants hardcoded in the launch script.
 set -euo pipefail
 
 log()   { echo "[driver] $*"; }
-usage() { echo "Usage: $0 -M <python.module> [-j job_name] [-t hours] [-m max_tasks]" >&2; }
+usage() { echo "Usage: $0 -M <python.module> [-j job_name] [-t hours] [-m max_tasks] [-- <app args>]" >&2; }
 
 parse_args() {
   MODULE="" JOB_NAME="parallel_tasks" HOURS=4 MAX_TASKS=40
@@ -26,6 +30,9 @@ parse_args() {
       *) usage; exit 1 ;;
     esac
   done
+  shift $((OPTIND - 1))
+  [[ "${1:-}" == "--" ]] && shift   # everything after -- is forwarded to the module
+  APP_ARGS=("$@")                    # opaque per-run args (e.g. --config ... --ckpt ...)
   [[ -n "$MODULE" ]] || { echo "ERROR: -M <python.module> is required (e.g. src.preprocess.fisher)" >&2; exit 1; }
 }
 
@@ -38,12 +45,12 @@ load_cluster_contract() {
 # Remove orphan temp dirs from prior waves. Safe ONLY between waves: a live claim
 # and a dead worker's orphan look identical on disk. The `wipe` subcommand itself
 # is implemented by ParallelTaskProcessor (torch_jaekwon/util/parallel/parallel_task_processor.py).
-wipe_orphan_temps() { "$TJ_PYTHON" -m "$MODULE" wipe; }
+wipe_orphan_temps() { "$TJ_PYTHON" -m "$MODULE" wipe "${APP_ARGS[@]}"; }
 
 # Leftover (not-yet-done) task count. Prints ONLY the number to stdout (the caller
 # captures it), so this must never log to stdout. The `count` subcommand itself is
 # implemented by ParallelTaskProcessor (torch_jaekwon/util/parallel/parallel_task_processor.py).
-count_leftover() { "$TJ_PYTHON" -m "$MODULE" count; }
+count_leftover() { "$TJ_PYTHON" -m "$MODULE" count "${APP_ARGS[@]}"; }
 
 # One wave = min(leftover, MAX_TASKS) independent 1-GPU workers. The backend packs
 # them onto free GPUs; each worker races the list via atomic claims and exits when
@@ -51,7 +58,7 @@ count_leftover() { "$TJ_PYTHON" -m "$MODULE" count; }
 submit_one_wave() {
   local left="$1" njobs=$(( left < MAX_TASKS ? left : MAX_TASKS ))
   log "submitting one wave of $njobs independent 1-GPU worker(s)"
-  tj_submit_wave "$JOB_NAME" "$njobs" "$HOURS" "$MODULE"
+  tj_submit_wave "$JOB_NAME" "$njobs" "$HOURS" "$MODULE" "${APP_ARGS[@]}"
 }
 
 # Async backends (e.g. sbatch): submission returns immediately, so do ONE wave and
