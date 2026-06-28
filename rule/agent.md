@@ -27,13 +27,12 @@ When explaining the logic of existing code, always:
 
 Do not explain logic in the abstract without showing the code it refers to.
 
-### 1.2 Cite clickable full paths
+### 1.2 Cite project-relative paths
 
-When pointing the user at code, cite the **absolute path with line number**
-(e.g.
-`/home/jaekwoni/personal/projects/ntd/NeMo/nemo/collections/speechlm2/models/calm_interleaved.py:54`),
-not a repo-relative path, so the reference is command-clickable from the user's
-terminal.
+When pointing the user at code, cite the **project-relative path with line
+number** (e.g.
+`nemo/collections/speechlm2/models/calm_interleaved.py:54`), rooted at the
+project root. No absolute paths needed.
 
 ## 2. Making changes
 

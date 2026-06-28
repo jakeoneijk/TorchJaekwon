@@ -4,11 +4,11 @@ from typing import Any
 
 from tqdm import tqdm
 
-from ...util import util
+from .. import util
 
 
-class ParallelTaskPreprocessor:
-    """Parallel preprocessor for INDEPENDENT tasks needing no inter-process
+class ParallelTaskProcessor:
+    """Parallel processor for INDEPENDENT tasks needing no inter-process
     communication -- unlike the collective/NCCL `TorchrunPreprocessor`.
 
     Use this when the dataset splits into independent "tasks" (units of work)
@@ -95,6 +95,13 @@ class ParallelTaskPreprocessor:
         remove tmp_dir on success."""
         raise NotImplementedError("Subclasses must implement this method.")
 
+    def setup(self) -> None:
+        """Optional one-time per-worker setup, run by `run()` BEFORE the task loop
+        (and never by `count`/`wipe`, so it stays off the login node). Use it for
+        work that must happen once per worker rather than once per task -- most
+        importantly loading a model onto the GPU. Default no-op."""
+        pass
+
     def final_process(self) -> None:
         pass
 
@@ -115,9 +122,10 @@ class ParallelTaskPreprocessor:
             return False
 
     def run(self, show_progress: bool = True) -> None:
+        self.setup()  # one-time per-worker (e.g. load model); skipped by count/wipe
         tasks = self.list_tasks()
         leftover = [t for t in tasks if not self.is_task_done(t)]
-        util.log(f"ParallelTaskPreprocessor: {len(leftover)}/{len(tasks)} tasks left to process", msg_type='info')
+        util.log(f"ParallelTaskProcessor: {len(leftover)}/{len(tasks)} tasks left to process", msg_type='info')
         processed = 0
         for task in tqdm(leftover, disable=not show_progress):
             if self.is_task_done(task):
@@ -126,7 +134,7 @@ class ParallelTaskPreprocessor:
                 continue  # claimed by another worker (or an orphan to wipe next wave)
             self.process_task(task, self.tmp_dir_path(task))
             processed += 1
-        util.log(f"ParallelTaskPreprocessor: this worker processed {processed} tasks", msg_type='success')
+        util.log(f"ParallelTaskProcessor: this worker processed {processed} tasks", msg_type='success')
         self.final_process()
 
     def count_leftover(self) -> int:
@@ -156,6 +164,6 @@ class ParallelTaskPreprocessor:
         if args.command == "count":
             print(self.count_leftover())
         elif args.command == "wipe":
-            util.log(f"ParallelTaskPreprocessor: wiped {self.wipe_tmp_dirs()} temp dir(s)", msg_type='info')
+            util.log(f"ParallelTaskProcessor: wiped {self.wipe_tmp_dirs()} temp dir(s)", msg_type='info')
         else:
             self.run()
