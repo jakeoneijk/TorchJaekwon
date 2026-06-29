@@ -2,7 +2,6 @@ from typing import Literal, List
 import os, sys
 import psutil
 import re
-import torch
 import importlib.util
 
 PURPLE = '\033[95m'
@@ -29,6 +28,7 @@ def get_resource_usage(
 
     log_dict['cpu_usage_percent'] = process.cpu_percent(interval=0.1)
 
+    import torch  # lazy: keep util.py importable without torch (cheap login-node imports)
     if torch.cuda.is_available():
         log_dict['cuda_allocated_mb'] = torch.cuda.memory_allocated() / 1024 ** 2
         log_dict['cuda_reserved_mb'] = torch.cuda.memory_reserved() / 1024 ** 2
@@ -121,6 +121,19 @@ def norm_path(file_path:str) -> str:
 
 def make_parent_dir(file_path:str) -> None:
     os.makedirs(os.path.dirname(norm_path(file_path)), exist_ok=True)
+
+def set_env_from_sh(sh_file:str, override:bool = False) -> None:
+    """Load `export VAR=...` assignments from a shell file into os.environ.
+    No-op if the file is missing. Keeps any var already set (env wins over file)
+    unless override=True. Parses double/single-quoted and unquoted values."""
+    if not os.path.exists(sh_file):
+        return
+    text = open(sh_file).read()
+    for m in re.finditer(r'''^\s*export\s+([A-Za-z_]\w*)=(?:"([^"]*)"|'([^']*)'|(\S+))''', text, re.MULTILINE):
+        name = m.group(1)
+        value = next(g for g in m.groups()[1:] if g is not None)
+        if override or name not in os.environ:
+            os.environ[name] = value
 
 def is_package_installed(package_name: str) -> bool:
     if importlib.util.find_spec(package_name) is not None:
