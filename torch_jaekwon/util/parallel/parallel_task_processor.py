@@ -151,16 +151,32 @@ class ParallelTaskProcessor:
                 n += 1
         return n
 
+    # ---- CLI extension hooks (override in subclasses that take args) ----
+    @classmethod
+    def add_args(cls, parser) -> None:
+        """Override to register subclass-specific argparse args on `parser`
+        (default: none). Paired with `build` to construct the instance."""
+        pass
+
+    @classmethod
+    def build(cls, args):
+        """Override to build (construct) the instance from the parsed argparse
+        Namespace (default: no-arg `cls()`). `args` carries `command` plus whatever
+        `add_args` registered."""
+        return cls()
+
     @classmethod
     def main(cls) -> None:
-        """CLI entrypoint: `python -m <subclass_module> {run,count,wipe}`.
-        Instantiates the subclass with defaults and dispatches. `count` prints
-        only the integer so a launcher can do `N=$(python -m M count)`."""
+        """CLI entrypoint: `python -m <subclass_module> {run,count,wipe} [args]`.
+        Builds the parser (+ subclass `add_args`), constructs via `build`, then
+        dispatches. `count` prints only the integer so a launcher can do
+        `N=$(python -m M count)`."""
         import argparse
         parser = argparse.ArgumentParser()
         parser.add_argument("command", nargs="?", default="run", choices=["run", "count", "wipe"])
+        cls.add_args(parser)
         args = parser.parse_args()
-        self = cls()
+        self = cls.build(args)
         if args.command == "count":
             print(self.count_leftover())
         elif args.command == "wipe":
