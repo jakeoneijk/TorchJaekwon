@@ -1,6 +1,5 @@
 from typing import Union
 import os
-import debugpy
 from datetime import timedelta
 import torch
 import torch.nn as nn
@@ -29,16 +28,19 @@ def is_available() -> bool:
 def is_multi_gpu() -> bool:
     return world_size() > 1
 
-def local_rank() -> int:
+def local_rank() -> int: # per-node GPU index; use only for device placement
     local_rank:int = int(os.environ.get('LOCAL_RANK', 0))
     return local_rank
+
+def rank() -> int: # global rank across all nodes; use for main-process / data-sharding decisions (LOCAL_RANK repeats per node)
+    return int(os.environ.get('RANK', 0))
 
 def world_size() -> int:
     world_size:int = int(os.environ.get('WORLD_SIZE', 1))
     return world_size
 
 def is_main_process() -> bool:
-    return local_rank() == 0
+    return rank() == 0
 
 def barrier() -> None:
     distributed.barrier()
@@ -61,12 +63,12 @@ def get_dataloader(dataloader_args:dict, shuffle:bool = True) -> DataLoader:
     dataset = dataloader_args['dataset']
     if not isinstance(dataset, IterableDataset):
         dataloader_args.pop("shuffle", None)
-        dataloader_args['sampler'] = DistributedSampler(dataset, rank=local_rank(), shuffle=shuffle)
+        dataloader_args['sampler'] = DistributedSampler(dataset, shuffle=shuffle) # rank/num_replicas auto-read from the process group (global, multi-node correct)
     return DataLoader(**dataloader_args)
 
 def shard_list(data: list, shard_index: int = None, num_shards: int = None) -> list:
     if shard_index is None:
-        shard_index = local_rank()
+        shard_index = rank()
     if num_shards is None:
         num_shards = world_size()
     return data[shard_index::num_shards]
@@ -76,6 +78,7 @@ def finish() -> None:
     distributed.destroy_process_group()
 
 def run_debug(function, port: int = 5678, init_distributed:bool = False, *args, **kwargs) -> None:
+    import debugpy # lazy: debug-only dependency, not required to import this module
     # Initialize distributed environment (if needed)
     if init_distributed and "LOCAL_RANK" in os.environ:
         torch.distributed.init_process_group(backend="nccl")

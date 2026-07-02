@@ -257,9 +257,16 @@ class Trainer():
             optimizer = optimizer_class(**optimizer_args)
         return optimizer
     
+    def get_all_parameters(self, model:Union[nn.Module, dict]) -> list: # collect params across a single model or a (possibly nested) dict of models
+        if isinstance(model, dict):
+            params = list()
+            for sub_model in model.values(): params += self.get_all_parameters(sub_model)
+            return params
+        return list(model.parameters())
+
     def get_params(
-        self, 
-        model:dict, 
+        self,
+        model:dict,
         model_name_list:list
     ) -> dict:
         params = list()
@@ -397,7 +404,7 @@ class Trainer():
             self.set_model_train_valid_mode(self.model, 'valid')
 
         try: dataset_size = len(dataloader)
-        except: dataset_size = dataloader.dataset.__len__()
+        except TypeError: dataset_size = len(dataloader.dataset)
 
         if metric_range == "epoch":
             metric = dict()
@@ -406,9 +413,6 @@ class Trainer():
 
             if metric_range == "step":
                 metric = dict()
-
-            if step >= len(dataloader):
-                break
 
             self.local_step = step
             loss, metric = self.run_step(data,metric,train_state)
@@ -463,7 +467,7 @@ class Trainer():
         loss = self.loss_backward(loss)
         if (self.global_step + 1) % self.grad_accum_steps == 0:
             if self.max_grad_norm is not None:
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.get_all_parameters(self.model), self.max_grad_norm)
             self.optimizer.step()
             self.on_before_zero_grad()
             self.optimizer.zero_grad()
@@ -539,6 +543,12 @@ class Trainer():
             'optimizers': self.get_state_dict(self.optimizer),
             'best_metric': self.best_valid_metric,
             'best_model_epoch' :  self.best_valid_epoch,
+            'rng_state': {
+                'torch_cpu': torch.get_rng_state(),
+                'torch_cuda': torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                'numpy': np.random.get_state(),
+                'python': random.getstate(),
+            },
         }
 
         if self.lr_scheduler is not None:
@@ -582,11 +592,20 @@ class Trainer():
         else:
             raise ValueError(f'Cannot load state_dict to {module}')
 
+    def set_rng_state(self, rng_state:dict) -> None:
+        torch.set_rng_state(rng_state['torch_cpu'])
+        if rng_state['torch_cuda'] is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state(rng_state['torch_cuda'])
+        np.random.set_state(rng_state['numpy'])
+        random.setstate(rng_state['python'])
+
     def load_train(self, filename:str, map_location:str = 'cpu') -> None:
         self.logger.print_and_log(f'load train from {filename}')
         cpt:dict = torch.load(filename,map_location=map_location)
         self.seed = cpt['seed']
         self.set_seeds(self.seed, self.seed_strict)
+        if 'rng_state' in cpt: # continue the RNG stream from the checkpoint instead of resetting to the base seed
+            self.set_rng_state(cpt['rng_state'])
         self.current_epoch = cpt['epoch']
         self.global_step = cpt['step'] + 1
 

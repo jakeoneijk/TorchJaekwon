@@ -1,10 +1,12 @@
 from typing import Literal, Union
 import os
+from contextlib import ExitStack, contextmanager
 import torch
 import torch.nn as nn
 import torch.utils.data.dataset as dataset
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ...util import util_torch_distributed
 from .trainer import Trainer, TrainState
@@ -39,16 +41,23 @@ class TorchrunTrainer(Trainer):
     def loss_backward(self, loss: torch.Tensor) -> torch.Tensor:
         if (self.global_step + 1) % self.grad_accum_steps == 0:
             loss.backward()
-            '''
-            import torch.distributed as dist
-            loss_for_log = loss.detach()
-            dist.all_reduce(loss_for_log, op=dist.ReduceOp.AVG)
-            return loss_for_log
-            '''
         else:
-            with self.model.no_sync():
+            with self.no_sync(self.model): # skip DDP gradient all-reduce on accumulation steps
                 loss.backward()
         return loss
+
+    @contextmanager
+    def no_sync(self, model:Union[nn.Module, dict]):
+        with ExitStack() as stack:
+            for ddp_module in self._iter_ddp_modules(model):
+                stack.enter_context(ddp_module.no_sync())
+            yield
+
+    def _iter_ddp_modules(self, model:Union[nn.Module, dict]):
+        if isinstance(model, dict):
+            for sub_model in model.values(): yield from self._iter_ddp_modules(sub_model)
+        elif isinstance(model, DDP):
+            yield model
     
     def load_train(self, filename:str, map_location:str = 'cpu') -> None:
         map_location = 'cuda:%d' % util_torch_distributed.local_rank()
