@@ -185,3 +185,45 @@ def unwrap_batch_dict(batch_dict:dict) -> List[dict]:
             unwrapped_data_dict[key] = value[i]
         data_list.append(unwrapped_data_dict)
     return data_list
+
+def suggest_batch_knob_for_target_memory(
+    current_knob:float,   # the batch knob you probed with (batch_size, or batch_duration in sec, etc.)
+    baseline_bytes:int,   # VRAM held by fixed cost: model + optimizer state + workspaces (does NOT scale with the knob)
+    peak_bytes:int,       # peak VRAM during a step at current_knob
+    total_bytes:int,      # VRAM budget (e.g. torch.cuda.get_device_properties(i).total_memory, or the card's total)
+    target_fraction:float = 0.85,  # aim peak at this fraction of total (leave headroom for fragmentation/spikes)
+    safety_margin:float = 0.9,      # shrink the extrapolated knob so the linear estimate doesn't overshoot into OOM
+) -> Dict[str, float]:
+    """Suggest a batch knob (batch_size / batch_duration / ...) that lands peak VRAM near a target fraction.
+
+    Model: peak = baseline + slope * knob, i.e. activation memory scales ~linearly with the batch knob
+    while the fixed cost (weights + optimizer moments + cudnn/nccl workspaces) does not. From ONE probe:
+        activation = peak - baseline
+        target_activation = target_fraction * total - baseline
+        new_knob = current_knob * (target_activation / activation) * safety_margin
+
+    Source-agnostic: feed bytes from torch.cuda stats OR nvidia-smi (whichever measures your real peak).
+    torch.cuda under-counts the true device peak (ignores caching-allocator reserve, fragmentation,
+    non-torch libs), so for an absolute ceiling prefer nvidia-smi and keep safety_margin < 1.
+
+    Typical torch.cuda probe (run a couple steps first so optimizer state exists):
+        torch.cuda.reset_peak_memory_stats(dev)
+        baseline_bytes = torch.cuda.memory_allocated(dev)   # captured right before the forward
+        ... forward + backward + optimizer.step() ...
+        peak_bytes = torch.cuda.max_memory_allocated(dev)
+
+    Returns current/target/suggested knob plus the fractions, so you can log and decide whether to re-probe.
+    """
+    activation:float = peak_bytes - baseline_bytes
+    target_activation:float = target_fraction * total_bytes - baseline_bytes
+    if activation <= 0 or target_activation <= 0:
+        # Fixed cost alone already exceeds target, or peak<=baseline (bad measurement): don't extrapolate.
+        suggested = current_knob
+    else:
+        suggested = current_knob * (target_activation / activation) * safety_margin
+    return {
+        'current_knob': float(current_knob),
+        'suggested_knob': float(suggested),
+        'current_peak_fraction': float(peak_bytes) / float(total_bytes),
+        'target_fraction': float(target_fraction),
+    }
