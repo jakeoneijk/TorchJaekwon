@@ -28,18 +28,19 @@
                 //"inference",
                 //"evaluate",
 
-                // **[preprocess]**
-                //"--num_workers", "10"
-                
-                // **[train]**
-                //"--check_evalstep_first", "False",
                 //"--log_tool", "wandb",
-                "--debug_mode", "false",
-                "--use_torch_compile", "false",
+
+                // **[config overrides]** --set SECTION.KEY=VALUE ... (YAML/py-typed, so 1e-4 is a float). All override tokens go AFTER --set.
+                "--set",
+                "mode.debug_mode=false",
+                "mode.use_torch_compile=false",
+                //"resource.num_workers=10",
+                //"train.check_evalstep_first=false",
+                //"train.optimizer.args.lr=1e-4",
 
                 // **[inference]**
                 //"--ckpt_name", ".pth",
-                
+
                 // **[evaluate]**
                 //"--eval_pred_dir_path", "artifacts/inference/",
             ],

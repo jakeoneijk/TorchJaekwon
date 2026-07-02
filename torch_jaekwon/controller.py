@@ -4,15 +4,23 @@ from typing import Type, Literal
 #package
 import os
 import sys
+import ast
 import argparse
+import yaml
 import numpy as np
 import torch
 
 #torchjaekwon
-from .h_params import HParams
 from .instantiate import import_class, instantiate_class_meta
 from .util import util, util_data
 from . import path as tj_path
+
+def coerce_override_value(raw_value:str): # YAML-typed, with a Python-literal fallback so '1e-4', '1e5' etc. parse as numbers (PyYAML leaves those as strings)
+    value = yaml.safe_load(raw_value)
+    if isinstance(value, str):
+        try: return ast.literal_eval(value)
+        except (ValueError, SyntaxError): return value
+    return value
 
 def run() -> None:
     config_dict:dict = set_argparse()
@@ -25,7 +33,6 @@ def run() -> None:
 
 def set_argparse() -> dict:
     parser = argparse.ArgumentParser()
-    str2bool = lambda v: v if isinstance(v, bool) else True if v.lower() in ('yes', 'true', 't', '1') else False if v.lower() in ('no', 'false', 'f', '0') else (_ for _ in ()).throw(ValueError("Boolean value expected."))
 
     # common arguments
     parser.add_argument('--config_path', type=str, help='config file path')
@@ -33,19 +40,10 @@ def set_argparse() -> dict:
     parser.add_argument('--project_name', type=str, help='project name for logging')
     parser.add_argument('--stage', type=str, help='stage: preprocess | train | inference | evaluate')
 
-    # resource arguments
-    parser.add_argument('--num_workers', type=int, help='number of workers for data loading', default=1)
-
     # train arguments
     parser.add_argument('-r', '--resume', help='train resume', action='store_true')
     parser.add_argument('--train_resume_path', type=str, help='train resume path', required=False)
-    parser.add_argument('--check_evalstep_first', type=str2bool, help='check evalstep first', default=True)
-    parser.add_argument('--debug_mode', type=str2bool, help='debug mode', default=True)
-    parser.add_argument('--use_torch_compile', type=str2bool, help='use torch compile', default=True)
     parser.add_argument('--log_tool', type=str, help='log tool: tensorboard | wandb', default='tensorboard')
-    parser.add_argument('--log_step_interval', type=int, help='log step interval', default=40)
-    parser.add_argument('--start_logging_epoch', type=int, help='start logging epoch', default=0)
-    parser.add_argument('--save_model_epoch_interval', type=int, help='save model epoch interval', default=100)
 
     # inference arguments
     parser.add_argument('--infer_data_path', nargs='*', type=str, help='inference data path when set type is single or dir', required=False)
@@ -55,6 +53,9 @@ def set_argparse() -> dict:
     parser.add_argument('--eval_gt_dir_path', type=str, help='evaluation directory path for groundtruth', required=False)
     parser.add_argument('--eval_pred_dir_path', type=str, help='evaluation directory path for prediction', required=False)
 
+    # generic config override: --set SECTION.KEY=VALUE [SECTION.KEY=VALUE ...] (VALUE is YAML-typed; overrides the config file)
+    parser.add_argument('--set', nargs='*', default=[], metavar='SECTION.KEY=VALUE', help='e.g. --set train.seed=42 mode.debug_mode=false train.optimizer.args.lr=1e-4')
+
     args = parser.parse_args()
 
     config_dict = util_data.yaml_load(args.config_path, interpolate=True)
@@ -63,41 +64,34 @@ def set_argparse() -> dict:
     config_dict['cli']['config_name'] = config_dict['cli']['config_name'] or os.path.splitext(tj_path.relpath(args.config_path, start_dir_path=tj_path.CONFIG_DIR))[0]
     config_dict['cli']['train_resume_path'] = config_dict['cli'].get('train_resume_path', f"{tj_path.ARTIFACTS_DIRS.train}/{config_dict['cli']['config_name']}")
 
-    ## Legacy #########################
-    primitive_types = (str, int, float, bool)
-    type_mapper = lambda t: str2bool if t == bool else t
-
-    arg_list_from_h_params:list = [
-        {
-            'arg_name': attr_name, 
-            'module_name': module_name, 
-            'attr_name':attr_name, 
-            'type': type_mapper(type(value[0]) if isinstance(value, list) else type(value)),
-            'nargs': '*' if isinstance(value, list) else None
-        }
-        for module_name, instance in HParams().__dict__.items() 
-        for attr_name, value in instance.__dict__.items() 
-        if isinstance(value, primitive_types) or isinstance(value, list) #and all(isinstance(item, primitive_types) for item in value)
+    # Defaults for config values the pipeline reads but a config may omit (applied only when absent).
+    config_default_list:list = [ # (section, key, default)
+        ('resource', 'num_workers',               1),
+        ('mode',     'debug_mode',                 True),
+        ('mode',     'use_torch_compile',          True),
+        ('train',    'check_evalstep_first',       True),
+        ('train',    'save_model_epoch_interval',  100),
+        ('train',    'start_logging_epoch',        0),
+        ('log',      'log_step_interval',          40),
     ]
+    for section, key, default in config_default_list:
+        config_dict.setdefault(section, dict()).setdefault(key, default)
 
-    arg_name_list_from_h_params = [h_prams_arg['arg_name'] for h_prams_arg in arg_list_from_h_params]
-    arg_name_list_from_h_params.sort()
-    assert len(arg_name_list_from_h_params) == len(set(arg_name_list_from_h_params)), "Duplicate argument names found in HParams."
-
-    if args.config_path is not None: HParams().set_config(args.config_path)
-    
-    for h_prams_arg in arg_list_from_h_params:
-        value = getattr(args, h_prams_arg['arg_name'], None)
-        if value is not None:
-            setattr(getattr(HParams(), h_prams_arg['module_name']), h_prams_arg['attr_name'], value)
-    ## Legacy #########################
+    # Apply generic '--set section.key=value' overrides. Precedence: defaults < config file < --set
+    for override in config_dict['cli']['set']:
+        assert '=' in override, f"--set expects 'section.key=value', got {override!r}"
+        dotted_key, raw_value = override.split('=', 1)
+        key_list:list = dotted_key.strip().split('.')
+        node:dict = config_dict
+        for key in key_list[:-1]: node = node.setdefault(key, dict())
+        node[key_list[-1]] = coerce_override_value(raw_value) # '42'->42, 'false'->False, '1e-4'->0.0001, '[1,2]'->[1,2], else str
     return config_dict
 
 def preprocess(config_dict:dict) -> None:
     from .data.preprocess.preprocessor import Preprocessor
-    preprocessor_class_meta_list:list = HParams().data.preprocessor_class_meta_list
-    num_workers:int = HParams().resource.num_workers
-    device:torch.device = HParams().resource.device
+    preprocessor_class_meta_list:list = config_dict['data']['preprocessor_class_meta_list']
+    num_workers:int = config_dict['resource']['num_workers']
+    device:torch.device = config_dict.get('resource', {}).get('device')
     
     for preprocessor_meta in preprocessor_class_meta_list:
         preprocessor_meta['args']['num_workers'] = preprocessor_meta['args'].get('num_workers', num_workers)
@@ -120,33 +114,34 @@ def train(config_dict:dict) -> None:
     )
     config_dict['dataloader']['train']['dataset_class_meta']['args']['logger'] = logger
 
+    train_config:dict = config_dict['train']
     trainer_args = {
         # data
         'data_class_meta_dict': config_dict['dataloader'],
         # model
-        'model_class_meta_dict': HParams().model.class_meta,
+        'model_class_meta_dict': config_dict['model']['class_meta'],
         # loss
-        'loss_meta_dict': getattr(HParams().train, 'loss', None),
+        'loss_meta_dict': train_config.get('loss'),
         # optimizer
-        'optimizer_class_meta_dict': HParams().train.optimizer['class_meta'],
-        'lr_scheduler_class_meta_dict': HParams().train.scheduler['class_meta'],
-        'lr_scheduler_interval': HParams().train.scheduler['interval'],
+        'optimizer_class_meta_dict': train_config['optimizer']['class_meta'],
+        'lr_scheduler_class_meta_dict': train_config['scheduler']['class_meta'],
+        'lr_scheduler_interval': train_config['scheduler']['interval'],
         # train paremeters
-        'seed': (int)(torch.cuda.initial_seed() / (2**32)) if HParams().train.seed is None else HParams().train.seed,
-        'seed_strict': HParams().train.seed_strict,
+        'seed': (int)(torch.cuda.initial_seed() / (2**32)) if train_config.get('seed') is None else train_config.get('seed'),
+        'seed_strict': train_config.get('seed_strict', False),
         # logging
         'logger': logger,
-        'save_model_step_interval': getattr(HParams().train, 'save_model_step_interval', None),
-        'save_model_epoch_interval': getattr(HParams().train, 'save_model_epoch_interval', 1),
-        'log_step_interval': getattr(HParams().log, 'log_step_interval', 1),
-        'start_logging_epoch': getattr(HParams().log, 'start_logging_epoch', 0),
+        'save_model_step_interval': train_config.get('save_model_step_interval'),
+        'save_model_epoch_interval': train_config['save_model_epoch_interval'],
+        'log_step_interval': config_dict['log']['log_step_interval'],
+        'start_logging_epoch': train_config['start_logging_epoch'],
         # additional
-        'check_evalstep_first': getattr(HParams().train,'check_evalstep_first',False),
-        'debug_mode': getattr(HParams().mode, 'debug_mode', False),
-        'use_torch_compile': getattr(HParams().mode, 'use_torch_compile', True),
+        'check_evalstep_first': train_config['check_evalstep_first'],
+        'debug_mode': config_dict['mode']['debug_mode'],
+        'use_torch_compile': config_dict['mode']['use_torch_compile'],
     }
 
-    train_class_meta:dict = HParams().train.class_meta # {'path': 'torch_jaekwon.train.trainer.trainer.Trainer', 'args': {}}
+    train_class_meta:dict = train_config['class_meta'] # {'path': 'torch_jaekwon.train.trainer.trainer.Trainer', 'args': {}}
     trainer_class_name:str = train_class_meta['path']
     trainer_args.update(train_class_meta['args'])
     
@@ -155,7 +150,7 @@ def train(config_dict:dict) -> None:
     
     if config_dict['cli']['resume']:
         util.log('load the checkpoint', 'info')
-        trainer.load_train(HParams().mode.train_resume_path + "/train_checkpoint.pth")
+        trainer.load_train(config_dict['cli']['train_resume_path'] + "/train_checkpoint.pth")
     
     trainer.fit()
 
