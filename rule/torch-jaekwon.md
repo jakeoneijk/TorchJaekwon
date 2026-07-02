@@ -36,6 +36,9 @@ The printed directory holds the rule docs under `rule/`.
   etc.). Read and apply when asked to write or review training code.
 - `rule/general.md` — **general code-style** rules (e.g. the type-annotation
   convention). Read and apply when writing or reviewing code.
+- `rule/config.md` — **config** rules (how `class_meta.name` refers to a class:
+  a fully-qualified dotted import path). Read and apply when writing or reviewing
+  a `cp/config/*.yaml`.
 - `rule/agent.md` — **agent behavior** rules (how to explain/cite code, when to
   confirm before multi-file changes). Read and apply when working as a coding agent.
 

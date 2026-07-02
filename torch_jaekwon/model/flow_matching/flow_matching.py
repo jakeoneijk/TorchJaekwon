@@ -34,7 +34,7 @@ class FlowMatching(nn.Module):
         super().__init__()
         # model
         if model_class_meta is not None:
-            model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_meta['name'])
+            model_class = GetModule.get_module_class(module_name = model_class_meta['name'])
             self.model = model_class(**model_class_meta['args'])
         else:
             self.model:nn.Module = model

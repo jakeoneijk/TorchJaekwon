@@ -85,7 +85,7 @@ class Inferencer():
     '''
 
     def get_model(self, model_class_meta:dict) -> nn.Module:
-        model = GetModule.get_module(class_type = 'model', module_name = model_class_meta['name'], arg_dict=model_class_meta['args'])
+        model = GetModule.get_module(module_name = model_class_meta['name'], arg_dict=model_class_meta['args'])
         return model
 
     def inference(

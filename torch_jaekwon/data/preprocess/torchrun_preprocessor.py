@@ -26,7 +26,7 @@ class TorchrunPreprocessor():
         **kwargs
     ) -> None:
         self.data_name:str = data_name
-        self.dataset_manager_dict = {k: get_module_tj(class_type='dataset_manager', class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
+        self.dataset_manager_dict = {k: get_module_tj(class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
         self.root_dir:str = root_dir
         self.batch_size:int = batch_size
         self.num_workers:int = num_workers

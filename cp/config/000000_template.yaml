@@ -4,10 +4,10 @@ data:
   dataset_config_dict:
     mnist: # change to your dataset name
       dataset_manager_class_meta: &dataset_manager_mnist
-        name: ['dataset_manager', 'DatasetManager']
+        name: data.dataset_manager.your_dataset_manager.YourDatasetManager # fully-qualified dotted import path '<module>.<ClassName>' from the project root; prefix with 'torch_jaekwon.' for shared package classes
         args: {}
   preprocessor_class_meta_list: 
-    - name: ['preprocessor', 'Preprocessor']
+    - name: torch_jaekwon.data.preprocess.preprocessor.Preprocessor
       args:
         data_name: 'all_data'
         dataset_manager_class_meta_dict: 
@@ -19,10 +19,10 @@ dataloader:
       batch_size: 16
       num_workers: 4
     dataset_class_meta:
-      name: ['file_name', 'class_name']
+      name: data.dataset.your_dataset.YourDataset # project-relative dotted path (e.g. data.dataset.image.mnist.MNIST)
       args: {}
     #collater_class_meta:
-    #  name: ['file_name', 'class_name']
+    #  name: data.dataset.your_collater.YourCollater
     #  args: {}
   valid:
     args:
@@ -31,7 +31,7 @@ dataloader:
       shuffle: False
       drop_last: True
     dataset_class_meta:
-      name: ['file_name', 'class_name']
+      name: data.dataset.your_dataset.YourDataset
       args: {}
   #test:
   #  args:
@@ -40,23 +40,23 @@ dataloader:
   #    shuffle: False
   #    drop_last: True
   #  dataset_class_meta:
-  #    name: ['file_name', 'class_name']
+  #    name: data.dataset.your_dataset.YourDataset
   #    args: {}
 #####################################################################################################
 model:
   class_meta:
-    name: ['file_name', 'class_name']
+    name: model.your_model.YourModel
     args: {}
     #key_name1: #generator
-      #name: ['file_name1', 'class_name1']
+      #name: model.your_generator.YourGenerator
       #args: {}
     #key_name2: #discriminator
-      #name: ['file_name2', 'class_name2']
+      #name: model.your_discriminator.YourDiscriminator
       #args: {}
 #####################################################################################################
 train:
   class_meta:
-    name: ['trainer', 'Trainer']
+    name: torch_jaekwon.train.trainer.trainer.Trainer
     args: {}
       #model_ckpt_path: 'step.pth'
       #use_ema: False
@@ -83,7 +83,7 @@ train:
 
   scheduler:
     class_meta: 
-      name: "StepLR" #["inverse_lr", "InverseLR"]
+      name: "StepLR" #train.optimizer.scheduler.inverse_lr.InverseLR
       args:
         step_size: 20000
         gamma: 0.5
@@ -101,12 +101,12 @@ train:
 #####################################################################################################
 inference:
   class_meta:
-    name: ['inferencer', 'Inferencer']
+    name: torch_jaekwon.inference.inferencer.Inferencer
     args: {}
 #####################################################################################################
 evaluate:
   eval_gt_dir_path: ''
   eval_pred_dir_path: ''
   class_meta:
-    name: ['evaluator', 'Evaluator']
+    name: torch_jaekwon.evaluate.evaluator.evaluator.Evaluator
     args: {}

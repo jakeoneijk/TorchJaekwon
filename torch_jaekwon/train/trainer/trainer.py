@@ -230,7 +230,7 @@ class Trainer():
             for name in model_class_meta_dict:
                 model[name] = self.get_model(model_class_meta_dict[name], debug_mode=debug_mode, use_torch_compile=use_torch_compile)
         else:
-            model_class = GetModule.get_module_class(class_type = 'model', module_name = model_class_name)
+            model_class = GetModule.get_module_class(module_name = model_class_name)
             model:nn.Module = model_class(**model_class_meta_dict['args'])
             if not debug_mode and use_torch_compile:
                 model = torch.compile(model)
@@ -280,13 +280,9 @@ class Trainer():
                 lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], lr_scheduler_class_meta_dict[key])
         else:
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
-            lr_scheduler_class = getattr( 
-                torch.optim.lr_scheduler, 
-                lr_scheduler_name if isinstance(lr_scheduler_name, str) else lr_scheduler_name[1], 
-                None 
-            )
-            if lr_scheduler_class is None:
-                lr_scheduler_class = GetModule.get_module_class(class_type = 'lr_scheduler', module_name=lr_scheduler_name)
+            lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name, None) # torch built-in first (e.g. 'StepLR')
+            if lr_scheduler_class is None: # otherwise a custom class named by fully-qualified dotted path
+                lr_scheduler_class = GetModule.get_module_class(module_name=lr_scheduler_name)
             lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
             lr_scheduler_args.update({'optimizer': optimizer})
             lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
@@ -301,15 +297,11 @@ class Trainer():
         if loss_meta_dict is None: return
         loss_fn_dict = dict()
         for loss_name in loss_meta_dict:
-            loss_class_name:Union[str,tuple] = loss_meta_dict[loss_name]['class_meta']['name']
+            loss_class_name:str = loss_meta_dict[loss_name]['class_meta']['name']
             loss_args:dict = loss_meta_dict[loss_name]['class_meta']['args']
-            loss_class:Type[torch.nn.Module] = getattr(
-                torch.nn, 
-                loss_class_name if isinstance(loss_class_name, str) else loss_class_name[1], 
-                None
-            )
-            if loss_class is None:
-                loss_class = GetModule.get_module_class(class_type='loss', module_name=loss_class_name)
+            loss_class:Type[torch.nn.Module] = getattr(torch.nn, loss_class_name, None) # torch built-in first (e.g. 'L1Loss')
+            if loss_class is None: # otherwise a custom class named by fully-qualified dotted path
+                loss_class = GetModule.get_module_class(module_name=loss_class_name)
             loss_fn_dict[loss_name] = loss_class(**loss_args)
         return loss_fn_dict
     
@@ -338,14 +330,12 @@ class Trainer():
             subset_meta_dict:dict = data_class_meta_dict.get(subset_name, None)
             if subset_meta_dict is None: continue
             dataset = GetModule.get_module(
-                class_type='pytorch_dataset',
                 module_name = subset_meta_dict['dataset_class_meta']["name"],
                 arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
             data_loader_args:dict = {'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
                 collater_class:type = GetModule.get_module_class(
-                    class_type='pytorch_dataset',
                     module_name = subset_meta_dict['collater_class_meta']["name"]
                 )
                 collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
