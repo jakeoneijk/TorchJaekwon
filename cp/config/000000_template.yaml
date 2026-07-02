@@ -1,3 +1,8 @@
+# Environment interpolation (resolved at load time, so one config is portable across servers):
+#   ${oc.env:VAR}          -> value of $VAR (errors if $VAR is unset)
+#   ${oc.env:VAR,default}  -> $VAR if set, else 'default'
+# e.g.  data_dir: ${oc.env:PROJECT_ROOT}/data/gt
+#       output_dir: ${oc.env:ARTIFACTS_ROOT,./artifacts}/train   # uses $ARTIFACTS_ROOT, falls back to ./artifacts
 data:
   config: # config for data
     attr1: &attr1 10 # '&attr1' defines a YAML anchor; reuse its value elsewhere with '*attr1' (see dataset_manager_mnist below)

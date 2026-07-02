@@ -2,7 +2,7 @@ import yaml
 import torch
 from dataclasses import dataclass, field
 
-from torch_jaekwon.path import CONFIG_DIR, ARTIFACTS_DIRS
+from torch_jaekwon.path import CONFIG_DIR, ARTIFACTS_DIRS, resolve_env
 
 @dataclass
 class Mode:
@@ -101,7 +101,7 @@ class HParams(Singleton):
         if not self.mode.config_path:
             return
         with open(self.mode.config_path, 'r') as yaml_file:
-            config_dict:dict = yaml.safe_load(yaml_file)
+            config_dict:dict = resolve_env(yaml.safe_load(yaml_file))
         self.set_h_params_by_dict(config_dict)
     
     def set_config(self, config_path:str = None) -> None:

@@ -1,5 +1,6 @@
-from typing import Literal, Union, Literal
+from typing import Literal, Union, Any
 import os
+import re
 import importlib.util
 from dataclasses import dataclass, asdict
 
@@ -26,6 +27,21 @@ else:
 
 def get_source_data_key_list() -> list:
     return [key for key in START_DIR_MAP.keys() if key.startswith('source_data')]
+
+_ENV_PATTERN = re.compile(r'\$\{oc\.env:([^},]+)(?:,([^}]*))?\}') # matches '${oc.env:VAR}' and '${oc.env:VAR,default}'
+
+def _resolve_env_match(match:re.Match) -> str:
+    var_name:str = match.group(1).strip()
+    default:str = match.group(2) # None when no ',default' is given
+    if var_name in os.environ: return os.environ[var_name]
+    if default is not None: return default
+    raise KeyError(f"[resolve_env] environment variable '{var_name}' is not set and has no default")
+
+def resolve_env(config:Any) -> Any: # recursively substitute '${oc.env:VAR}' / '${oc.env:VAR,default}' with os.environ values
+    if isinstance(config, str): return _ENV_PATTERN.sub(_resolve_env_match, config)
+    if isinstance(config, dict): return {key: resolve_env(value) for key, value in config.items()}
+    if isinstance(config, list): return [resolve_env(item) for item in config]
+    return config
 
 @dataclass
 class ArtifactsDirs:

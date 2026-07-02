@@ -57,7 +57,7 @@ def set_argparse() -> dict:
 
     args = parser.parse_args()
 
-    config_dict = util_data.yaml_load(args.config_path)
+    config_dict = util_data.yaml_load(args.config_path, interpolate=True)
     assert 'cli' not in config_dict, "Reserved key 'cli' found in config file."
     config_dict['cli'] = vars(args)
     config_dict['cli']['config_name'] = config_dict['cli']['config_name'] or os.path.splitext(tj_path.relpath(args.config_path, start_dir_path=tj_path.CONFIG_DIR))[0]

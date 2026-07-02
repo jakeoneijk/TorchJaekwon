@@ -59,9 +59,10 @@ def yaml_save(save_path:str, data:Union[dict,list], sort_keys:bool = False) -> N
     with open(save_path, 'w') as file:
         yaml.dump(data, file, sort_keys = sort_keys, allow_unicode=True)
 
-def yaml_load(data_path:str) -> dict:
+def yaml_load(data_path:str, interpolate:bool = False) -> dict:
     yaml_file = open(data_path, 'r', encoding="utf-8")
-    return yaml.safe_load(yaml_file)
+    config_dict:dict = yaml.safe_load(yaml_file)
+    return tj_path.resolve_env(config_dict) if interpolate else config_dict
 
 def csv_load(data_path:str) -> list:
     row_result_list = list()
