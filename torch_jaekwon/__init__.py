@@ -1,1 +1,1 @@
-from torch_jaekwon.get_module import GetModule
+from torch_jaekwon.instantiate import instantiate, import_class, instantiate_class_meta

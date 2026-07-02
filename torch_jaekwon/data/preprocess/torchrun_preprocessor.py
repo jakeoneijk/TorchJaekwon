@@ -7,7 +7,7 @@ from torch.utils.data.dataloader import default_collate
 
 from ...util import util, util_torch_distributed
 from ...path import ARTIFACTS_DIRS
-from ...get_module import get_module_tj
+from ...instantiate import instantiate_class_meta
 
 def filter_none_collate(batch):
     batch = list(filter(lambda x: x is not None, batch))
@@ -26,7 +26,7 @@ class TorchrunPreprocessor():
         **kwargs
     ) -> None:
         self.data_name:str = data_name
-        self.dataset_manager_dict = {k: get_module_tj(class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
+        self.dataset_manager_dict = {k: instantiate_class_meta(class_meta=v) for k, v in dataset_manager_class_meta_dict.items()}
         self.root_dir:str = root_dir
         self.batch_size:int = batch_size
         self.num_workers:int = num_workers

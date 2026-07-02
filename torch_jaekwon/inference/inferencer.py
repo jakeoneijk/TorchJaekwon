@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 #torchjaekwon
-from torch_jaekwon import GetModule
+from torch_jaekwon import instantiate
 from ..util import util_data, util_torch, util
 #internal
 
@@ -85,7 +85,7 @@ class Inferencer():
     '''
 
     def get_model(self, model_class_meta:dict) -> nn.Module:
-        model = GetModule.get_module(module_name = model_class_meta['path'], arg_dict=model_class_meta['args'])
+        model = instantiate(module_name = model_class_meta['path'], arg_dict=model_class_meta['args'])
         return model
 
     def inference(

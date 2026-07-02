@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from ...get_module import GetModule
+from ...instantiate import import_class
 from ...util import util_data, util_torch
 from ..diffusion.ddpm.time_sampler import TimeSampler
 from .sampler import Sampler as flow_sampler
@@ -34,7 +34,7 @@ class FlowMatching(nn.Module):
         super().__init__()
         # model
         if model_class_meta is not None:
-            model_class = GetModule.get_module_class(module_name = model_class_meta['path'])
+            model_class = import_class(module_name = model_class_meta['path'])
             self.model = model_class(**model_class_meta['args'])
         else:
             self.model:nn.Module = model

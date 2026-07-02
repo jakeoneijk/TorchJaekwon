@@ -13,7 +13,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 try: from ema_pytorch import EMA
 except: print("ema_pytorch is not installed")
 #torchjaekwon import
-from ...get_module import GetModule
+from ...instantiate import instantiate, import_class
 from ...util import util, util_data, util_torch, util_torch_distributed
 from ..logger.logger import Logger
 from ..average_meter import AverageMeter
@@ -230,7 +230,7 @@ class Trainer():
             for name in model_class_meta_dict:
                 model[name] = self.get_model(model_class_meta_dict[name], debug_mode=debug_mode, use_torch_compile=use_torch_compile)
         else:
-            model_class = GetModule.get_module_class(module_name = model_class_name)
+            model_class = import_class(module_name = model_class_name)
             model:nn.Module = model_class(**model_class_meta_dict['args'])
             if not debug_mode and use_torch_compile:
                 model = torch.compile(model)
@@ -282,7 +282,7 @@ class Trainer():
             lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('path',None)
             lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name, None) # torch built-in first (e.g. 'StepLR')
             if lr_scheduler_class is None: # otherwise a custom class named by fully-qualified dotted path
-                lr_scheduler_class = GetModule.get_module_class(module_name=lr_scheduler_name)
+                lr_scheduler_class = import_class(module_name=lr_scheduler_name)
             lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
             lr_scheduler_args.update({'optimizer': optimizer})
             lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
@@ -301,7 +301,7 @@ class Trainer():
             loss_args:dict = loss_meta_dict[loss_name]['class_meta']['args']
             loss_class:Type[torch.nn.Module] = getattr(torch.nn, loss_class_name, None) # torch built-in first (e.g. 'L1Loss')
             if loss_class is None: # otherwise a custom class named by fully-qualified dotted path
-                loss_class = GetModule.get_module_class(module_name=loss_class_name)
+                loss_class = import_class(module_name=loss_class_name)
             loss_fn_dict[loss_name] = loss_class(**loss_args)
         return loss_fn_dict
     
@@ -329,13 +329,13 @@ class Trainer():
         for subset_name in data_loader_dict:
             subset_meta_dict:dict = data_class_meta_dict.get(subset_name, None)
             if subset_meta_dict is None: continue
-            dataset = GetModule.get_module(
+            dataset = instantiate(
                 module_name = subset_meta_dict['dataset_class_meta']["path"],
                 arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
             data_loader_args:dict = {'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
-                collater_class:type = GetModule.get_module_class(
+                collater_class:type = import_class(
                     module_name = subset_meta_dict['collater_class_meta']["path"]
                 )
                 collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
