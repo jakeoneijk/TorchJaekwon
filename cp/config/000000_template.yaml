@@ -1,6 +1,6 @@
 data:
   config: # config for data
-    attr1: &attr1 10
+    attr1: &attr1 10 # '&attr1' defines a YAML anchor; reuse its value elsewhere with '*attr1' (see dataset_manager_mnist below)
   dataset_config_dict:
     mnist: # change to your dataset name
       dataset_manager_class_meta: &dataset_manager_mnist
@@ -47,10 +47,10 @@ model:
   class_meta:
     path: model.your_model.YourModel
     args: {}
-    #key_name1: #generator
+    #your_generator:
       #path: model.your_generator.YourGenerator
       #args: {}
-    #key_name2: #discriminator
+    #your_discriminator:
       #path: model.your_discriminator.YourDiscriminator
       #args: {}
 #####################################################################################################
@@ -62,8 +62,8 @@ train:
       #use_ema: False
 
       ## train paremeters
-      #total_step: np.inf
-      #total_epoch: int(1e20)
+      #total_step: .inf       # float('inf') — only compared, so infinity is fine
+      #total_epoch: 1000000   # must be a plain int (used in range()); .inf / 1e20 would break it
 
   optimizer: 
     class_meta: 
@@ -72,14 +72,14 @@ train:
         lr: 0.0008
         betas: [0.9,0.98]
         weight_decay: 0.0
-    #key_name1: #generator
+    #your_generator:
     #  path: AdamW
     #  args: {'lr': 0.00005, betas: [0.8, 0.99]}
-    #  model_name_list: ['generator', 'model_name2'...]
-    #key_name2: #discriminator
+    #  model_name_list: ['your_generator']
+    #your_discriminator:
     #  path: AdamW
     #  args: {'lr': 0.0001, betas: [0.8, 0.99]}
-    #  model_name_list: ['discriminator', 'model_name2'...]
+    #  model_name_list: ['your_discriminator']
 
   scheduler:
     class_meta: 
@@ -91,7 +91,7 @@ train:
     frequency: 1
 
   loss:
-    loss_name: # for specifying loss
+    your_loss_name: # for specifying loss
       class_meta:
         path : 'L1Loss'
         args : {}
