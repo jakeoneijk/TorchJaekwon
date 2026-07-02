@@ -33,12 +33,12 @@ class Trainer():
         # data
         data_class_meta_dict:dict = None,
         # model
-        model_class_meta_dict:dict = None, #{name:[file_name, class_name], args: {}}
+        model_class_meta_dict:dict = None, #{path: '<module>.<ClassName>', args: {}}
         model_ckpt_path:str = None,
         # loss
         loss_meta_dict:dict = None,
         # optimizer
-        optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'name': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
+        optimizer_class_meta_dict:dict = None,        # meta_dict or {key_name: meta_dict} / meta_dict: {'path': 'Adam', 'args': {'lr': 0.0001}, model_name_list: []}
         grad_accum_steps:int = 1,
         lr_scheduler_class_meta_dict:dict = None,
         lr_scheduler_interval:Literal['step','epoch'] = 'step',
@@ -224,7 +224,7 @@ class Trainer():
         return self.model
 
     def get_model(self, model_class_meta_dict:Union[list, dict], debug_mode:bool = False, use_torch_compile:bool = True) -> None:
-        model_class_name = model_class_meta_dict.get('name', None)
+        model_class_name = model_class_meta_dict.get('path', None)
         if model_class_name is None:
             model = dict()
             for name in model_class_meta_dict:
@@ -238,7 +238,7 @@ class Trainer():
     
     def init_optimizer(self, optimizer_class_meta_dict:dict) -> torch.optim.Optimizer:
         if optimizer_class_meta_dict is None: return None
-        optimizer_class_name = optimizer_class_meta_dict.get('name',None)
+        optimizer_class_name = optimizer_class_meta_dict.get('path',None)
         if optimizer_class_name is None:
             optimizer = dict()
             for key in optimizer_class_meta_dict:
@@ -279,7 +279,7 @@ class Trainer():
             for key in optimizer:
                 lr_scheduler[key] = self.init_lr_scheduler(optimizer[key], lr_scheduler_class_meta_dict[key])
         else:
-            lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('name',None)
+            lr_scheduler_name:str = lr_scheduler_class_meta_dict.get('path',None)
             lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name, None) # torch built-in first (e.g. 'StepLR')
             if lr_scheduler_class is None: # otherwise a custom class named by fully-qualified dotted path
                 lr_scheduler_class = GetModule.get_module_class(module_name=lr_scheduler_name)
@@ -297,7 +297,7 @@ class Trainer():
         if loss_meta_dict is None: return
         loss_fn_dict = dict()
         for loss_name in loss_meta_dict:
-            loss_class_name:str = loss_meta_dict[loss_name]['class_meta']['name']
+            loss_class_name:str = loss_meta_dict[loss_name]['class_meta']['path']
             loss_args:dict = loss_meta_dict[loss_name]['class_meta']['args']
             loss_class:Type[torch.nn.Module] = getattr(torch.nn, loss_class_name, None) # torch built-in first (e.g. 'L1Loss')
             if loss_class is None: # otherwise a custom class named by fully-qualified dotted path
@@ -330,13 +330,13 @@ class Trainer():
             subset_meta_dict:dict = data_class_meta_dict.get(subset_name, None)
             if subset_meta_dict is None: continue
             dataset = GetModule.get_module(
-                module_name = subset_meta_dict['dataset_class_meta']["name"],
+                module_name = subset_meta_dict['dataset_class_meta']["path"],
                 arg_dict = subset_meta_dict['dataset_class_meta']['args']
             )
             data_loader_args:dict = {'worker_init_fn': getattr(dataset, 'worker_init_fn', None), **subset_meta_dict['args']}
             if 'collater_class_meta' in subset_meta_dict:
                 collater_class:type = GetModule.get_module_class(
-                    module_name = subset_meta_dict['collater_class_meta']["name"]
+                    module_name = subset_meta_dict['collater_class_meta']["path"]
                 )
                 collater = collater_class(**subset_meta_dict['collater_class_meta']['args'])
                 data_loader_args['collate_fn'] = collater

@@ -18,7 +18,7 @@ class DDPM(nn.Module):
     def __init__(
         self,
         # model
-        model_class_meta:Optional[dict] = None, #{name:[file_name, class_name], args: {}}
+        model_class_meta:Optional[dict] = None, #{path: '<module>.<ClassName>', args: {}}
         model:Optional[nn.Module] = None,
         model_output_type:Literal['noise', 'x_start', 'v_prediction'] = 'noise',
         # time
@@ -39,7 +39,7 @@ class DDPM(nn.Module):
         super().__init__()
         # model
         if model_class_meta is not None:
-            model_class = GetModule.get_module_class(module_name = model_class_meta['name'])
+            model_class = GetModule.get_module_class(module_name = model_class_meta['path'])
             self.model = model_class(**model_class_meta['args'])
         else:
             self.model:nn.Module = model

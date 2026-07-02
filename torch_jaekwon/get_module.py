@@ -5,10 +5,10 @@ import importlib
 def get_module_tj(
     class_meta:dict = dict()
 ) -> Callable:
-    if 'name' not in class_meta and isinstance(class_meta, dict):
+    if 'path' not in class_meta and isinstance(class_meta, dict):
         return {k: get_module_tj(class_meta=v) for k,v in class_meta.items()}
     else:
-        return GetModule.get_module(module_name=class_meta.get('name'), arg_dict=class_meta.get('args', dict()))
+        return GetModule.get_module(module_name=class_meta.get('path'), arg_dict=class_meta.get('args', dict()))
 
 class GetModule:
     @staticmethod

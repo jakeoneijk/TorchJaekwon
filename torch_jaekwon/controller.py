@@ -147,8 +147,8 @@ def train(config_dict:dict) -> None:
         'use_torch_compile': getattr(HParams().mode, 'use_torch_compile', True),
     }
 
-    train_class_meta:dict = HParams().train.class_meta # {'name': 'Trainer', 'args': {}}
-    trainer_class_name:str = train_class_meta['name']
+    train_class_meta:dict = HParams().train.class_meta # {'path': 'torch_jaekwon.train.trainer.trainer.Trainer', 'args': {}}
+    trainer_class_name:str = train_class_meta['path']
     trainer_args.update(train_class_meta['args'])
     
     trainer_class:Type[Trainer] = GetModule.get_module_class(module_name = trainer_class_name)
@@ -173,7 +173,7 @@ def inference(config_dict:dict) -> None:
     inferencer_args.update(infer_class_meta['args'])
     if 'save_dir_name' not in inferencer_args: inferencer_args['save_dir_name'] =  config_dict['cli']['config_name']
 
-    inferencer_class:Type[Inferencer] = GetModule.get_module_class(module_name = infer_class_meta['name'])
+    inferencer_class:Type[Inferencer] = GetModule.get_module_class(module_name = infer_class_meta['path'])
     inferencer:Inferencer = inferencer_class(**inferencer_args)
     inferencer.inference(
         pretrained_root_dir = tj_path.ARTIFACTS_DIRS.train,
@@ -188,7 +188,7 @@ def evaluate(config_dict:dict) -> None:
     gt_dir_path:str = config_dict['cli']['eval_gt_dir_path']
     pred_dir_path:str = config_dict['cli']['eval_pred_dir_path']
 
-    evaluater_class:Type[Evaluator] = GetModule.get_module_class(module_name=eval_class_meta['name'])
+    evaluater_class:Type[Evaluator] = GetModule.get_module_class(module_name=eval_class_meta['path'])
     evaluater_args:dict = eval_class_meta['args']
     evaluater_args.update({'pred_dir_path': pred_dir_path, 'gt_dir_path': gt_dir_path, 'result_dir_path': f'{tj_path.ARTIFACTS_DIRS.evaluate}/{config_name}'})
     evaluater:Evaluator = evaluater_class(**evaluater_args)

@@ -18,7 +18,7 @@ class Inferencer():
         output_dir:str,
         save_dir_name:str,
         model:Union[nn.Module,object],
-        model_class_meta:dict, #{name:[file_name, class_name], args: {}}
+        model_class_meta:dict, #{path: '<module>.<ClassName>', args: {}}
         input_data_path: str = None,
         device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         batch_size:int = 1,
@@ -85,7 +85,7 @@ class Inferencer():
     '''
 
     def get_model(self, model_class_meta:dict) -> nn.Module:
-        model = GetModule.get_module(module_name = model_class_meta['name'], arg_dict=model_class_meta['args'])
+        model = GetModule.get_module(module_name = model_class_meta['path'], arg_dict=model_class_meta['args'])
         return model
 
     def inference(
