@@ -70,14 +70,8 @@ audit-reported with line cites — confirm before fixing.** No code was run (log
   `init_project.py` its own scaffold dir list (don't reintroduce `CLASS_DIRS` into `path.py`).
 
 ### Correctness bugs / crashes
-- [ ] `controller.py:64` — `config_dict['cli'].get('train_resume_path', default)` never uses the
-  default (`vars(args)` always has the key = `None`); `-r`/`--resume` without `--train_resume_path`
-  → `None + "/train_checkpoint.pth"` `TypeError`. Use `... or f"{...}"`.
 - [ ] `controller.py:63` — `os.path.splitext(relpath(...))` crashes when config isn't under
   `./config` (`relpath` returns `None`). Fall back to basename.
-- [ ] `train/trainer/trainer.py:467-475` — base `backprop` calls `self.optimizer.step()` /
-  `.zero_grad()` unconditionally, but `self.optimizer` can be a dict → `AttributeError`. Base can't
-  do multi-optimizer. Iterate over dict values.
 - [ ] `train/trainer/gan_trainer.py:14` — `super().__init__(model_class_name=...)`: base has no such
   param / no `**kwargs` → `TypeError`; class is unconstructable. Also `backprop`=`pass` returns
   `None` → `run_epoch` does `.detach()` on it → crash. GANTrainer is a non-functional stub.

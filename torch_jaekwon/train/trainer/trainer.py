@@ -470,9 +470,10 @@ class Trainer():
         if (self.global_step + 1) % self.grad_accum_steps == 0:
             if self.max_grad_norm is not None:
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.get_all_parameters(self.model), self.max_grad_norm)
-            self.optimizer.step()
+            optimizer_list:list = list(self.optimizer.values()) if isinstance(self.optimizer, dict) else [self.optimizer] # support a dict of optimizers
+            for optimizer in optimizer_list: optimizer.step()
             self.on_before_zero_grad()
-            self.optimizer.zero_grad()
+            for optimizer in optimizer_list: optimizer.zero_grad()
             self.lr_scheduler_step(call_state='step')
         return loss # for logging
     
