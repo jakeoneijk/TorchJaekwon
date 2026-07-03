@@ -75,11 +75,6 @@ audit-reported with line cites — confirm before fixing.** No code was run (log
   `None` → `run_epoch` does `.detach()` on it → crash. GANTrainer is a non-functional stub.
 - [ ] `evaluate/metric/voice.py:189,192` — `get_sispnr` calls undefined `util_audio.energy_unify` /
   `pow_p_norm`; `'sispnr'` is in the default `metric_list` → `AttributeError` on the default eval path.
-- [ ] `data/dataset/balanced_multi_dataset.py:39` — per-dataset seed built from a fresh
-  `RandomState(random_seed)` each loop iter → identical seed for every dataset
-  (`is_random_seed_per_dataset` is a no-op). Build one seed RNG before the loop.
-- [ ] `model/multihead_attention.py:40` — `values = self.projection_key(values)` (should be
-  `projection_value`) → silent wrong-weights bug; `projection_value` is unused.
 - [ ] `model/diffusion/ddpm/ddpm.py:218` — `apply_model(..., is_cond_unpack=...)` but base
   `apply_model` dropped that param → positional/keyword collision → `TypeError`; breaks base DDPM
   sampling and every sampler (DDIM/PNDM/flash). Restore the param.
@@ -88,9 +83,8 @@ audit-reported with line cites — confirm before fixing.** No code was run (log
   on the `cutoff==0` branch → `UnboundLocalError`.
 
 ### Cuda-seed at import (same class as the trainer.py fix already applied)
-- [ ] `data/dataset/balanced_multi_dataset.py:13` (and `controller.py` runtime seed on CPU) —
-  `int(torch.cuda.initial_seed()/2**32)` as a default forces CUDA at import / errors on CPU.
-  Default to `None`, compute lazily.
+- [ ] `controller.py:130` — the fallback `seed` uses `int(torch.cuda.initial_seed()/2**32)` at
+  runtime, which errors on a CPU-only train run when `train.seed` is unset. Seed CUDA-independently.
 
 ### Dead / broken — stale old-layout (CamelCase) imports
 These import from a pre-refactor `torch_jaekwon.Model.*` / `Util.*` / `GetModule` layout that no

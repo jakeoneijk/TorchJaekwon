@@ -10,7 +10,7 @@ class BalancedMultiDataset(IterableDataset):
     def __init__(
         self,
         sampling_schedule_dict:dict = None, # {'data1': 10, 'data2': 2}
-        random_seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
+        random_seed:int = None, # None -> derive from the current RNG in __init__ (avoids calling CUDA at import time)
         is_random_seed_per_dataset:bool = True,
         logger: Logger = None,
         is_debug: bool = False,
@@ -31,12 +31,17 @@ class BalancedMultiDataset(IterableDataset):
 
         self.sampling_schedule_dict = sampling_schedule_dict if sampling_schedule_dict is not None else {data_name: 1 for data_name in self.data_list_dict[self.data_name_list_key]}
 
+        if random_seed is None:
+            random_seed = int(torch.cuda.initial_seed() / (2**32)) if torch.cuda.is_available() else int(torch.initial_seed() / (2**32))
+
         self.random_state_dict = dict()
         self.random_state_dict[self.data_name_list_key] = np.random.RandomState(random_seed)
         self.random_state_dict[self.data_name_list_key].shuffle(self.data_list_dict[self.data_name_list_key])
 
+        seed_rng = np.random.RandomState(random_seed) # one RNG that draws a distinct seed per dataset; re-creating RandomState(random_seed) inside the loop gave every dataset the same seed
         for data_name in self.data_list_dict[self.data_name_list_key]:
-            self.random_state_dict[data_name] = np.random.RandomState(np.random.RandomState(random_seed).randint(low=0, high=10000) if is_random_seed_per_dataset else random_seed)
+            dataset_seed:int = seed_rng.randint(low=0, high=10000) if is_random_seed_per_dataset else random_seed
+            self.random_state_dict[data_name] = np.random.RandomState(dataset_seed)
             self.random_state_dict[data_name].shuffle(self.data_list_dict[data_name])
         
         self.logger: Logger = logger

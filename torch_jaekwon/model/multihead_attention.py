@@ -37,7 +37,7 @@ class MultiheadAttention(nn.Module):
         queries = self.projection_query(queries).view(batch_size, self.num_heads, -1, number_of_queries)
         #[batch, num_heads, hidden_channels, number_of_keys/values]
         keys = self.projection_key(keys).view(batch_size, self.num_heads, -1, number_of_keys_and_values)
-        values = self.projection_key(values).view(batch_size, self.num_heads, -1, number_of_keys_and_values)
+        values = self.projection_value(values).view(batch_size, self.num_heads, -1, number_of_keys_and_values)
         #[batch, num_heads, number_of_keys/values,number_of_queries] martix mul of [number_of_keys/values, hidden_channels], [hidden_channels,number_of_queries]
         score:Tensor = torch.matmul(keys.transpose(2, 3), queries) * (self.hidden_channels ** -0.5)
         if mask is not None:
