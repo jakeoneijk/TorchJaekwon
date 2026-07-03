@@ -18,29 +18,59 @@ This is my personal repository for the efficiency of my research.
     ```
 
 ## Usage
-### Basic
-```shell
-> python main.py
 
-arguments:
-    --stage STAGE_NAME
-    #STAGE of the system. choices = ['preprocess', 'train', 'inference', 'evaluate']
+`main.py` runs `controller.run()`, which dispatches by `--stage`:
+
+```shell
+python main.py --config_path config/exp.yaml --stage preprocess   # build data
+python main.py --config_path config/exp.yaml --stage train        # train
+python main.py --config_path config/exp.yaml --stage inference --ckpt_name last
+python main.py --config_path config/exp.yaml --stage evaluate
 ```
 
-## TODO
+### Train
 
-Known gaps / deferred improvements (see `rule/train.md`):
+```shell
+python main.py --config_path config/exp.yaml --stage train                                    # run
+python main.py --config_path config/exp.yaml --stage train -r                                 # resume from last checkpoint
+python main.py --config_path config/exp.yaml --stage train --set train.optimizer.args.lr=1e-4 # override any config value
+```
 
-- [ ] **Stateful dataloader resume** (rule 1.2). A mid-epoch checkpoint currently
-  resumes by restarting the epoch from batch 0, replaying already-seen samples.
-  Needs a stateful loader (e.g. `torchdata.StatefulDataLoader`) so the sampler
-  position is saved/restored, not just epoch/step.
-- [ ] **Distributed validation sharding** (efficiency). `TorchrunTrainer` only
-  shards the *train* loader; valid/test run the full set on every rank
-  (N× redundant compute). Shard valid + `all_reduce` the metrics.
-- [ ] **Remove dead legacy file** `torch_jaekwon/model/diffusion/ddpm/ddpm_loss_vlb.py`
-  — imported nowhere and has broken old-layout imports (`torch_jaekwon.GetModule`,
-  `torch_jaekwon.Util.*`, `torch_jaekwon.Model.*`); it cannot import.
-- [ ] **Mixed precision (AMP)** — the trainer has no autocast / `GradScaler`
-  support; add if bf16/fp16 training is wanted (rule 1.1 covers scaler state on resume).
+Multi-GPU / multi-node depends on the trainer chosen in the config (`train.class_meta.path`):
+
+| trainer (`train.class_meta.path`) | how to launch |
+|---|---|
+| `…trainer.Trainer` | single process — the commands above |
+| `…torchrun_trainer.TorchrunTrainer` | `torchrun --standalone --nproc_per_node=<G> main.py --config_path config/exp.yaml --stage train` |
+| `…lightning_trainer.LightningTrainer` | set `num_nodes` / `devices` / `strategy` in its `args`; single node = plain `python main.py …` (Lightning spawns) or `torchrun`; multi-node = SLURM, one task per GPU (Lightning auto-detects). See [NOTES.md](NOTES.md). |
+
+## Config
+
+An experiment is one YAML in `config/`. A class is named by a `class_meta` block —
+`path` (dotted import path) + `args` (constructor kwargs):
+
+```yaml
+model:
+  class_meta:
+    path: model.unet.UNet                               # project-relative dotted path
+    args: { dim: 64 }
+train:
+  class_meta:
+    path: torch_jaekwon.train.trainer.trainer.Trainer   # 'torch_jaekwon.'-prefix for shared classes
+    args: {}
+  optimizer:
+    class_meta: { path: AdamW, args: { lr: 1e-4 } }     # torch built-ins: bare class name
+```
+
+- **`path`** = `<module>.<ClassName>`, resolved by import — project-relative, or
+  `torch_jaekwon.`-prefixed for shared classes. Optimizers / schedulers / losses use the
+  bare torch class name (`AdamW`, `StepLR`, `L1Loss`).
+- **Env vars** — any value may use `${oc.env:VAR}` or `${oc.env:VAR,default}`, resolved at
+  load time (one config, any server).
+- **CLI overrides** — set any key without editing the file, e.g.
+  `python main.py --config_path config/exp.yaml --stage train --set train.seed=42 mode.debug_mode=false`.
+
+## Notes
+
+Deferred TODOs and the LightningTrainer verification checklist live in [NOTES.md](NOTES.md).
 

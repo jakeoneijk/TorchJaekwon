@@ -47,7 +47,7 @@ class Trainer():
         # train paremeters
         total_step:int = np.inf,
         total_epoch:int = int(1e20),
-        seed:int = (int)(torch.cuda.initial_seed() / (2**32)),
+        seed:int = None, # None -> derive from the current RNG at __init__ (see below); avoids calling CUDA at import time
         seed_strict:bool = False,
         # logging
         logger:Logger = None,
@@ -84,6 +84,8 @@ class Trainer():
         # train paremeters
         self.total_step:int = total_step
         self.total_epoch:int = total_epoch
+        if seed is None:
+            seed = int(torch.cuda.initial_seed() / (2**32)) if torch.cuda.is_available() else int(torch.initial_seed() / (2**32))
         self.seed:int = seed
         self.seed_strict:bool = seed_strict
         self.set_seeds(self.seed, self.seed_strict)
