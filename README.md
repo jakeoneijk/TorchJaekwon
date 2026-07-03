@@ -28,6 +28,10 @@ python main.py --config_path config/exp.yaml --stage inference --ckpt_name last
 python main.py --config_path config/exp.yaml --stage evaluate
 ```
 
+Config lives in `config/`; runs read/write under `./artifacts` (checkpoints & logs in
+`artifacts/train/<config_name>`). Redirect the roots with the `ARTIFACTS_ROOT` /
+`SOURCE_DATA_DIR` env vars.
+
 ### Train
 
 ```shell
