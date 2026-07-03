@@ -33,9 +33,6 @@ def dict_get_first(d: dict, keys: list, default=None):
             return d[k]
     return default
 
-def dict_get_first_relpath(data_dict:dict) -> str:
-    return dict_get_first(data_dict, [f'{key}_relpath' for key in tj_path.START_DIR_MAP.keys()])
-
 def pickle_save(save_path:str, data:Union[ndarray,Tensor]) -> None:
     save_path = util.norm_path(save_path)
     if not (os.path.splitext(save_path)[1] == ".pkl"):
@@ -184,30 +181,30 @@ def fix_length(
         assert dim == -1, "Error[util_data.fix_length] slicing when dim is not -1 not implemented yet"
         return data[..., :length]
     
-def walk(dir_path:str, ext:Union[list,str] = ['wav', 'mp3', 'flac'], depth:int = None, use_tqdm: bool = True) -> list:
+def walk(dir_path:str, *, ext:Union[list,str] = ['wav', 'mp3', 'flac'], depth:int = None, base_dir:str = None, use_tqdm:bool = True) -> list:
     if isinstance(ext, str): ext = [ext]
-    ext = [e if e.startswith('.') else f'.{e}' for e in ext]
-    dir_path = os.path.abspath(dir_path).replace('//','/')
+    ext = tuple(e.lower() if e.startswith('.') else f'.{e.lower()}' for e in ext) # case-insensitive; str.endswith accepts a tuple
+    dir_path = os.path.abspath(dir_path)
+    base_dir = os.path.abspath(base_dir) if base_dir is not None else dir_path # portable anchor for *_relpath (e.g. project/source root); default = dir_path
 
     file_meta_list:list = list()
-    for root, dirs, files in os.walk(dir_path):
-        if depth is not None and root.count(os.sep) - dir_path.count(os.sep) >= depth:
-            dirs[:] = [] 
-        for filename in tqdm(files, desc=f'walk {root}') if use_tqdm else files:
-            if any(filename.endswith(e) for e in ext):
-                meta_data:dict = {
-                    'file_name': get_file_name( file_path = filename ),
-                    'file_abspath': f'{root}/{filename}',
-                    'file_relpath': os.path.relpath(f'{root}/{filename}', dir_path),
-                    'dir_name': get_file_name(root),
-                    'dir_abspath': root,
-                    'dir_relpath': os.path.relpath(root, dir_path),
-                }
-                for start_dir_type, start_dir_path in tj_path.START_DIR_MAP.items():
-                    rel_path = tj_path.relpath(f'{root}/{filename}', start_dir_path=start_dir_path)
-                    if rel_path is not None:
-                        meta_data[f'{start_dir_type}_relpath'] = rel_path
-                file_meta_list.append(meta_data)
+    with tqdm(desc='walk', unit=' files', disable=not use_tqdm) as pbar: # one overall bar (os.walk is lazy so there's no total), not one bar per directory
+        for root, dirs, files in os.walk(dir_path):
+            if depth is not None and root.count(os.sep) - dir_path.count(os.sep) >= depth:
+                dirs[:] = []
+            dir_name, dir_relpath = get_file_name(root), os.path.relpath(root, base_dir) # constant per directory -> hoisted out of the file loop
+            for filename in files:
+                pbar.update(1)
+                if filename.lower().endswith(ext):
+                    file_abspath:str = os.path.join(root, filename)
+                    file_meta_list.append({
+                        'file_name': get_file_name(file_path=filename),
+                        'file_abspath': file_abspath,
+                        'file_relpath': os.path.relpath(file_abspath, base_dir),
+                        'dir_name': dir_name,
+                        'dir_abspath': root,
+                        'dir_relpath': dir_relpath,
+                    })
     return file_meta_list
 
 def get_dir_name_list(root_dir:str) -> list:

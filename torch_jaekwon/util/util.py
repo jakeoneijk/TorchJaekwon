@@ -135,6 +135,14 @@ def set_env_from_sh(sh_file:str, override:bool = False) -> None:
         if override or name not in os.environ:
             os.environ[name] = value
 
+def get_env(name:str, default:str = None, required:bool = False) -> str:
+    """Read an environment variable, e.g. get_env('PROJECT_ROOT', default='.').
+    Returns `default` when unset; raises KeyError if `required` and unset."""
+    value:str = os.environ.get(name, default)
+    if required and value is None:
+        raise KeyError(f"[util.get_env] required environment variable '{name}' is not set")
+    return value
+
 def is_package_installed(package_name: str) -> bool:
     if importlib.util.find_spec(package_name) is not None:
         return True
