@@ -70,13 +70,9 @@ audit-reported with line cites — confirm before fixing.** No code was run (log
   `init_project.py` its own scaffold dir list (don't reintroduce `CLASS_DIRS` into `path.py`).
 
 ### Correctness bugs / crashes
-- [ ] `controller.py:63` — `os.path.splitext(relpath(...))` crashes when config isn't under
-  `./config` (`relpath` returns `None`). Fall back to basename.
 - [ ] `train/trainer/gan_trainer.py:14` — `super().__init__(model_class_name=...)`: base has no such
   param / no `**kwargs` → `TypeError`; class is unconstructable. Also `backprop`=`pass` returns
   `None` → `run_epoch` does `.detach()` on it → crash. GANTrainer is a non-functional stub.
-- [ ] `util/util.py:42` — low-RAM guard formats `log_dict['available_ram_mb']` but the key is
-  `ram_available_mb` → `KeyError` exactly when RAM is low (runs per-batch in the inferencer).
 - [ ] `evaluate/metric/voice.py:189,192` — `get_sispnr` calls undefined `util_audio.energy_unify` /
   `pow_p_norm`; `'sispnr'` is in the default `metric_list` → `AttributeError` on the default eval path.
 - [ ] `data/dataset/balanced_multi_dataset.py:39` — per-dataset seed built from a fresh
@@ -90,8 +86,6 @@ audit-reported with line cites — confirm before fixing.** No code was run (log
 - [ ] `model/activation/snake.py` — `Snake` has no `forward` → `NotImplementedError` when used.
 - [ ] `model/audio_module/Filter/Filter.py:40-50` — `kaiser_sinc_filter1d` leaves `filter` unbound
   on the `cutoff==0` branch → `UnboundLocalError`.
-- [ ] `util/util_torch.py:41` — `freeze_param` sets `model.train = lambda self: self`; later
-  `model.train()` → `TypeError` / silent no-op. Use `lambda *a, **k: model`.
 
 ### Cuda-seed at import (same class as the trainer.py fix already applied)
 - [ ] `data/dataset/balanced_multi_dataset.py:13` (and `controller.py` runtime seed on CPU) —

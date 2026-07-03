@@ -39,7 +39,7 @@ def get_resource_usage(
         log(message, msg_type='info')
 
     if min_available_ram_mb is not None and log_dict['ram_available_mb'] < min_available_ram_mb:
-        log(f"Available RAM ({log_dict['available_ram_mb']:.2f} MB) below threshold ({min_available_ram_mb} MB). Exiting.", msg_type='error')
+        log(f"Available RAM ({log_dict['ram_available_mb']:.2f} MB) below threshold ({min_available_ram_mb} MB). Exiting.", msg_type='error')
         sys.exit(1)
     return log_dict
 

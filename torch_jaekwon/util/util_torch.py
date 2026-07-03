@@ -38,7 +38,7 @@ def get_param_num(model:nn.Module) -> Dict[str,int]:
 
 def freeze_param(model:nn.Module) -> nn.Module:
     model = model.eval()
-    model.train = lambda self: self #override train with useless function
+    model.train = lambda *args, **kwargs: model #override train() to a no-op so the model stays frozen/eval
     for param in model.parameters():
         param.requires_grad = False
     return model

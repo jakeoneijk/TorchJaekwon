@@ -61,7 +61,7 @@ def set_argparse() -> dict:
     config_dict = util_data.yaml_load(args.config_path, interpolate=True)
     assert 'cli' not in config_dict, "Reserved key 'cli' found in config file."
     config_dict['cli'] = vars(args)
-    config_dict['cli']['config_name'] = config_dict['cli']['config_name'] or os.path.splitext(tj_path.relpath(args.config_path, start_dir_path=tj_path.CONFIG_DIR))[0]
+    config_dict['cli']['config_name'] = config_dict['cli']['config_name'] or os.path.splitext(tj_path.relpath(args.config_path, start_dir_path=tj_path.CONFIG_DIR) or os.path.basename(args.config_path))[0] # relpath is None when config isn't under ./config -> fall back to basename
     config_dict['cli']['train_resume_path'] = config_dict['cli'].get('train_resume_path') or f"{tj_path.ARTIFACTS_DIRS.train}/{config_dict['cli']['config_name']}" # 'cli' always has the key (=None); '.get(k, default)' would keep None, so use 'or'
 
     # Defaults for config values the pipeline reads but a config may omit (applied only when absent).
