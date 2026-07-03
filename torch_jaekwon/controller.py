@@ -127,7 +127,7 @@ def train(config_dict:dict) -> None:
         'lr_scheduler_class_meta_dict': train_config['scheduler']['class_meta'],
         'lr_scheduler_interval': train_config['scheduler']['interval'],
         # train paremeters
-        'seed': (int)(torch.cuda.initial_seed() / (2**32)) if train_config.get('seed') is None else train_config.get('seed'),
+        'seed': train_config.get('seed'), # None -> Trainer derives a CUDA-safe seed itself
         'seed_strict': train_config.get('seed_strict', False),
         # logging
         'logger': logger,

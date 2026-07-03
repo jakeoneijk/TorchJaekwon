@@ -292,9 +292,8 @@ class Trainer():
             lr_scheduler_class = getattr(torch.optim.lr_scheduler, lr_scheduler_name, None) # torch built-in first (e.g. 'StepLR')
             if lr_scheduler_class is None: # otherwise a custom class named by fully-qualified dotted path
                 lr_scheduler_class = import_class(module_name=lr_scheduler_name)
-            lr_scheduler_args:dict = lr_scheduler_class_meta_dict['args']
-            lr_scheduler_args.update({'optimizer': optimizer})
-            lr_scheduler =  lr_scheduler_class(**lr_scheduler_args)
+            lr_scheduler_args:dict = {**lr_scheduler_class_meta_dict['args'], 'optimizer': optimizer} # copy so the caller's config dict isn't mutated with a live optimizer
+            lr_scheduler = lr_scheduler_class(**lr_scheduler_args)
             if hasattr(lr_scheduler, 'interval') and getattr(lr_scheduler, 'interval', None) != self.lr_scheduler_interval:
                 util.log(
                     text = f'lr_scheduler interval ({self.lr_scheduler_interval}) is not same as interval of {lr_scheduler_name} ({lr_scheduler.interval}).', 
@@ -372,11 +371,11 @@ class Trainer():
                 self.logger.print_and_log(f'-------------------------------------------------------------------------------------------------------')
     
             #Train
-            self.logger.print_and_log('train_start')
+            if util_torch_distributed.is_main_process(): self.logger.print_and_log('train_start')
             self.run_epoch(self.data_loader_dict['train'],TrainState.TRAIN, metric_range = "step")
-            
+
             #Valid
-            self.logger.print_and_log('valid_start')
+            if util_torch_distributed.is_main_process(): self.logger.print_and_log('valid_start')
 
             with torch.no_grad():
                 valid_metric = self.run_epoch(self.data_loader_dict['valid'],TrainState.VALIDATE, metric_range = "epoch")
@@ -389,13 +388,14 @@ class Trainer():
                 self.log_current_state()
             
             self.current_epoch += 1
-            self.logger.log_every_epoch(model=self.model)
+            if util_torch_distributed.is_main_process(): self.logger.log_every_epoch(model=self.model)
 
             if self.global_step >= self.total_step:
                 break
 
-        self.logger.print_and_log(f'best_epoch: {self.best_valid_epoch}')
-        self.logger.print_and_log('Training complete')
+        if util_torch_distributed.is_main_process():
+            self.logger.print_and_log(f'best_epoch: {self.best_valid_epoch}')
+            self.logger.print_and_log('Training complete')
     
     def run_epoch(self, dataloader: DataLoader, train_state:TrainState, metric_range:str = "step") -> dict:
         assert metric_range in ["step","epoch"], "metric range should be 'step' or 'epoch'"
@@ -496,12 +496,6 @@ class Trainer():
                 model.eval()
                 model.zero_grad()
     
-    def metric_update(self, metric:Dict[str, AverageMeter], loss_name:str, loss:torch.Tensor, batch_size:int) -> dict:
-        if loss_name not in metric:
-            metric[loss_name] = AverageMeter()
-        metric[loss_name].update(loss.item(),batch_size)
-        return metric
-
     def save_module(self, model, model_name = '', name = 'pretrained_best_epoch') -> None:
         if not util_torch_distributed.is_main_process(): return None
         if isinstance(model, dict):
@@ -515,11 +509,6 @@ class Trainer():
                 raw_model = model.module if isinstance(model, DDP) else model
                 state_dict = raw_model.state_dict()
             torch.save(state_dict, path)
-
-    def load_module(self,name = 'pretrained_best_epoch'):
-        path = os.path.join(self.logger.log_path["root"],f'{name}.pth')
-        best_model_load = torch.load(path)
-        self.model.load_state_dict(best_model_load)
     
     def get_current_lr(self, optimizer:Union[ dict, torch.optim.Optimizer]):
         if isinstance(optimizer, dict):

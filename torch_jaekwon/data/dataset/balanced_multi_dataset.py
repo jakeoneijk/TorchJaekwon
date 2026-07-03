@@ -85,7 +85,7 @@ class BalancedMultiDataset(IterableDataset):
     def __iter__(self):
         while True:
             data_name:str = self.get_value(self.data_name_list_key)
-            for _ in range(self.sampling_schedule_dict[data_name]):
+            for _ in range(self.sampling_schedule_dict.get(data_name, 1)): # default 1 so a partial schedule doesn't KeyError mid-iteration
                 meta_data = self.get_value(data_name)
                 if self.is_debug and self.logger is not None:
                     self.logger.log_write(f"{util_torch_distributed.local_rank()}/{util_torch_distributed.world_size() - 1}: {str(meta_data)}", log_type='debug')

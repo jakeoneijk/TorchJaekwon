@@ -253,25 +253,25 @@ def analyze_dataset(
         audio_meta_data_list = util_data.walk(dir_path=data_dir, ext=['.wav', '.mp3', '.flac'])
         for meta_data in tqdm(audio_meta_data_list):
             try:
-                audio, sr = read(meta_data['file_path'], mono=True)
+                audio, sr = read(meta_data['file_abspath'], mono=True)
             except:
                 print(f'Error: {meta_data["file_path"]}')
-                result_meta_dict[dir_name]['error_file_list'].append(meta_data['file_path'])
+                result_meta_dict[dir_name]['error_file_list'].append(meta_data['file_abspath'])
                 continue
             if sanity_check_sr is not None: 
-                if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
-                if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_path']}'s sample rate is {sr}'''
+                if isinstance(sanity_check_sr, int): assert sr == sanity_check_sr, f'''{meta_data['file_abspath']}'s sample rate is {sr}'''
+                if isinstance(sanity_check_sr, list): assert sr in sanity_check_sr, f'''{meta_data['file_abspath']}'s sample rate is {sr}'''
             
             meta_data_of_this_file = {
                 'file_name': meta_data['file_name'],
-                'file_path': os.path.abspath(meta_data['file_path']),
+                'file_path': os.path.abspath(meta_data['file_abspath']),
                 'sample_length': audio.shape[-1],
                 'sample_rate': sr,
             }
             meta_data_of_this_file['duration_second'] = meta_data_of_this_file['sample_length'] / meta_data_of_this_file['sample_rate']
             
             if save_each_meta: 
-                util_data.pickle_save(f"{result_save_dir}/per_sample/{dir_name}/{meta_data['file_path'].split(dir_name)[-1]}.pkl".replace('//','/'), meta_data_of_this_file)
+                util_data.pickle_save(f"{result_save_dir}/per_sample/{dir_name}/{meta_data['file_abspath'].split(dir_name)[-1]}.pkl".replace('//','/'), meta_data_of_this_file)
 
             result_meta_dict[dir_name]['total_duration_second'] += meta_data_of_this_file['duration_second']
             if result_meta_dict[dir_name]['longest_sample_meta']['duration_second'] < meta_data_of_this_file['duration_second']:
@@ -290,12 +290,14 @@ def resample_dataset(
 ) -> None:
     if isinstance(data_dir_list, str): data_dir_list = [data_dir_list]
     for data_dir in tqdm(data_dir_list, desc="Dataset list"):
-        audio_meta_data_list = util_data.walk(dir_name=data_dir, ext=['.wav', '.mp3', '.flac'])
+        audio_meta_data_list = util_data.walk(dir_path=data_dir, ext=['.wav', '.mp3', '.flac'])
         for meta_data in tqdm(audio_meta_data_list):
-            audio, _ = librosa.load(meta_data['file_path'], sr = sr)
-            if save_dir == None:
-                audio_dir_new = meta_data['dir_path'].replace(meta_data['dir_name'], f"{meta_data['dir_name']}_{sr}")
-            write(f"{audio_dir_new}/{meta_data['file_name']}.wav", audio, sr)
+            audio, _ = librosa.load(meta_data['file_abspath'], sr = sr)
+            if save_dir is None:
+                out_dir = meta_data['dir_abspath'].replace(meta_data['dir_name'], f"{meta_data['dir_name']}_{sr}")
+            else:
+                out_dir = os.path.join(save_dir, os.path.dirname(meta_data['file_relpath'])) # mirror the source tree under save_dir
+            write(f"{out_dir}/{meta_data['file_name']}.wav", audio, sr)
 
 
 def normalize_loudness(

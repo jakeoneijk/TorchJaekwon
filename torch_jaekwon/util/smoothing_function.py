@@ -53,12 +53,11 @@ def smooth_lbl_conv(lbl, smooth_center, smooth_length, smooth_shape):
 
     return lbl_new
 
-# %%
-signal = torch.randint(0, 2, (50,))
-signal_smooth_loop = smooth_lbl_loop(signal, True, 3, 'triangle')
-signal_smooth_conv = smooth_lbl_conv(signal, True, 3, 'triangle')
+if __name__ == '__main__': # demo / scratch — kept out of the import path (no side effects on import)
+    signal = torch.randint(0, 2, (50,))
+    signal_smooth_loop = smooth_lbl_loop(signal, True, 3, 'triangle')
+    signal_smooth_conv = smooth_lbl_conv(signal, True, 3, 'triangle')
 
-plt.plot(signal)
-#plt.plot(signal_smooth_loop, 'r')
-plt.plot(signal_smooth_conv.squeeze(), 'g', linestyle='--')
-# %%
+    plt.plot(signal)
+    #plt.plot(signal_smooth_loop, 'r')
+    plt.plot(signal_smooth_conv.squeeze(), 'g', linestyle='--')

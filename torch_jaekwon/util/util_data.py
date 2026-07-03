@@ -113,7 +113,7 @@ def json_save(save_path:str, data:Union[dict,list], indent:int = 2) -> None:
 
 def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int=-1,remainder:str = ['discard','pad','maintain'][1],ext:str = ['pkl'][0]):
     os.makedirs(save_dir,exist_ok=True)
-    data_total = copy.deepcopy(data)
+    data_total = data # not deep-copied: only reassigned via .take()/np.pad below, never mutated in place
     total_length_of_data:int = data_total.shape[segment_axis]
 
     if total_length_of_data % segment_len != 0 and remainder in ['discard','pad']:

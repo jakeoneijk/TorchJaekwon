@@ -5,7 +5,7 @@ import importlib
 def instantiate_class_meta(
     class_meta:dict = dict()
 ) -> Callable:
-    if 'path' not in class_meta and isinstance(class_meta, dict):
+    if isinstance(class_meta, dict) and 'path' not in class_meta: # type guard first, so a non-dict nested value doesn't hit '... not in <non-dict>'
         return {k: instantiate_class_meta(class_meta=v) for k,v in class_meta.items()}
     else:
         return instantiate(module_name=class_meta.get('path'), arg_dict=class_meta.get('args', dict()))

@@ -60,72 +60,35 @@ Known LightningTrainer gaps to implement if hit:
 
 ## Code audit (2026-07-03)
 
-Static audit across all subsystems (vendored `external/` excluded). The core / data /
-inference / util highlights were re-verified directly; **model / train / gan items are
-audit-reported with line cites — confirm before fixing.** No code was run (login-node rule).
+The cleanly static-fixable crashes / dead-code / footguns / efficiency items from the audit have been
+fixed and removed from this list. What remains needs a real run or a decision, not a quick edit.
+No code was run here (login-node rule).
 
-### Regression from the recent refactor — fix first
-- [ ] `init_project.py:4,29` imports & uses `CLASS_DIRS`, which was removed from `path.py`
-  during the dotted-`path` refactor → `ImportError`, project init is broken. Give
-  `init_project.py` its own scaffold dir list (don't reintroduce `CLASS_DIRS` into `path.py`).
+### Needs a real run / decision
+- [ ] `train/trainer/gan_trainer.py:14` — `super().__init__(model_class_name=...)` (base has no such
+  param) → `TypeError`, and `backprop`=`pass` returns `None`. The constructor is a quick fix, but making
+  GANTrainer actually train needs real GAN logic (experiments).
+- [ ] `model/diffusion/ddpm/ddpm.py:218` — `apply_model(..., is_cond_unpack=...)` but the base
+  `apply_model` dropped that param → `TypeError` on the sampling path (DDPM/DDIM/PNDM/flash); restoring
+  it touches sampling — verify with a run.
+- [ ] `train/logger/logger.py:119` — wandb logs once per metric → fragmented step history; a correct fix
+  restructures the metric flow + wandb `step=` semantics, so verify against a live wandb run.
+- [ ] `util/util_video.py:265` — `attach_audio_to_video` calls undefined `UtilVideo.read/write`, and
+  module-level `read()` returns a dict (not a clip) → needs a moviepy-aware rewrite + run.
 
-### Correctness bugs / crashes
-- [ ] `train/trainer/gan_trainer.py:14` — `super().__init__(model_class_name=...)`: base has no such
-  param / no `**kwargs` → `TypeError`; class is unconstructable. Also `backprop`=`pass` returns
-  `None` → `run_epoch` does `.detach()` on it → crash. GANTrainer is a non-functional stub.
-- [ ] `evaluate/metric/voice.py:189,192` — `get_sispnr` calls undefined `util_audio.energy_unify` /
-  `pow_p_norm`; `'sispnr'` is in the default `metric_list` → `AttributeError` on the default eval path.
-- [ ] `model/diffusion/ddpm/ddpm.py:218` — `apply_model(..., is_cond_unpack=...)` but base
-  `apply_model` dropped that param → positional/keyword collision → `TypeError`; breaks base DDPM
-  sampling and every sampler (DDIM/PNDM/flash). Restore the param.
-- [ ] `model/activation/snake.py` — `Snake` has no `forward` → `NotImplementedError` when used.
-- [ ] `model/audio_module/Filter/Filter.py:40-50` — `kaiser_sinc_filter1d` leaves `filter` unbound
-  on the `cutoff==0` branch → `UnboundLocalError`.
-
-### Cuda-seed at import (same class as the trainer.py fix already applied)
-- [ ] `controller.py:130` — the fallback `seed` uses `int(torch.cuda.initial_seed()/2**32)` at
-  runtime, which errors on a CPU-only train run when `train.seed` is unset. Seed CUDA-independently.
-
-### Dead / broken — stale old-layout (CamelCase) imports
-These import from a pre-refactor `torch_jaekwon.Model.*` / `Util.*` / `GetModule` layout that no
-longer exists → `ModuleNotFoundError`, so they're unusable. Fix imports to lowercase/relative, or
-delete if abandoned:
-- `evaluate/metric/sound.py`; `train/loss/MultiScaleSpectralLoss.py`;
-  `model/diffusion/ddpm/ddpm_loss_vlb.py`; `model/diffusion/sampler/{DDIM,PNDM,DpmSolverForDDPM}.py`;
+### Dead / broken — stale old-layout (CamelCase) imports (decide: fix imports vs. delete)
+These import from a pre-refactor `torch_jaekwon.Model.*` / `Util.*` / `GetModule` layout that no longer
+exists → `ModuleNotFoundError`. Fixing the imports is mechanical, but confirming each still works (vs.
+is abandoned and should be deleted) is a judgment call:
+- `evaluate/metric/sound.py` (also missing `@staticmethod` on two methods);
+  `train/loss/MultiScaleSpectralLoss.py`; `model/diffusion/ddpm/ddpm_loss_vlb.py`;
+  `model/diffusion/sampler/{DDIM,PNDM,DpmSolverForDDPM}.py`;
   `model/diffusion/ddpm/ddpm_learning_variances.py` (also calls missing `predict_start_from_noise`);
   `model/audio_module/{alias_free1d, Resample/UpSample1d, Resample/DownSample1d,
   Filter/LowPassFilter1d, Filter/.../MicrophoneEQ, FeatureExtract/ConstantQTransform}.py`.
 
-### Other dead code
-- [ ] `train/trainer/trainer.py:498` `metric_update` — dead duplicate of `update_metric`; delete.
-- [ ] `train/trainer/trainer.py:512` `load_module` — dead and broken for dict/DDP models.
-- [ ] `util/util_video.py` — `UtilVideo` referenced but never defined → `NameError`.
-- [ ] `util/util_audio.py:256,293` — `analyze_dataset`/`resample_dataset` use nonexistent keys
-  (`file_path` vs `walk`'s `file_abspath`) and wrong `walk(dir_name=)` param → `TypeError`/`KeyError`.
-- [ ] `util/smoothing_function.py:57-63` — module-level scratch code runs at import (side effects,
-  forces torch/matplotlib). Move under `__main__` or delete.
-- [ ] `data/preprocess/torchrun_preprocessor.py:89` — template `ExampleDataset.__getitem__` never
-  returns (always `None`); `data/preprocess/preprocessor.py:34` — `NotImplementedError` inside an
-  empty `for` loop → silently returns `None` instead of raising.
-
-### Footguns / inconsistencies
-- [ ] `instantiate.py:8` — `'path' not in class_meta and isinstance(class_meta, dict)` checks
-  membership before the type guard → `TypeError` on non-dict nested values. Reorder `isinstance` first.
-- [ ] `train/trainer/trainer.py:375,379,392,397` — `print_and_log`/`log_every_epoch` in `fit()` are
-  outside the `is_main_process()` guard → duplicated logs per rank under DDP.
-- [ ] `train/logger/logger.py:119` — wandb path calls `wandb.log` once per metric → fragments the
-  step history; batch into one `wandb.log(..., step=...)`.
-- [ ] `train/trainer/trainer.py:295` — lr-scheduler init mutates the caller's config dict in place
-  (injects a live optimizer object into `args`).
-- [ ] `inference/inferencer.py:141` — `ckpt_name="last"` picks by lexical sort (wrong for numbered
-  names; `IndexError` if none); `:123` per-batch `get_resource_usage(verbose=False)` can `sys.exit(1)`.
-- [ ] `evaluate/evaluator/evaluator.py` — `result_dir_path=None` → writes into a dir literally named `None`.
-- [ ] `data/dataset/balanced_multi_dataset.py:32,83` — partial `sampling_schedule_dict` → `KeyError`
-  mid-iteration; `__len__` (finite) contradicts the infinite `__iter__`.
-- [ ] `path.py:62,73` — path containment via `str.startswith` false-positives on sibling prefixes
-  (`/a/bc` vs `/a/b`). Use `os.path.commonpath` or a trailing-sep compare.
-
-### Efficiency
-- [ ] `data/dataset/dataset.py` — eager-loads every pickle into RAM in `__init__` (duplicated per
-  worker); lazy-load in `__getitem__`.
-- [ ] `util/util_data.py:119` — `copy.deepcopy` of an array that's never mutated → doubles peak memory.
+### Minor / leftover
+- [ ] `evaluate/metric/voice.py` — `get_sispnr` still calls undefined `energy_unify`/`pow_p_norm`
+  (now dropped from the default metric list, so off the default path); implement or delete it.
+- [ ] `data/dataset/balanced_multi_dataset.py` — `__len__` (finite) vs the infinite `__iter__`: OK as a
+  nominal "steps per epoch", but `len(dataloader)` over-reports; document or drop `__len__`.

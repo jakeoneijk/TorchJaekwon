@@ -62,7 +62,7 @@ class MetricVoice:
         self,
         pred, #linear scale spectrogram [time]
         target,
-        metric_list:list = ['lsd','ssim','sispnr', 'l1', 'l2']
+        metric_list:list = ['lsd','ssim', 'l1', 'l2'] # 'sispnr' dropped: get_sispnr calls undefined util_audio helpers (see NOTES)
     ) -> Dict[str,float]:
         
         source_spec_dict = self.get_spec_dict_of_audio(pred)

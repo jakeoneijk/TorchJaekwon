@@ -120,7 +120,6 @@ class Inferencer():
                     data_dict:dict = self.post_process(data_dict)
                     self.save_data(meta_data, data_dict)
 
-                util.get_resource_usage(verbose=False)  # Log resources after each batch
                 torch.cuda.empty_cache()
                 gc.collect()
 
@@ -138,7 +137,9 @@ class Inferencer():
                 for pretrain_module in os.listdir(pretrain_dir)
                 if os.path.splitext(pretrain_module)[-1] in [".pth"] and "checkpoint" not in pretrain_module
                 ]
-            pretrain_name_list.sort()
+            if not pretrain_name_list:
+                raise FileNotFoundError(f"[Inferencer] no '.pth' checkpoint found in {pretrain_dir}")
+            pretrain_name_list.sort(key=lambda name: os.path.getmtime(f"{pretrain_dir}/{name}")) # chronological, so 'last' = most recently saved (lexical sort mis-orders e.g. _10 vs _9)
 
             if ckpt_name == "last":
                 pretrain_name_list = [pretrain_name_list[-1]]
