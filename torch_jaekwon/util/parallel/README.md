@@ -1,103 +1,93 @@
 # Parallel task running
 
 Run embarrassingly-parallel GPU work — preprocess shards, batched inference, feature
-dumps — as many **independent 1-GPU workers racing a shared task list**. No ranks, no
-inter-process communication, crash-safe and resumable.
+dumps — as **many independent 1-GPU workers racing a shared task list**. No ranks, no
+inter-process communication; crash-safe and resumable.
 
-## How it works (30 seconds)
+## The idea in 30 seconds
 
-- You split the work into **tasks** (one shard / one utterance / one file).
-- Each task has a **done-marker** on disk. A worker *claims* a task with an atomic
-  `mkdir`, processes it, and publishes the marker **last**. That gives you, for free:
-  - many identical workers split the list with zero coordination (first to `mkdir` wins);
+- Split the work into **tasks** (one shard / one utterance / one file).
+- Every worker walks the **whole** list and, for each task, tries to **claim** it with a
+  single atomic `mkdir`. First to `mkdir` wins; everyone else skips it. That one
+  filesystem op is the *only* coordination between workers.
+- A worker writes its output, then publishes a **done-marker last**. So:
+  - N workers split the list with zero bookkeeping (no "worker 0 gets 0–9");
   - a killed worker leaves only a temp dir, never a half-written "done" task;
-  - rerun = resume — only unfinished tasks remain.
-- The driver submits one **wave** of workers; you rerun until 0 are left (the local
-  backend loops for you).
+  - **rerun = resume** — only unfinished tasks remain.
 
-### Control flow: `run_parallel_tasks.sh` → `tj_submit_wave` → `run_one_worker.sh`
+You launch one **wave** of workers and rerun until 0 are left (the local backend loops
+for you). That's the whole model.
+
+## How a run flows
 
 ```
-[login]  run_parallel_tasks.sh                         DRIVER  (generic; no GPU)
-           wipe orphan temps -> count leftover -> (if >0) submit one wave
-                                                     |
-                                                     v   calls the contract function:
-         tj_submit_wave <job> <njobs> <hours> <module> [app args]
-           sbatch --array  (cluster)   |   background procs (local)   <- BACKEND: the ONLY
-                                                     |                    cluster-specific piece
-                                                     v   launches N of, one per GPU:
-[worker] run_one_worker.sh -m <module> -p <python> -r <repo> -- [app args]   WORKER (generic)
-           set env/caches  ->  python -m <module> run [app args]
-                                  -> ParallelTaskProcessor.run()   (claims + processes tasks)
+STRUCTURE:  run_parallel_tasks.sh  →  backends/<TJ_BACKEND>.sh  →  worker/
+              [login] orchestrate       [login] submit N workers     [compute] run each
+──────────────────────────────────────────────────────────────────────────────────────
+[LOGIN]  run_parallel_tasks.sh   driver (generic): wipe → count leftover (N) → tj_submit_wave(N)
+
+# tj_submit_wave(N) = "launch N workers" — the ONE function a backend defines. The driver
+# picks the backend (TJ_BACKEND / -b) and sources backends/$TJ_BACKEND.sh to get it.
+# Its body, per backend:
+
+backends/local.sh                           # no scheduler
+  tj_submit_wave(N):  run N× worker/run_one_worker.sh        # background, one per GPU
+
+backends/slurm_pyxis.sh                     # cluster + pyxis container
+  tj_submit_wave(N):  sbatch --array=1-N                     # N independent 1-GPU jobs; each runs:
+                        worker/run_in_container.sh           #   [compute · OUTSIDE container]
+                          srun --container-image →
+                            worker/run_one_worker.sh         #   [compute · INSIDE  container]
+
+# both backends converge on the same worker:
+worker/run_one_worker.sh   set caches/env → python -m <module> run
+  └─ ParallelTaskProcessor.run()   loop: claim task (atomic mkdir) → process → repeat
 ```
 
-Three layers, clean separation:
-- **`run_parallel_tasks.sh` (driver)** — generic orchestration on the login node: wipe →
-  count → submit one wave. Knows *nothing* about your cluster.
-- **`tj_submit_wave` (backend/contract)** — the **only cluster-specific piece**, supplied by
-  your `env_setup.sh` (or a shipped `backends/*.sh`). Turns "run a wave of N workers" into
-  actual launches — `sbatch --array` on a cluster, background processes locally.
-- **`run_one_worker.sh` (worker)** — generic per-GPU entry: sets caches/identity, then
-  `python -m <module> run`, which races the claim list.
+Three layers, one job each:
+- **driver** (`run_parallel_tasks.sh`) — generic orchestration on the login node; zero
+  cluster-specific literals.
+- **backend** (`backends/<name>.sh`) — defines `tj_submit_wave(N)`, the *only* cluster-specific
+  piece: turns "launch N workers" into real launches (`sbatch`, background procs, …). Swap to move clusters.
+- **worker** (`worker/run_one_worker.sh`) — generic per-GPU entry that runs your Python.
 
-Per-run **app args flow straight through** all three: driver's `-- …` tail → `tj_submit_wave`
-trailing args → worker's `-- …` → `python -m <module> run …`. The generic layers never
-interpret them; only your module does.
+## The claim mechanism (why there's no sharding)
 
-## How work is split across workers (no sharding)
-
-The surprising part: **there is no sharding step.** Workers are *not* assigned slices
-(no "worker 0 gets items 0–9"). Every worker runs the same code, calls `list_tasks()`,
-and sees the **whole** list. They avoid colliding with two filesystem checks per task:
+Workers are *not* assigned slices. Every worker runs the same loop over the full list:
 
 ```python
-for task in self.list_tasks():                             # everyone sees the FULL list
-    if self.is_task_done(task):                 continue   # 1. output exists -> skip (resume)
-    if not self.claim(self.tmp_dir_path(task)): continue   # 2. another worker owns it -> skip
-    self.process_task(task, self.tmp_dir_path(task))       # won it -> do it
+for task in self.list_tasks():                            # everyone sees the FULL list
+    if self.is_task_done(task):                 continue  # done -> skip (resume)
+    if not self.claim(self.tmp_dir_path(task)): continue  # someone else owns it -> skip
+    self.process_task(task, self.tmp_dir_path(task))      # won it -> do it
 ```
 
-`claim()` is just an atomic `mkdir` — **the temp dir IS the claim:**
+`claim()` is just an atomic `mkdir` — the temp dir IS the claim:
 
 ```python
 def claim(path):
-    try:    os.makedirs(path); return True    # only ONE process can create a given dir
-    except FileExistsError:    return False   # it already exists -> someone else got it
+    try:    os.makedirs(path); return True   # only ONE process can create a given dir
+    except FileExistsError:    return False  # already taken
 ```
 
-`mkdir` is atomic on the filesystem, so if two workers race for the same task exactly one
-wins; that single operation is the *only* coordination between workers. They walk the same
-list and whoever reaches an unclaimed task first does it. Example — 3 workers, 6 tasks:
+`mkdir` is atomic on POSIX, so if two workers race for a task exactly one wins. This
+**self-balances** (a slow worker just claims fewer) and needs no ranks — which is why the
+same code runs unchanged as 1 local process or 40 cluster jobs.
 
-```
-A: mkdir .tmp_0 ✓ (task 0)        ...A free: .tmp_1✗ .tmp_2✗ .tmp_3 ✓ (task 3)
-B: .tmp_0 ✗ → .tmp_1 ✓ (task 1)   ...B free: → .tmp_5 ✓ (task 5)
-C: .tmp_0 ✗  .tmp_1 ✗ → .tmp_2 ✓  ...C free: → .tmp_4 ✓ (task 4)
-```
+## Backends (pick one; add more later)
 
-Each does ~2 — not by assignment but by racing. This **self-balances** (a slow worker
-just claims fewer) and needs no ranks, which is why the same worker runs unchanged as 1
-local process or 40 cluster jobs. So "which data does a worker process?" — it doesn't know
-in advance; it claims the next not-done, not-taken task, first-to-`mkdir` wins.
+The driver sources one backend, chosen by `TJ_BACKEND` (or `-b`). Shipped today:
 
-## Try the demo first (30 seconds, no GPU/scheduler)
+| `TJ_BACKEND` | file | what it does | extra vars it needs |
+|---|---|---|---|
+| `slurm_pyxis` *(default)* | `backends/slurm_pyxis.sh` | `sbatch --array` of 1-GPU jobs, each in a pyxis/enroot container | `TJ_ACCOUNT TJ_PARTITION TJ_IMAGE TJ_MOUNTS` |
+| `local` | `backends/local.sh` | background processes on this machine, one per GPU (no scheduler) | — |
 
-A complete runnable example lives in `examples/`:
-
-```bash
-TJ_BACKEND=local bash examples/launch.example.sh -j demo   # runs 8 trivial tasks locally
-TJ_BACKEND=local bash examples/launch.example.sh -j demo   # rerun -> "0 leftover" (resume)
-```
-
-`examples/` is also the copy-paste starting point for your own setup:
-`example_task.py` (a minimal subclass), `env_setup.example.sh` (the contract, with the
-slurm/local switch), `launch.example.sh` (the thin launcher).
-
-Prefer to see the bare mechanism with no driver/backend at all?
-`simple_local_run.sh <module> <n>` just launches N `python -m <module> run` processes
-(GPU-pinned, separate caches) and waits — the claims alone keep their work disjoint. It's
-the "you don't actually need any of the machinery" version; the driver/backend only add
-GPU pinning, resume-by-wave, and crash recovery on top.
+Adding a system = **drop a `backends/<name>.sh`** that defines `tj_submit_wave`; the
+driver, worker, and Python stay untouched. Natural next entries: `slurm` (plain, no
+container), `slurm_singularity`. **Escape hatch:** if your env file already defines
+`tj_submit_wave`, the driver keeps it and sources no backend — for a cluster nothing
+shipped fits.
 
 ## Use it in 2 steps
 
@@ -116,73 +106,74 @@ class MyTask(ParallelTaskProcessor):
     def tmp_dir_path(self, task):          # per-task temp dir; co-locate with output
         return os.path.join(out_dir(task), f".tmp_{task_id(task)}")
     def process_task(self, task, tmp_dir): # tmp_dir already created (the claim).
-        ...                                # write outputs INTO tmp_dir, then atomically
-        ...                                # rename them into place — done-marker LAST —
+        ...                                # write INTO tmp_dir, then atomically rename
+        ...                                # into place — done-marker LAST —
         shutil.rmtree(tmp_dir)             # and remove tmp_dir on success.
 
     # optional: setup() runs ONCE per worker before the loop (e.g. load a model).
 
 if __name__ == "__main__":
-    MyTask.main()                          # exposes subcommands: run | count | wipe
+    MyTask.main()                          # subcommands: run | count | wipe
 ```
 
 Keep `__init__` / `list_tasks` / `is_task_done` / `tmp_dir_path` **import-light** (no
-torch) so `count` / `wipe` stay cheap on the login node. Do heavy imports inside
+torch) so `count` / `wipe` stay cheap on the login node. Heavy imports go inside
 `process_task` (or `setup`).
 
 ### 2. Run it
 
 ```bash
-# Cluster: submits a wave of jobs. Rerun until it reports 0 leftover.
+# Default backend (slurm_pyxis): submits a wave. Rerun until it reports 0 leftover.
 TJ_CLUSTER_ENV=/path/to/your/env_setup.sh \
   bash "$TJ_PKG/util/parallel/run_parallel_tasks.sh" -M src.preprocess.my_task -j mytask
 
 # Local (no scheduler): one worker per GPU, loops to completion in one command.
-TJ_BACKEND=local TJ_CLUSTER_ENV=/path/to/your/env_setup.sh \
-  bash "$TJ_PKG/util/parallel/run_parallel_tasks.sh" -M src.preprocess.my_task
+TJ_CLUSTER_ENV=/path/to/your/env_setup.sh \
+  bash "$TJ_PKG/util/parallel/run_parallel_tasks.sh" -M src.preprocess.my_task -b local
 ```
 
-Run from your repo root so `-M src.preprocess.my_task` resolves. Most projects wrap this
-in a one-line launcher that sets `TJ_CLUSTER_ENV` — copy the pattern from
+Most projects wrap this in a one-line launcher that sets `TJ_CLUSTER_ENV` — copy
 `examples/launch.example.sh`.
 
-Driver flags: `-M <module>` (required) · `-j <job_name>` · `-t <hours>` · `-m <max_workers_per_wave>`
-· `-- <app args>` (optional; see below).
+Driver flags: `-M <module>` (required) · `-b <backend>` · `-j <job_name>` · `-t <hours>` ·
+`-m <max_workers_per_wave>` · `-- <app args>`.
 
-### Passing per-run args to your module (optional)
+**Per-run app args:** anything after `--` is forwarded verbatim to
+`python -m <module> {run,count,wipe} <app args>`, so a module can take argparse config
+(e.g. `-- --config a.yaml --ckpt step-150000.ckpt`). One rule: **no spaces/commas in any
+value** — they word-split through the scheduler.
 
-Anything after `--` on the driver is forwarded verbatim to `python -m <module> {run,count,wipe} <app args>`,
-so a module can take **argparse** config instead of hardcoding it:
+## The contract (your env file)
+
+`$TJ_CLUSTER_ENV` declares **variables only** (all prefixed `TJ_`, so they never collide
+with your other env vars); the driver turns them into launches. Every backend needs:
+
+- `TJ_PYTHON` — interpreter (login node + jobs)
+- `TJ_PKG` — torch_jaekwon install dir (so `$TJ_PKG/util/parallel/...` resolves)
+- `TJ_REPO` — repo root (→ worker `PYTHONPATH`)
+- `TJ_BACKEND` — which backend to source (or pass `-b`)
+
+...plus the chosen backend's extra vars (see the table). Start from
+`examples/env_setup.example.sh`.
+
+## Try the demo (30 s, no GPU/scheduler)
 
 ```bash
-... run_parallel_tasks.sh -M src.inference.my_infer -- --config a.yaml --ckpt step-150000.ckpt
+TJ_BACKEND=local bash examples/launch.example.sh -j demo   # runs 8 trivial tasks locally
+TJ_BACKEND=local bash examples/launch.example.sh -j demo   # rerun -> "0 leftover" (resume)
 ```
 
-Each job carries its own args (no shared state), so multiple configs run concurrently. The
-generic layer never interprets them. One rule: **no spaces/commas in any value** — args
-word-split through the scheduler.
-
-## The cluster contract
-
-`$TJ_CLUSTER_ENV` (your project's `env_setup.sh`) must define:
-
-- `TJ_PYTHON` — interpreter used on the login node and inside jobs.
-- `tj_submit_wave <job> <njobs> <hours> <module> [app args...]` — spawn `njobs` independent
-  workers, each running `run_one_worker.sh -m <module> -p <TJ_PYTHON> -r <TJ_REPO> -- [app args...]`
-  (named flags, so adding knobs never shifts positions). (Don't pass comma-bearing values —
-  SLURM splits `--export` on commas.)
-
-Backends are swappable there: the default is your cluster's `sbatch` implementation;
-`TJ_BACKEND=local` sources the shipped `backends/local.sh` (background processes, one per
-GPU, sets `TJ_WAVE_BLOCKS=1` so the driver loops until done). **A new environment = one
-new `backends/*.sh`; the driver, worker, and Python stay unchanged.**
+`examples/` is also the copy-paste starting point: `example_task.py` (a minimal subclass),
+`env_setup.example.sh` (the contract), `launch.example.sh` (the thin launcher).
 
 ## Files
 
 | File | Role |
 |------|------|
 | `parallel_task_processor.py` | `ParallelTaskProcessor` base — the claim/resume/CLI logic. Subclass this. |
-| `run_parallel_tasks.sh` | Driver (login entry point): wipe → count → submit one wave. |
-| `run_one_worker.sh` | Worker: one per GPU, runs `python -m <module> run`. |
+| `run_parallel_tasks.sh` | Driver (login entry): source backend → wipe → count → submit one wave. |
+| `backends/slurm_pyxis.sh` | SLURM + pyxis/enroot backend (`sbatch --array` of 1-GPU jobs). |
 | `backends/local.sh` | No-scheduler backend (local background processes). |
-| `examples/` | Runnable demo + copy-paste templates (task, contract, launcher). |
+| `worker/run_in_container.sh` | Compute-node entry the slurm backend `srun`s into the container. |
+| `worker/run_one_worker.sh` | Worker: one per GPU, runs `python -m <module> run`. |
+| `examples/` | Runnable demo + copy-paste templates. |

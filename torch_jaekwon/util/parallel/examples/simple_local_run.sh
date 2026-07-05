@@ -4,7 +4,7 @@
 # Launches N copies of `python -m <module> run` in the background, each pinned to its own
 # GPU with its own cache dir, then waits. That's the whole thing. The atomic-claim
 # mechanism (see ../README.md) guarantees the N workers process DISJOINT tasks with zero
-# coordination -- so you do NOT need run_parallel_tasks.sh, a backend, or TJ_WAVE_BLOCKS
+# coordination -- so you do NOT need run_parallel_tasks.sh, a backend, or TJ_SYNC
 # here. Those only add convenience on top of this: GPU pinning, resume-by-wave, crash
 # recovery, and the auto-loop.
 #

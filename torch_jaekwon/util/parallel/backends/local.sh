@@ -1,19 +1,10 @@
 #!/bin/bash
-# Local backend for run_parallel_tasks.sh -- NO job scheduler. Runs the wave as plain
-# background processes on the current machine (one worker per visible GPU, round-robin),
-# and blocks until they finish. A drop-in alternative to a cluster's sbatch-based
-# tj_submit_wave: source this instead and the driver + Python run unchanged.
-#
-# Provides the contract the driver expects:
-#   tj_submit_wave <job_name> <njobs> <hours> <module>   # 'hours' (walltime) ignored
-# plus:
-#   TJ_WAVE_BLOCKS=1   # submission is synchronous, so the driver loops wave->wave
-#                      # until 0 leftover (one command runs to completion).
-#
-# Requires (set before sourcing, e.g. by the project's env_setup.sh):
-#   TJ_PYTHON  TJ_PKG  TJ_REPO
+# [backend] local, no scheduler · flow map: run_parallel_tasks.sh
+# Runs the wave as background processes on THIS machine (one per visible GPU) and blocks
+# until done. Selected by TJ_BACKEND=local (or -b local). Sets TJ_SYNC=1 so the
+# driver loops wave→wave to completion. Needs: TJ_PYTHON TJ_PKG TJ_REPO.
 
-export TJ_WAVE_BLOCKS=1
+export TJ_SYNC=1
 
 # Spawn the wave locally and wait. Each worker drains the shared claim list, so the
 # worker COUNT is just the parallelism width -- we cap it at the number of GPUs (the
@@ -22,7 +13,7 @@ export TJ_WAVE_BLOCKS=1
 tj_submit_wave() {   # job_name njobs hours module [app args...]  (hours ignored locally)
   local njobs=$2 module=$4
   shift 4; local app_args=("$@")   # remaining = per-run app args forwarded to the module
-  local worker="$TJ_PKG/util/parallel/run_one_worker.sh"
+  local worker="$TJ_PKG/util/parallel/worker/run_one_worker.sh"
   local ngpu=1 pids=() rc=0 i p
 
   # GPU count, default 1 (CPU / single device). Guard nvidia-smi: under the driver's

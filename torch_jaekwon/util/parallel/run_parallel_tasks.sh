@@ -1,31 +1,52 @@
 #!/bin/bash
-# Cluster-agnostic driver for ANY ParallelTaskProcessor subclass (run on the LOGIN
-# node). All dataset logic lives in the Python subclass; all cluster specifics live
-# in a sourced "contract" file (the project's env_setup.sh) -- so this script has
-# ZERO cluster-specific literals and runs unchanged across projects and clusters.
+# ══ Parallel task driver ═══════════════════════════════ run on the LOGIN node ══
+# Runs ANY ParallelTaskProcessor subclass as N independent 1-GPU workers racing a
+# shared task list (crash-safe, resumable). This file is the orchestrator; it holds
+# ZERO cluster-specific literals -- VALUES come from a sourced env file, and HOW to
+# launch comes from a swappable backend.
 #
-# Contract the sourced $TJ_CLUSTER_ENV must provide:
-#   TJ_PYTHON                                   # python interpreter (login + jobs)
-#   tj_submit_wave <job_name> <njobs> <hours> <module> [app args...]
-#       # submit <njobs> INDEPENDENT 1-GPU jobs, each running:
-#       #   run_one_worker.sh -m <module> -p <TJ_PYTHON> -r <TJ_REPO> -- [app args...]
+# ── HOW A RUN FLOWS ──────────────────────────────────────────────────────────
+# STRUCTURE:  run_parallel_tasks.sh  →  backends/$TJ_BACKEND.sh  →  worker/
+#               [login] orchestrate       [login] submit N workers    [compute] run each
+# ------------------------------------------------------------------------------
+# [LOGIN] run_parallel_tasks.sh (this file)  driver: wipe → count leftover (N) → tj_submit_wave(N)
 #
-# Optional per-run app args: everything after `--` on this driver's CLI is forwarded
-# verbatim to `python -m <module> {run,count,wipe} <app args>` (so a module can take
-# argparse config instead of hardcoding it). The generic layer never interprets them.
-# CONTRACT RULE: pass only values with NO spaces/commas -- they word-split through the
-# scheduler; keep space/comma-bearing constants hardcoded in the launch script.
+# tj_submit_wave(N) = "launch N workers" -- the ONE function a backend defines; the driver
+# sources backends/$TJ_BACKEND.sh to get it. Its body, per backend:
+#
+#   backends/local.sh         no scheduler
+#     tj_submit_wave(N):  run N× worker/run_one_worker.sh       background, one per GPU
+#
+#   backends/slurm_pyxis.sh   cluster + pyxis container
+#     tj_submit_wave(N):  sbatch --array=1-N                    N independent 1-GPU jobs; each runs:
+#                           worker/run_in_container.sh          [compute · OUTSIDE container]
+#                             srun --container-image →
+#                               worker/run_one_worker.sh        [compute · INSIDE  container]
+#
+# both backends converge on the same worker:
+#   worker/run_one_worker.sh   set caches/env → python -m <module> run
+#     └─ ParallelTaskProcessor.run()   loop: claim task (atomic mkdir) → process → repeat
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Contract: the sourced $TJ_CLUSTER_ENV exports TJ_PYTHON / TJ_PKG / TJ_REPO (+ the
+# vars the chosen backend needs). The driver sources backends/$BACKEND.sh (-b flag,
+# default slurm_pyxis) to define tj_submit_wave. Escape hatch: if the env file already
+# defines tj_submit_wave, the driver keeps it and sources no backend.
+#
+# App args after `--` are forwarded verbatim to `python -m <module> {run,count,wipe}`.
+# RULE: no spaces/commas in forwarded values (they word-split through the scheduler);
+# keep comma-bearing constants in the backend/env (e.g. TJ_MOUNTS).
 set -euo pipefail
 
 log()   { echo "[driver] $*"; }
-usage() { echo "Usage: $0 -M <python.module> [-j job_name] [-t hours] [-m max_tasks] [-- <app args>]" >&2; }
+usage() { echo "Usage: $0 -M <python.module> [-b backend] [-j job_name] [-t hours] [-m max_tasks] [-- <app args>]" >&2; }
 
 parse_args() {
-  MODULE="" JOB_NAME="parallel_tasks" HOURS=4 MAX_TASKS=40
+  MODULE="" JOB_NAME="parallel_tasks" HOURS=4 MAX_TASKS=40 BACKEND="${TJ_BACKEND:-slurm_pyxis}"
   local OPTIND=1 opt
-  while getopts "M:j:t:m:" opt; do
+  while getopts "M:b:j:t:m:" opt; do
     case $opt in
-      M) MODULE="$OPTARG" ;;  j) JOB_NAME="$OPTARG" ;;
+      M) MODULE="$OPTARG" ;;  b) BACKEND="$OPTARG" ;;  j) JOB_NAME="$OPTARG" ;;
       t) HOURS="$OPTARG" ;;   m) MAX_TASKS="$OPTARG" ;;
       *) usage; exit 1 ;;
     esac
@@ -39,7 +60,18 @@ parse_args() {
 load_cluster_contract() {
   : "${TJ_CLUSTER_ENV:?set TJ_CLUSTER_ENV=/path/to/cluster/env_setup.sh}"
   # shellcheck disable=SC1090
-  source "$TJ_CLUSTER_ENV"   # provides TJ_PYTHON + tj_submit_wave
+  source "$TJ_CLUSTER_ENV"   # provides TJ_PYTHON/TJ_PKG/TJ_REPO (+ the backend's vars)
+}
+
+# Source the swappable backend (backends/<name>.sh) that defines tj_submit_wave, unless
+# the contract already defined it (escape hatch for a cluster no shipped backend fits).
+# A backend may also set TJ_SYNC=1 (synchronous -> the driver loops wave->wave).
+load_backend() {
+  declare -f tj_submit_wave >/dev/null && return 0   # contract predefined it -- keep it
+  local f="${TJ_PKG:?contract must export TJ_PKG}/util/parallel/backends/$BACKEND.sh"
+  [[ -f "$f" ]] || { echo "ERROR: unknown backend '$BACKEND' ($f not found)" >&2; exit 1; }
+  # shellcheck disable=SC1090
+  source "$f"
 }
 
 # Remove orphan temp dirs from prior waves. Safe ONLY between waves: a live claim
@@ -72,10 +104,10 @@ run_async() {
   log "wave submitted. Rerun this script to mop up leftovers (exits when 0)."
 }
 
-# Synchronous backends (e.g. local): each wave blocks until its workers exit, so loop
-# wave->wave here until nothing is left -- one command runs to completion. Aborts if a
-# wave makes no progress, so a backend that fails fast can't spin forever.
-run_blocking() {
+# Synchronous backend (TJ_SYNC, e.g. local): tj_submit_wave returns only after the wave's
+# workers finish, so loop wave->wave here until nothing is left -- one command runs to
+# completion. Aborts if a wave makes no progress, so a fast-failing backend can't spin forever.
+run_sync() {
   local left prev=""
   while :; do
     wipe_orphan_temps                     # safe: between waves, nothing is running
@@ -93,9 +125,12 @@ run_blocking() {
 
 main() {
   parse_args "$@"
-  load_cluster_contract                   # may set TJ_WAVE_BLOCKS (synchronous backend)
-  if [[ "${TJ_WAVE_BLOCKS:-0}" == "1" ]]; then
-    run_blocking
+  load_cluster_contract                   # contract file: variables
+  load_backend                            # defines tj_submit_wave; may set TJ_SYNC
+  # A synchronous backend (e.g. local) sets TJ_SYNC=1 -> loop wave->wave to completion.
+  # Async backends (sbatch/...) leave it unset -> submit one wave, you rerun.
+  if [[ "${TJ_SYNC:-0}" == "1" ]]; then
+    run_sync
   else
     run_async
   fi

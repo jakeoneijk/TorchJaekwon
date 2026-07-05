@@ -1,3 +1,5 @@
+# ParallelTaskProcessor -- the WORK each worker does (claim -> process -> repeat).
+# Where this sits in a run: see the flow map in util/parallel/run_parallel_tasks.sh.
 import os
 import shutil
 from typing import Any

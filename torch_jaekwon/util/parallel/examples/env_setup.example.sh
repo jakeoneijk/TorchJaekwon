@@ -1,8 +1,9 @@
 #!/bin/bash
-# EXAMPLE cluster contract for run_parallel_tasks.sh. Copy this into your project,
-# replace the PLACEHOLDER cluster values, and point TJ_CLUSTER_ENV at your copy.
-# It must provide TJ_PYTHON + tj_submit_wave (see ../README.md). Sourced by the
-# driver (login node) and used to launch each worker.
+# EXAMPLE cluster contract for run_parallel_tasks.sh -- VARIABLES ONLY. Copy this into
+# your project, set the values, and point TJ_CLUSTER_ENV at your copy. The driver
+# sources the backend named by TJ_BACKEND (or -b; default slurm_pyxis), so this file
+# no longer defines tj_submit_wave -- it just declares what the backend consumes.
+# (See ../README.md and ../backends/<name>.sh for each backend's required vars.)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -13,23 +14,15 @@ export PYTHONPATH="$TJ_REPO:${PYTHONPATH:-}"
 # torch_jaekwon install dir, so "$TJ_PKG/util/parallel/..." resolves.
 export TJ_PKG="${TJ_PKG:-$("$TJ_PYTHON" -c 'import torch_jaekwon, os; print(os.path.dirname(torch_jaekwon.__file__))')}"
 
-# --- backend selection ------------------------------------------------------
-# TJ_BACKEND=local -> run on this machine (no scheduler); anything else -> the
-# cluster's sbatch backend defined below.
-if [[ "${TJ_BACKEND:-slurm}" == "local" ]]; then
-  # shellcheck disable=SC1091
-  source "$TJ_PKG/util/parallel/backends/local.sh"
-else
-  # PLACEHOLDER SLURM backend -- replace partition/account and the submit wrapper with
-  # your cluster's. Submits <njobs> independent 1-GPU jobs, each running the worker with
-  # (module, python, repo) as space-separated args (NO commas -- SLURM splits on them).
-  tj_submit_wave() {   # job_name njobs hours module
-    local job=$1 njobs=$2 hours=$3 module=$4
-    local worker="$TJ_PKG/util/parallel/run_one_worker.sh"
-    sbatch \
-      --array="1-$njobs" --nodes=1 --gpus-per-node=1 --ntasks-per-node=1 \
-      --partition="PLACEHOLDER_PARTITION" --account="PLACEHOLDER_ACCOUNT" \
-      --time="$hours:00:00" --job-name="$job" \
-      your_sbatch_wrapper.sh "$module $TJ_PYTHON $TJ_REPO"
-  }
-fi
+# --- pick a backend + its values --------------------------------------------
+# The driver picks the backend from TJ_BACKEND (or -b); default slurm_pyxis.
+#   export TJ_BACKEND=local          # backends/local.sh: no scheduler, nothing else needed
+#   export TJ_BACKEND=slurm_pyxis    # backends/slurm_pyxis.sh: set the vars below
+#     export TJ_ACCOUNT="PLACEHOLDER_ACCOUNT"
+#     export TJ_PARTITION="PLACEHOLDER_PARTITION"
+#     export TJ_IMAGE="/path/to/container.sqsh"
+#     export TJ_MOUNTS="$HOME:$HOME,/data:/data"   # commas OK (passed positionally)
+#
+# Escape hatch: for a cluster no shipped backend fits, define tj_submit_wave HERE and
+# the driver uses it as-is (it sources a backend only when none is already defined):
+#   tj_submit_wave() { local job=$1 njobs=$2 hours=$3 module=$4; shift 4; ...; }

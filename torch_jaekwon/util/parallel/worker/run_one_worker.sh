@@ -1,18 +1,9 @@
 #!/bin/bash
-# Backend-agnostic inner worker for ANY ParallelTaskProcessor subclass. One of these
-# runs per GPU -- launched by srun inside the container (cluster backend) or as a bare
-# background process (local backend). It just runs `python -m <module> run`, which
-# races the shared task list via atomic claims (see ParallelTaskProcessor).
-#
-# Args are NAMED FLAGS (not positional), so adding knobs never shifts anything:
-#   -m <module>      python module          (e.g. src.preprocess.fisher)
-#   -p <python>      python interpreter      (e.g. /.../envs/ntd/bin/python)
-#   -r <repo>        repo root (-> PYTHONPATH; the module resolves from here)
-#   -- <app args>    forwarded verbatim to `python -m <module> run <app args>`
-# We deliberately do NOT rely on env propagation into the container: SLURM splits
-# --export on commas (even --export=ALL fails on some clusters), so the cluster's
-# tj_submit_wave passes these as a space-separated arg string instead (NO spaces in
-# any single value -- it word-splits).
+# [compute node · INSIDE container] the worker · flow map: ../run_parallel_tasks.sh
+# Runs `python -m <module> run`, which races the shared task list via atomic claims.
+# One of these per GPU. Args are NAMED FLAGS, passed as a string (not env -- SLURM
+# splits --export on commas), each value space-free so it word-splits cleanly:
+#   -m <module>  -p <python>  -r <repo (→PYTHONPATH)>  -- <app args to `... run`>
 set -euo pipefail
 
 MODULE="" PYTHON="" REPO=""
