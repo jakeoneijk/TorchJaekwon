@@ -24,31 +24,31 @@ for you). That's the whole model.
 STRUCTURE:  run_parallel_tasks.sh  →  backends/<TJ_BACKEND>.sh  →  worker/
               [login] orchestrate       [login] submit N workers     [compute] run each
 ──────────────────────────────────────────────────────────────────────────────────────
-[LOGIN]  run_parallel_tasks.sh   driver (generic): wipe → count leftover (N) → tj_submit_wave(N)
+[LOGIN]  run_parallel_tasks.sh   driver (generic): wipe → count leftover → tj_submit_wave()
 
-# tj_submit_wave(N) = "launch N workers" — the ONE function a backend defines. The driver
-# picks the backend (TJ_BACKEND / -b) and sources backends/$TJ_BACKEND.sh to get it.
-# Its body, per backend:
+# tj_submit_wave() = "launch a wave" — the ONE function a backend defines. The driver picks the
+# backend (TJ_BACKEND / -b), sets the per-wave vars (TJ_NJOBS/TJ_JOB/TJ_HOURS/TJ_MODULE/
+# TJ_APP_ARGS), and calls it with no args. Its body, per backend:
 
 backends/local.sh                           # no scheduler
-  tj_submit_wave(N):  run N× worker/run_one_worker.sh        # background, one per GPU
+  tj_submit_wave():  run $TJ_NJOBS× worker/run_one_worker.sh  # background, one per GPU
 
 backends/slurm_pyxis.sh                     # cluster + pyxis container
-  tj_submit_wave(N):  sbatch --array=1-N                     # N independent 1-GPU jobs; each runs:
-                        worker/run_in_container.sh           #   [compute · OUTSIDE container]
-                          srun --container-image →
-                            worker/run_one_worker.sh         #   [compute · INSIDE  container]
+  tj_submit_wave():  sbatch --array=1-$TJ_NJOBS              # independent 1-GPU jobs; each runs:
+                       worker/run_in_container.sh            #   [compute · OUTSIDE container]
+                         srun --container-image →
+                           worker/run_one_worker.sh          #   [compute · INSIDE  container]
 
 # both backends converge on the same worker:
-worker/run_one_worker.sh   set caches/env → python -m <module> run
+worker/run_one_worker.sh   set caches/env → python -m $TJ_MODULE run
   └─ ParallelTaskProcessor.run()   loop: claim task (atomic mkdir) → process → repeat
 ```
 
 Three layers, one job each:
 - **driver** (`run_parallel_tasks.sh`) — generic orchestration on the login node; zero
   cluster-specific literals.
-- **backend** (`backends/<name>.sh`) — defines `tj_submit_wave(N)`, the *only* cluster-specific
-  piece: turns "launch N workers" into real launches (`sbatch`, background procs, …). Swap to move clusters.
+- **backend** (`backends/<name>.sh`) — defines `tj_submit_wave()`, the *only* cluster-specific
+  piece: turns "launch a wave" into real launches (`sbatch`, background procs, …). Swap to move clusters.
 - **worker** (`worker/run_one_worker.sh`) — generic per-GPU entry that runs your Python.
 
 ## The claim mechanism (why there's no sharding)
@@ -88,6 +88,42 @@ driver, worker, and Python stay untouched. Natural next entries: `slurm` (plain,
 container), `slurm_singularity`. **Escape hatch:** if your env file already defines
 `tj_submit_wave`, the driver keeps it and sources no backend — for a cluster nothing
 shipped fits.
+
+## Writing a backend (custom `tj_submit_wave`)
+
+A backend is one function, `tj_submit_wave`, that launches the current wave. It takes **no
+arguments** — the driver hands it everything through `TJ_*` variables, so you just read them:
+
+| variable | meaning |
+|---|---|
+| `TJ_NJOBS` | number of workers to launch this wave |
+| `TJ_MODULE` | python module to run (`python -m $TJ_MODULE run`) |
+| `TJ_JOB` | job name (logs / scheduler) |
+| `TJ_HOURS` | walltime budget per worker |
+| `TJ_APP_ARGS` | extra args forwarded to the module (space-joined; no spaces *within* a value) |
+| `TJ_PYTHON` · `TJ_REPO` · `TJ_PKG` | interpreter, repo root, torch_jaekwon dir (from your env file) |
+| *(your own)* | anything else your env file exports (e.g. `TJ_IMAGE`, `TJ_ACCOUNT`, `TJ_MOUNTS`) |
+
+Each worker must ultimately run
+`worker/run_one_worker.sh -m $TJ_MODULE -p $TJ_PYTHON -r $TJ_REPO -- $TJ_APP_ARGS`
+(directly, or inside a container). If your submission is **synchronous** (blocks until the wave
+finishes, like `local`), also `export TJ_SYNC=1` so the driver loops wave→wave to completion;
+async submitters (sbatch-style) leave it unset and the user reruns.
+
+Example — a plain-SLURM backend (no container):
+
+```bash
+# backends/slurm.sh   (select with TJ_BACKEND=slurm or -b slurm)
+tj_submit_wave() {
+  sbatch --array="1-$TJ_NJOBS" --nodes=1 --gpus-per-node=1 --job-name="$TJ_JOB" \
+    --partition="$TJ_PARTITION" --account="$TJ_ACCOUNT" --time="$TJ_HOURS:00:00" \
+    "$TJ_PKG/util/parallel/worker/run_one_worker.sh" \
+    -m "$TJ_MODULE" -p "$TJ_PYTHON" -r "$TJ_REPO" -- $TJ_APP_ARGS
+}
+```
+
+Drop the file in `backends/` to share it, or — for a one-off cluster nothing shipped fits —
+define `tj_submit_wave` directly in your env file; the driver keeps it and sources no backend.
 
 ## Use it in 2 steps
 

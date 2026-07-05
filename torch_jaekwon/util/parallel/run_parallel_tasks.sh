@@ -9,29 +9,30 @@
 # STRUCTURE:  run_parallel_tasks.sh  →  backends/$TJ_BACKEND.sh  →  worker/
 #               [login] orchestrate       [login] submit N workers    [compute] run each
 # ------------------------------------------------------------------------------
-# [LOGIN] run_parallel_tasks.sh (this file)  driver: wipe → count leftover (N) → tj_submit_wave(N)
+# [LOGIN] run_parallel_tasks.sh (this file)  driver: wipe → count leftover → tj_submit_wave()
 #
-# tj_submit_wave(N) = "launch N workers" -- the ONE function a backend defines; the driver
-# sources backends/$TJ_BACKEND.sh to get it. Its body, per backend:
+# tj_submit_wave() = "launch a wave" -- the ONE function a backend defines. The driver sources
+# backends/$TJ_BACKEND.sh, sets the per-wave vars (TJ_NJOBS/TJ_JOB/TJ_HOURS/TJ_MODULE/
+# TJ_APP_ARGS), then calls it with NO args. Its body, per backend:
 #
 #   backends/local.sh         no scheduler
-#     tj_submit_wave(N):  run N× worker/run_one_worker.sh       background, one per GPU
+#     tj_submit_wave():  run $TJ_NJOBS× worker/run_one_worker.sh   background, one per GPU
 #
 #   backends/slurm_pyxis.sh   cluster + pyxis container
-#     tj_submit_wave(N):  sbatch --array=1-N                    N independent 1-GPU jobs; each runs:
-#                           worker/run_in_container.sh          [compute · OUTSIDE container]
-#                             srun --container-image →
-#                               worker/run_one_worker.sh        [compute · INSIDE  container]
+#     tj_submit_wave():  sbatch --array=1-$TJ_NJOBS               independent 1-GPU jobs; each runs:
+#                          worker/run_in_container.sh             [compute · OUTSIDE container]
+#                            srun --container-image →
+#                              worker/run_one_worker.sh           [compute · INSIDE  container]
 #
 # both backends converge on the same worker:
-#   worker/run_one_worker.sh   set caches/env → python -m <module> run
+#   worker/run_one_worker.sh   set caches/env → python -m $TJ_MODULE run
 #     └─ ParallelTaskProcessor.run()   loop: claim task (atomic mkdir) → process → repeat
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Contract: the sourced $TJ_CLUSTER_ENV exports TJ_PYTHON / TJ_PKG / TJ_REPO (+ the
-# vars the chosen backend needs). The driver sources backends/$BACKEND.sh (-b flag,
-# default slurm_pyxis) to define tj_submit_wave. Escape hatch: if the env file already
-# defines tj_submit_wave, the driver keeps it and sources no backend.
+# Contract: the sourced $TJ_CLUSTER_ENV exports TJ_PYTHON / TJ_PKG / TJ_REPO (+ whatever the
+# chosen backend needs, e.g. TJ_IMAGE). The driver sources backends/$BACKEND.sh (-b, default
+# slurm_pyxis), hands the wave to tj_submit_wave via the TJ_* vars above, and calls it (no args).
+# Escape hatch: if the env file already defines tj_submit_wave, the driver keeps it (no backend).
 #
 # App args after `--` are forwarded verbatim to `python -m <module> {run,count,wipe}`.
 # RULE: no spaces/commas in forwarded values (they word-split through the scheduler);
@@ -84,13 +85,16 @@ wipe_orphan_temps() { "$TJ_PYTHON" -m "$MODULE" wipe "${APP_ARGS[@]}"; }
 # implemented by ParallelTaskProcessor (torch_jaekwon/util/parallel/parallel_task_processor.py).
 count_leftover() { "$TJ_PYTHON" -m "$MODULE" count "${APP_ARGS[@]}"; }
 
-# One wave = min(leftover, MAX_TASKS) independent 1-GPU workers. The backend packs
-# them onto free GPUs; each worker races the list via atomic claims and exits when
-# work runs out (no allocated-idle).
+# One wave = min(leftover, MAX_TASKS) independent 1-GPU workers. The backend packs them
+# onto free GPUs; each worker races the list via atomic claims and exits when work runs
+# out (no allocated-idle). The wave's inputs are handed to the backend as TJ_* vars (not
+# positional args) so a custom tj_submit_wave just reads them -- see README "Writing a backend".
 submit_one_wave() {
-  local left="$1" njobs=$(( left < MAX_TASKS ? left : MAX_TASKS ))
-  log "submitting one wave of $njobs independent 1-GPU worker(s)"
-  tj_submit_wave "$JOB_NAME" "$njobs" "$HOURS" "$MODULE" "${APP_ARGS[@]}"
+  local left="$1"
+  TJ_NJOBS=$(( left < MAX_TASKS ? left : MAX_TASKS ))     # per-wave contract vars the backend reads:
+  TJ_JOB="$JOB_NAME"; TJ_HOURS="$HOURS"; TJ_MODULE="$MODULE"; TJ_APP_ARGS="${APP_ARGS[*]}"
+  log "submitting one wave of $TJ_NJOBS independent 1-GPU worker(s)"
+  tj_submit_wave
 }
 
 # Async backends (e.g. sbatch): submission returns immediately, so do ONE wave and

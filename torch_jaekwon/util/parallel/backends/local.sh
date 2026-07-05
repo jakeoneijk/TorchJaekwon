@@ -10,9 +10,8 @@ export TJ_SYNC=1
 # worker COUNT is just the parallelism width -- we cap it at the number of GPUs (the
 # driver's njobs is sized for the scheduler's many-small-jobs model). Leftover beyond
 # one wave is mopped up by the driver's blocking loop.
-tj_submit_wave() {   # job_name njobs hours module [app args...]  (hours ignored locally)
-  local njobs=$2 module=$4
-  shift 4; local app_args=("$@")   # remaining = per-run app args forwarded to the module
+tj_submit_wave() {   # no args -- reads TJ_NJOBS TJ_MODULE TJ_APP_ARGS (TJ_JOB/TJ_HOURS unused locally)
+  local njobs="$TJ_NJOBS" module="$TJ_MODULE"
   local worker="$TJ_PKG/util/parallel/worker/run_one_worker.sh"
   local ngpu=1 pids=() rc=0 i p
 
@@ -28,7 +27,7 @@ tj_submit_wave() {   # job_name njobs hours module [app args...]  (hours ignored
 
   for (( i=0; i<njobs; i++ )); do
     CUDA_VISIBLE_DEVICES=$(( i % ngpu )) TJ_WORKER_ID="$i" TJ_WORLD_SIZE="$njobs" \
-      bash "$worker" -m "$module" -p "$TJ_PYTHON" -r "$TJ_REPO" -- "${app_args[@]}" &
+      bash "$worker" -m "$module" -p "$TJ_PYTHON" -r "$TJ_REPO" -- $TJ_APP_ARGS &
     pids+=($!)
   done
 
