@@ -24,5 +24,4 @@ export TJ_PKG="${TJ_PKG:-$("$TJ_PYTHON" -c 'import torch_jaekwon, os; print(os.p
 #     export TJ_MOUNTS="$HOME:$HOME,/data:/data"   # commas OK (passed positionally)
 #
 # Escape hatch: for a cluster no shipped backend fits, define tj_submit_wave HERE and
-# the driver uses it as-is (it sources a backend only when none is already defined):
-#   tj_submit_wave() { local job=$1 njobs=$2 hours=$3 module=$4; shift 4; ...; }
+# the driver uses it as-is (it sources a backend only when none is already defined): tj_submit_wave()
