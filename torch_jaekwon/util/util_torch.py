@@ -1,9 +1,10 @@
-from typing import Any,Dict,Tuple, List
+from typing import Any,Dict,Tuple, List, Optional
 from torch import Tensor, dtype, device
 from numpy import ndarray
 
 import os
 from collections import OrderedDict
+from contextlib import contextmanager
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -227,3 +228,45 @@ def suggest_batch_knob_for_target_memory(
         'current_peak_fraction': float(peak_bytes) / float(total_bytes),
         'target_fraction': float(target_fraction),
     }
+
+def to_device(obj: Any, device) -> Any:
+    """Recursively move tensors inside dicts/lists/tuples to ``device`` (e.g. a batch to GPU for inference,
+    or to CPU to save after an OOM). Non-tensors pass through. Matches ``tensor.to`` semantics (no detach)."""
+    if torch.is_tensor(obj):           return obj.to(device)
+    if isinstance(obj, dict):          return {k: to_device(v, device) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)): return type(obj)(to_device(v, device) for v in obj)
+    return obj
+
+def peak_vram_gb(device=None) -> Tuple[float, float]:
+    """Running-peak (reserved, allocated) VRAM in GB since the last reset; (0.0, 0.0) if CUDA is unavailable."""
+    if not torch.cuda.is_available():
+        return (0.0, 0.0)
+    return (torch.cuda.max_memory_reserved(device) / 1024**3,
+            torch.cuda.max_memory_allocated(device) / 1024**3)
+
+@contextmanager
+def oom_dump_guard(payload: Any, save_path: Optional[str]):
+    """Run a block; if it raises a CUDA OutOfMemoryError, dump ``payload`` (tensors moved to CPU) to
+    ``save_path``, then re-raise. If ``save_path is None`` nothing is dumped (a passthrough that still
+    re-raises) — so a caller can always wrap a shared code path and choose save-or-not via the path
+    itself, with no separate enable flag. The OOM is unrecoverable — this only RECORDS the offending
+    batch for offline replay; it does NOT rescue the run. Crash-path only => zero cost on the normal
+    path. Best-effort: a failed dump is swallowed, but the OOM is always re-raised (never masked).
+    Moving tensors to CPU reads GPU memory without allocating more, so it works even when GPU is full.
+
+    Example — capture the OOM-triggering batch for offline replay (a path enables the dump, None disables):
+        oom_path = f"{log_dir}/oom_batches/rank{rank}_step{step}.pt" if save_on_oom else None
+        with oom_dump_guard(batch, oom_path):
+            loss = model.training_step(batch)   # on OOM: `batch` is dumped to oom_path, then re-raised
+        # then, offline on a smaller run:  batch = torch.load(oom_path)  ->  probe model(batch) VRAM
+    """
+    try:
+        yield
+    except torch.cuda.OutOfMemoryError:
+        if save_path is not None:
+            try:
+                os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+                torch.save(to_device(payload, "cpu"), save_path)
+            except Exception:
+                pass
+        raise
