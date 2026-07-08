@@ -10,6 +10,8 @@ import numpy as np
 
 from torch_jaekwon.util import util, util_audio, util_data, util_audio_stft
 from torch_jaekwon.util.util_audio_mel import UtilAudioMelSpec, get_default_config
+from torch_jaekwon.util.table_maker.component import WaveformAudioPlayer
+from torch_jaekwon.util.table_maker.component.audio_player import _css_len
 
 LOWER_IS_BETTER_SYMBOL = "↓"
 HIGHER_IS_BETTER_SYMBOL = "↑"
@@ -102,6 +104,26 @@ _HTML_HEAD = """\
 </head>""" % _TABLE_CSS
 
 
+def _spec_to_channel_list(spec) -> List:
+    """Split a spectrogram into a list of 2d [freq, time] specs, one per channel."""
+    while getattr(spec, 'ndim', len(spec.shape)) > 3:
+        spec = spec[0]
+    if len(spec.shape) == 2:
+        return [spec]
+    return [spec[i] for i in range(spec.shape[0])]  # (channel, freq, time)
+
+
+def _stack_vertical(html_list: List[str]) -> str:
+    """Stack multiple media html snippets vertically (used for per-channel specs)."""
+    if len(html_list) == 1:
+        return html_list[0]
+    inner = ''.join(html_list)
+    return (
+        '<div style="display:flex; flex-direction:column; gap:4px; '
+        f'align-items:center; width:100%;">{inner}</div>'
+    )
+
+
 class HTMLUtil():
     def __init__(
         self,
@@ -112,6 +134,12 @@ class HTMLUtil():
         self.indent:str = '  '
         self.media_idx_dict:dict = {'audio':0, 'img':0, 'video':0}
         td_width:str = 'fit-content' if table_data_width is None else f'{table_data_width}px'
+        # Enhanced <audio> replacement (waveform + play-head + per-channel view).
+        # It's a self-contained page component: get_html_audio just calls it per
+        # cell, and save_html asks every used component for its <head>/<body>
+        # assets -- HTMLUtil needs no knowledge of the player's internals.
+        self.audio_player = WaveformAudioPlayer()
+        self.html_component_list:list = [self.audio_player]
         self.html_start_list:List[str] = [
             _HTML_HEAD.replace('__TD_WIDTH__', td_width),
             '<body>',
@@ -170,13 +198,34 @@ class HTMLUtil():
         return html_list
     
     def save_html(self, html_list:List[str], file_name:str = 'plot.html') -> None:
-        final_html_list:list = self.html_start_list + html_list + self.html_end_list
+        html_start_list:list = list(self.html_start_list)
+        html_end_list:list = list(self.html_end_list)
+        # Let every component that got used contribute its own <head>/<body>
+        # assets (css, scripts, copied files). HTMLUtil stays agnostic of what
+        # each component actually needs.
+        head_assets, body_assets = self._collect_component_assets()
+        if head_assets:
+            html_start_list[0] = html_start_list[0].replace('</style>', f'{head_assets}\n</style>')
+        if body_assets:
+            html_end_list = ['</div>', body_assets, '</body>', '</html>']
+        final_html_list:list = html_start_list + html_list + html_end_list
         indent_depth:int = 0
         for idx in range(1, len(final_html_list)):
             indent_depth += self.get_indent_depth_changed(final_html_list[idx - 1], final_html_list[idx])
             final_html_list[idx] = self.indent * indent_depth + final_html_list[idx]
         util_data.txt_save(f'{self.output_dir}/{file_name}', final_html_list)
-    
+
+    def _collect_component_assets(self) -> Tuple[str, str]:
+        """Gather <head> css and <body> html from every component that was used."""
+        head_parts:List[str] = list()
+        body_parts:List[str] = list()
+        for component in self.html_component_list:
+            if not getattr(component, 'used', False):
+                continue
+            head_parts.append(component.head_assets())
+            body_parts.append(component.page_body_html(self.output_dir, self.media_save_dir_name))
+        return '\n'.join(head_parts), '\n'.join(body_parts)
+
     def get_html_text(
         self, 
         text:str,
@@ -189,7 +238,7 @@ class HTMLUtil():
         src_path:str = None,
         width:int=150
     ) -> str: #html code
-        style:str = '' if width is None else f'style="width:{width}px"'
+        style:str = '' if width is None else f'style="width:{_css_len(width)}"'
         return f'''<img src="{src_path}" {style}/>'''
     
     def get_media_path(self, type:Literal['audio','img']) -> str:
@@ -208,26 +257,46 @@ class HTMLUtil():
         normalize_loudness:bool = False,
         spec_type:Literal['mel', 'stft', 'x'] = 'mel',
         spec_path:str = None,
-        width:int=300
+        width:Union[int,str]=300,          # px int, or css string e.g. '80%' of the cell
+        audio_player:Literal['html', 'waveform'] = 'html',
+        max_second:float = None,           # cap audio/spec/waveform length; None = full audio
+        waveform_height:int = None,        # per-channel waveform height (px); None = component default
     ) -> Union[str, Tuple[str,str]]: #audio_html_code, img_html_code
-        style:str = '' if width is None else f'style="width:{width}px"'
+        style:str = '' if width is None else f'style="width:{_css_len(width)}"'
         if cp_to_html_dir:
             audio, sr = util_audio.read(audio_path = audio_path, sample_rate=sample_rate, module_name='soundfile')
             if normalize_loudness:
                 audio = util_audio.normalize_loudness(audio, sample_rate=sr)
+            if max_second is not None:
+                max_len:int = int(max_second * sr)
+                if audio.shape[-1] > max_len:
+                    audio = audio[..., :max_len]
             path_dict = self.get_media_path('audio')
             util_audio.write(audio_path=path_dict['abs'], audio=audio, sample_rate=sr)
             audio_path = path_dict['relative']
 
         html_code_dict = dict()
-        html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
+        if audio_player == 'waveform':
+            # Hand the in-memory samples to the player so it can embed peaks for
+            # offline / file:// use; it falls back to fetching when audio is None.
+            html_code_dict['audio'] = self.audio_player.audio_html(
+                audio_src=audio_path,
+                audio=audio if cp_to_html_dir else None,
+                sample_rate=sr if cp_to_html_dir else None,
+                width=width, height=waveform_height,
+            )
+        else:
+            html_code_dict['audio'] = f'''<audio controls {style}> <source src="{audio_path}" type="audio/wav" /> </audio>'''
 
         if spec_type in ['mel', 'stft']:
-            spec:np.ndarray = self.mel_spec_util.get_hifigan_mel_spec(audio) if spec_type == 'mel' else librosa.amplitude_to_db(self.mel_spec_util.stft(audio)["mag"].squeeze())
-            if len(spec.shape) == 3: spec = spec[0]
-            path_dict = self.get_media_path('img')
-            util_audio_stft.plot(save_path=path_dict['abs'], spec=spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
-            html_code_dict['spec'] = self.get_html_img(path_dict['relative'], width)
+            spec = self.mel_spec_util.get_hifigan_mel_spec(audio) if spec_type == 'mel' else librosa.amplitude_to_db(self.mel_spec_util.stft(audio)["mag"])
+            # One spectrogram per audio channel -> stereo shows two stacked specs.
+            img_html_list:List[str] = list()
+            for ch_spec in _spec_to_channel_list(spec):
+                path_dict = self.get_media_path('img')
+                util_audio_stft.plot(save_path=path_dict['abs'], spec=ch_spec, hop_size=self.mel_spec_util.hop_size, sr=self.mel_spec_util.sample_rate)
+                img_html_list.append(self.get_html_img(path_dict['relative'], width))
+            html_code_dict['spec'] = _stack_vertical(img_html_list)
         
         if spec_path is not None:
             path_dict = self.get_media_path('img')
