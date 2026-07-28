@@ -1,100 +1,171 @@
-#type
-from typing import List, Optional
-#import
+"""Reusable lifecycle for sample-wise evaluation."""
+
+from __future__ import annotations
+
 import os
-from tqdm import tqdm
+from typing import Any, Optional
+
 import numpy as np
 import torch
-#torchjaekwon import
-from ...util import util_data, util_torch
-#internal import
+from tqdm import tqdm
 
-class Evaluator():
+from ...util import util_data
+
+
+class Evaluator:
+    """Collect metadata, score every sample, summarize, and save the result."""
+
     def __init__(
         self,
-        pred_dir_path:str,
-        gt_dir_path:Optional[str] = None,  # None when GT comes from elsewhere (e.g. a dataset manager), not a parallel dir
-        result_dir_path:Optional[str] = None,
-        batch_size:int = 1, 
-        sort_result_by_metric:bool = True,
-        device:torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        pred_dir_path: str,
+        result_dir_path: str,
+        gt_dir_path: Optional[str] = None,
+        sort_result_by_metric: bool = True,
+        device: torch.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        ),
     ) -> None:
-        self.pred_dir_path:str = pred_dir_path
-        self.gt_dir_path:Optional[str] = gt_dir_path
-        self.result_dir_path:Optional[str] = self.get_result_dir_path(result_dir_path)
-        self.batch_size:int = batch_size
-        self.sort_result_by_metric = sort_result_by_metric
-        self.device:torch.device = device
-        os.makedirs(self.result_dir_path,exist_ok=True)
-    
-    '''
-    ==============================================================
-    abstract method start
-    ==============================================================
-    '''
-    def get_result_dir_path(self, result_dir_path) -> str:
-        return f'{result_dir_path}/{util_data.get_file_name(self.pred_dir_path)}'
+        self.pred_dir_path: str = pred_dir_path
+        self.gt_dir_path: Optional[str] = gt_dir_path
+        self.result_dir_path: str = self.get_result_dir_path(result_dir_path)
+        self.sort_result_by_metric: bool = sort_result_by_metric
+        self.device: torch.device = device
+        os.makedirs(self.result_dir_path, exist_ok=True)
 
-    def get_eval_dir_list(self) -> List[str]:
-        return [self.pred_dir_path]
-
-    def get_meta_data_list(self, eval_dir:str) -> List[dict]:
-        pass
+    # Required subclass methods
+    def get_meta_data_list(self, eval_dir: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
 
     def get_sample_wise_result(
         self,
-        meta_data:dict
-    ) -> dict: #{'name':name_of_testcase,'metric_name1':value1,'metric_name2':value2... }
+        metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        raise NotImplementedError
+
+    # Evaluation lifecycle
+    def evaluate(self) -> None:
+        eval_dir = self.get_eval_dir()
+        metadata_list = self.get_meta_data_list(eval_dir)
+        evaluation_results = self.get_result_dict(metadata_list)
+        test_set_name = os.path.basename(os.path.normpath(eval_dir))
+        self.save_result_dict(test_set_name, evaluation_results)
+
+    def get_result_dict(
+        self,
+        metadata_list: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        evaluation_results = self.get_set_wise_result(metadata_list)
+        self.prepare_for_scoring(metadata_list)
+
+        sample_results: list[dict[str, Any]] = []
+        for metadata in tqdm(metadata_list, desc="get result"):
+            sample_results.append(self.get_sample_wise_result(metadata))
+
+        if not sample_results:
+            raise ValueError(
+                "Evaluator produced no per-sample results "
+                "(empty metadata_list?)"
+            )
+
+        evaluation_results["result_per_sample"] = sample_results
+        evaluation_results["result"].update(
+            self.summarize_scored_results(sample_results)
+        )
+        return evaluation_results
+
+    def save_result_dict(
+        self,
+        test_set_name: str,
+        result_dict: dict[str, Any],
+    ) -> None:
+        """Save one evaluated set. Subclasses may provide another format."""
+        util_data.yaml_save(
+            os.path.join(self.result_dir_path, f"{test_set_name}.yaml"),
+            result_dict["result"],
+        )
+        if not self.sort_result_by_metric:
+            return
+
+        sample_results = result_dict["result_per_sample"]
+        sortable_metric_names = [
+            metric_name
+            for metric_name in result_dict["result"]
+            if all(metric_name in sample for sample in sample_results)
+        ]
+        for metric_name in sortable_metric_names:
+            sorted_samples = util_data.sort_dict_list(
+                dict_list=sample_results,
+                key=metric_name,
+            )
+            util_data.yaml_save(
+                os.path.join(
+                    self.result_dir_path,
+                    f"{test_set_name}_sort_by_{metric_name}.yaml",
+                ),
+                sorted_samples,
+            )
+
+    # Optional subclass hooks
+    def get_result_dir_path(
+        self,
+        result_dir_path: str,
+    ) -> str:
+        prediction_dir_name = os.path.basename(
+            os.path.normpath(self.pred_dir_path)
+        )
+        return os.path.join(result_dir_path, prediction_dir_name)
+
+    def get_eval_dir(self) -> str:
+        return self.pred_dir_path
+
+    def get_set_wise_result(
+        self,
+        metadata_list: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Return results that can be computed before sample-wise scoring."""
+        return {"result": {}}
+
+    def prepare_for_scoring(
+        self,
+        metadata_list: list[dict[str, Any]],
+    ) -> None:
+        """Prepare resources after metadata validation and before scoring."""
         pass
 
-    def get_set_wise_result(self, meta_data_list:List[dict]) -> dict:
-        return {'result':dict()}
-    '''
-    ==============================================================
-    abstract method end
-    ==============================================================
-    '''
-    def evaluate(self) -> None:
-        eval_dir_list:List[str] = self.get_eval_dir_list()
+    def summarize_scored_results(
+        self,
+        sample_results: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Return mean, median, and standard deviation for numeric results."""
+        metric_names = sorted(
+            name
+            for name, value in sample_results[0].items()
+            if isinstance(value, (int, float))
+            and not isinstance(value, bool)
+        )
+        return self.summarize_numeric_metrics(
+            sample_results=sample_results,
+            metric_names=metric_names,
+        )
 
-        for eval_dir in tqdm(eval_dir_list, desc='evaluate eval dir'):
-            meta_data_list: List[dict] = self.get_meta_data_list(eval_dir)
-            result_dict:dict = self.get_result_dict(meta_data_list)
-
-            test_set_name:str = eval_dir.split('/')[-1]
-            util_data.yaml_save(f'{self.result_dir_path}/{test_set_name}.yaml',result_dict['result'])
-            if self.sort_result_by_metric:
-                for metric_name in result_dict['result']:
-                    util_data.yaml_save(f'{self.result_dir_path}/{test_set_name}_sort_by_{metric_name}.yaml',util_data.sort_dict_list( dict_list = result_dict['result_per_sample'], key = metric_name))
-    
-    def get_result_dict(self,meta_data_list:List[dict]) -> dict:
-        result_dict:dict = self.get_set_wise_result(meta_data_list)
-
-        result_dict['result_per_sample'] = list()
-        if self.batch_size > 1:
-            meta_data_list = util_torch.chunk_list(meta_data_list, self.batch_size)
-        for meta_data in tqdm(meta_data_list,desc='get result'):
-            result = self.get_sample_wise_result(meta_data)
-            if not isinstance(result, list): result = [result]
-            result_dict['result_per_sample'] += result
-
-        if not result_dict['result_per_sample']: raise ValueError('Evaluator produced no per-sample results (empty meta_data_list?)')
-        metric_name_list:list = [name for name, val in result_dict['result_per_sample'][0].items() if isinstance(val, (int, float)) and not isinstance(val, bool)]
-        metric_name_list.sort()
-        mean_median_std_dict:dict = self.get_mean_median_std_from_dict_list(result_dict['result_per_sample'], metric_name_list)
-
-        result_dict['result'].update(mean_median_std_dict)
-        return result_dict
-    
-    def get_mean_median_std_from_dict_list(self,dict_list:List[dict],metric_name_list:List[str]):
-        result_list_dict:dict = {metric_name: list() for metric_name in metric_name_list}
-        for result in dict_list:
-            for metric_name in metric_name_list:
-                result_list_dict[metric_name].append(result[metric_name])
-        result_dict = dict()
-        for metric_name in metric_name_list:
-            result_dict[metric_name] = dict()
-            result_dict[metric_name]['mean'] = float(np.mean(result_list_dict[metric_name]))
-            result_dict[metric_name]['median'] = float(np.median(result_list_dict[metric_name]))
-            result_dict[metric_name]['std'] = float(np.std(result_list_dict[metric_name]))
-        return result_dict
+    # Statistic helper
+    def summarize_numeric_metrics(
+        self,
+        sample_results: list[dict[str, Any]],
+        metric_names: list[str],
+    ) -> dict[str, dict[str, float]]:
+        metric_values = {
+            metric_name: [
+                result[metric_name]
+                for result in sample_results
+            ]
+            for metric_name in metric_names
+        }
+        return {
+            metric_name: {
+                "mean": float(np.mean(values)),
+                "median": float(np.median(values)),
+                "std": float(np.std(values)),
+            }
+            for metric_name, values in metric_values.items()
+        }
