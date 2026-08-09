@@ -65,6 +65,7 @@ class TableMaker:
         get_data_name_list:Callable = None, #lambda meta_data: []
         get_file_path:Callable = None, #lambda (data_name, model_meta, ext): str
         audio_config:dict = dict(),
+        html_util:HTMLUtil = None,
     ) -> None:
         if output_dir is None: output_dir = f'./output/{title}'
         if os.path.exists(output_dir):
@@ -74,7 +75,11 @@ class TableMaker:
         # {case_name: [data_name, ...]} -- a table (section) per case.
         data_name_dict:dict = TableMaker._resolve_data_name_dict(data_name_list, data_name_list_ref_dir, get_data_name_list)
 
-        html_util = HTMLUtil(output_dir=output_dir, audio_sr=audio_config.get('audio_sr', 44100))
+        if html_util is None:
+            html_util = HTMLUtil(
+                output_dir=output_dir,
+                audio_sr=audio_config.get('audio_sr', 44100),
+            )
         html_list:list = [
             html_util.get_html_text(title),
             html_util.get_html_text(sub_title, tag='h2'),

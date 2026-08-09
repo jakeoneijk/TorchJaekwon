@@ -111,6 +111,15 @@ def json_save(save_path:str, data:Union[dict,list], indent:int = 2) -> None:
     with open(save_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
 
+def jsonl_save(save_path: str, data_list: list[dict]) -> None:
+    if Path(save_path).suffix != ".jsonl":
+        raise ValueError("save_path must have the '.jsonl' extension")
+    util.make_parent_dir(save_path)
+    with open(save_path, 'w', encoding='utf-8') as file:
+        for data in data_list:
+            json.dump(data, file, ensure_ascii=False)
+            file.write('\n')
+
 def save_data_segment(save_dir:str,data:ndarray,segment_len:int,segment_axis:int=-1,remainder:str = ['discard','pad','maintain'][1],ext:str = ['pkl'][0]):
     os.makedirs(save_dir,exist_ok=True)
     data_total = data # not deep-copied: only reassigned via .take()/np.pad below, never mutated in place
