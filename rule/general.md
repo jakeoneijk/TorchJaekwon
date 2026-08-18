@@ -59,27 +59,6 @@ definition. Review by reading, not by running.
 Search for how the file already says it. A more literally-accurate new term costs the
 reader a new concept.
 
-### 2.2 Name the contents, not the operation
-
-`gathered` / `idx` / `mask` say what happened, not what is held. Use
-`position_latents`, `frame_idx`, `is_audio`.
-
-### 2.3 Same purpose ⇒ shared base, sub-reason suffix
-
-`frame_idx_prompt` / `frame_idx_target`, `flow_loss_mask` /
-`flow_loss_mask_repeated_by_prompt`. Never let sibling names differ in meaning while
-looking alike (a 1-based count and a 0-based index must not both be `*_frames`).
-
-### 2.4 Masks
-
-`is_<what>` for a condition, negated where it excludes (`mask & ~is_x`).
-`<consumer>_mask` for the mask being built (`flow_loss_mask`, `valid_mask`).
-A mask's name must answer "for what?" — `is_replay` fails, `is_audio_same_as_prompt` passes.
-
-### 2.5 Never reassign a name into a lie
-
-If the meaning changes, introduce a new name (`num_audio_frames` →
-`num_frames_target`), don't rebind.
 
 ---
 
