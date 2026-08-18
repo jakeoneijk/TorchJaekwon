@@ -69,4 +69,13 @@ class WordErrorRate:
         ref: str = normalize_text(reference_text)
         if not ref:
             raise ValueError(f"Empty reference text for WER (got {reference_text!r})")
-        return {"wer": float(jiwer.process_words(ref, hyp).wer), "asr_text": hyp}
+        # Error counts come along so a caller can aggregate a CORPUS WER
+        # (total errors / total reference words) instead of averaging per-utterance
+        # rates, which lets a 5-word clip outweigh a 500-word one.
+        output = jiwer.process_words(ref, hyp)
+        return {
+            "wer": float(output.wer),
+            "asr_text": hyp,
+            "num_reference_words": output.substitutions + output.deletions + output.hits,
+            "num_word_errors": output.substitutions + output.deletions + output.insertions,
+        }

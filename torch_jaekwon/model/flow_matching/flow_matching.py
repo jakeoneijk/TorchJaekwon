@@ -1,4 +1,5 @@
-from typing import Union, Callable, Literal, Optional, Tuple
+from functools import partial
+from typing import Union, Callable, List, Literal, Optional, Sequence, Tuple
 from torch import Tensor, device
 
 import torch
@@ -8,6 +9,7 @@ import torch.nn.functional as F
 from ...instantiate import import_class
 from ...util import util_data, util_torch
 from ..diffusion.ddpm.time_sampler import TimeSampler
+from ..diffusion.cfg import cfg, model_forward as cfg_model_forward
 from .sampler import Sampler as flow_sampler
 
 class FlowMatching(nn.Module):
@@ -27,7 +29,7 @@ class FlowMatching(nn.Module):
         loss_func:Union[nn.Module, Callable, Tuple[str,str]] = F.mse_loss, # if tuple (package name, func name). ex) (torch.nn.functional, mse_loss)
         # classifier free guidance
         unconditional_prob:float = 0, #if unconditional_prob > 0, this model works as classifier free guidance    
-        cfg_scale:Optional[float] = None, # classifer free guidance scale
+        cfg_scale:Optional[Union[float, Sequence[float]]] = None, # CFG scale; a sequence guides one condition per entry
         cfg_rescale:Optional[float] = None,
         cfg_calc_type:Literal['batch', 'sequential'] = 'batch'
     ) -> None:
@@ -44,7 +46,7 @@ class FlowMatching(nn.Module):
         self.loss_func:Union[nn.Module, Callable] = loss_func
         # classifier free guidance
         self.unconditional_prob:float = unconditional_prob
-        self.cfg_scale:Optional[float] = cfg_scale
+        self.cfg_scale:Optional[Union[float, Sequence[float]]] = cfg_scale
         self.cfg_rescale:Optional[float] = cfg_rescale
         self.cfg_calc_type:Literal['batch', 'sequential'] = cfg_calc_type
     
@@ -68,12 +70,13 @@ class FlowMatching(nn.Module):
     def infer(
         self,
         x_shape:tuple = None,
-        cond:Optional[dict] = None,
+        cond:Optional[Union[dict, List[dict]]] = None,  # one conditioning, or every one of them
         sampler_type:Literal['discrete_euler', 'rk4', 'flow_dpmpp'] = 'discrete_euler',
         steps:int = 100,
         time_sampler_type:Literal['linear', 'linear_quadratic'] = 'linear_quadratic',
         sigma_max:float = 1,
         temperature:float = 1.0,
+        cfg_forward:Callable = cfg,           # guidance method, see model/diffusion/cfg.py
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
 
@@ -92,7 +95,8 @@ class FlowMatching(nn.Module):
             time_sampler_type = time_sampler_type,
             cond = cond, 
             cfg_scale = self.cfg_scale,
-            cfg_rescale = self.cfg_rescale
+            cfg_rescale = self.cfg_rescale,
+            cfg_forward = cfg_forward
         )
 
         return self.postprocess(x, additional_data_dict = additional_data_dict)
@@ -117,36 +121,26 @@ class FlowMatching(nn.Module):
         self,
         x:Tensor,
         t:Tensor,
-        cond:Optional[dict],
-        cfg_scale:Optional[float] = None,
+        cond:Optional[Union[dict, List[dict]]],
+        cfg_scale:Optional[Union[float, Sequence[float]]] = None,
         cfg_rescale:Optional[float] = None,
+        cfg_forward:Callable = cfg,
     ) -> Tensor:
         if cond is None:
             cond = dict()
         if cfg_scale is None or cfg_scale == 1.0:
+            assert isinstance(cond, dict), "unguided sampling takes one conditioning, not a list"
             return self.model(x, t, **cond)
-        else:
-            uncond_dict:dict = self.get_unconditional_condition(cond=cond)
-            uncond:dict = {key: uncond_dict.get(key, cond[key]) for key in cond}
-            if self.cfg_calc_type == 'sequential':
-                output_cond = self.model(x, t, **cond)
-                output_uncond = self.model(x, t, **uncond)
-            else:
-                cfg_x = torch.cat([x, x], dim=0)
-                cfg_t = torch.cat([t, t], dim=0)
-                cfg_cond = {key: torch.cat([cond[key], uncond[key]], dim=0) for key in cond}
-                output_cond_uncond = self.model(cfg_x, cfg_t, **cfg_cond)
-                output_cond, output_uncond = torch.chunk(output_cond_uncond, 2, dim=0)
+        uncond_dict:Optional[dict] = self.get_unconditional_condition(cond=cond)
+        cfg_conds:List[dict] = (
+            cond if uncond_dict is None
+            else [cond, {key: uncond_dict.get(key, cond[key]) for key in cond}]
+        )
+        run_multiple_conds = partial(
+            cfg_model_forward, self.model, x, t, sequential=self.cfg_calc_type == 'sequential'
+        )
+        return cfg_forward(run_multiple_conds, cfg_conds, cfg_scale, cfg_rescale)
 
-            output_cfg = output_uncond + cfg_scale * (output_cond - output_uncond)
-            
-            if cfg_rescale is not None and cfg_rescale != 0.0:
-                output_cond_std = output_cond.std(dim=1, keepdim=True)
-                output_cfg_std = output_cfg.std(dim=1, keepdim=True)
-                return cfg_rescale * (output_cfg * (output_cond_std/output_cfg_std)) + (1-cfg_rescale) * output_cfg
-            else:
-                return output_cfg
-    
     def q_sample(self, x_start:Tensor, t:Tensor, noise=None) -> Tensor:
         '''
         noisy x sample
@@ -188,5 +182,5 @@ class FlowMatching(nn.Module):
     def postprocess(self, x:Tensor, additional_data_dict:dict) -> Tensor:
         return x
     
-    def get_x_shape(self, cond:Optional[dict] = None, additional_data_dict:Optional[dict] = None):
+    def get_x_shape(self, cond:Optional[Union[dict, List[dict]]] = None, additional_data_dict:Optional[dict] = None):
         return None
