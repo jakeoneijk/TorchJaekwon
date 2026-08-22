@@ -76,6 +76,7 @@ class FlowMatching(nn.Module):
         time_sampler_type:Literal['linear', 'linear_quadratic'] = 'linear_quadratic',
         sigma_max:float = 1,
         temperature:float = 1.0,
+        cfg_scale:Optional[Union[float, Sequence[float]]] = None,  # defaults to the ctor value
         cfg_forward:Callable = cfg,           # guidance method, see model/diffusion/cfg.py
     ) -> Tensor:
         _, cond, additional_data_dict = self.preprocess(None, cond)
@@ -94,7 +95,7 @@ class FlowMatching(nn.Module):
             sigma_max = sigma_max, 
             time_sampler_type = time_sampler_type,
             cond = cond, 
-            cfg_scale = self.cfg_scale,
+            cfg_scale = self.cfg_scale if cfg_scale is None else cfg_scale,
             cfg_rescale = self.cfg_rescale,
             cfg_forward = cfg_forward
         )

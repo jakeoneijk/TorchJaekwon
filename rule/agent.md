@@ -69,3 +69,8 @@ writing any code.
 - For a trivial single-file change, just do it; this rule targets multi-file work.
 - Surface the open design decisions alongside the structure (use the question
   tool) so they can be resolved before, not after, implementation.
+
+## Code review
+
+Writing or reviewing code: follow `rule/code_review.md` — it applies always, to my own code as well as
+code I review.
