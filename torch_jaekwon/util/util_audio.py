@@ -78,6 +78,12 @@ def get_torch_resampler(
         resampler = resampler.to(device)
     return resampler
 
+def get_duration(audio_path:str) -> float: # seconds
+    # metadata only: no decode, so this is cheap on long files
+    info = sf.info(audio_path)
+    return info.frames / info.samplerate
+
+
 def read(
     audio_path:str,
     # result parameters
